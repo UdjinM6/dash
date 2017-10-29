@@ -233,7 +233,7 @@ Detailed [change log](https://github.com/dashpay/dash/compare/v0.12.1.x...dashpa
 - [[`91ae0b712`](https://github.com/dashpay/dash/commit/91ae0b712)] Use connman passed to ThreadSendAlert() instead of g_connman global. (#1610)
 - [[`8da26da71`](https://github.com/dashpay/dash/commit/8da26da71)] Eliminate g_connman use in spork module. (#1613)
 - [[`4956ba7a7`](https://github.com/dashpay/dash/commit/4956ba7a7)] Eliminate g_connman use in instantx module. (#1626)
-- [[`10eddb52d`](https://github.com/dashpay/dash/commit/10eddb52d)] Move some (spamy) CMasternodeSync log messages to new `mnsync`](https://github.com/dashpay/dash/commit/)] log category (#1630)
+- [[`10eddb52d`](https://github.com/dashpay/dash/commit/10eddb52d)] Move some (spamy) CMasternodeSync log messages to new `mnsync` log category (#1630)
 - [[`753b1e486`](https://github.com/dashpay/dash/commit/753b1e486)] Eliminate remaining uses of g_connman in Dash-specific code. (#1635)
 - [[`8949f4345`](https://github.com/dashpay/dash/commit/8949f4345)] Wait for full sync in functional tests that use getblocktemplate. (#1642)
 - [[`5f0da8aa7`](https://github.com/dashpay/dash/commit/5f0da8aa7)] fix sync (#1643)
@@ -247,7 +247,7 @@ Detailed [change log](https://github.com/dashpay/dash/compare/v0.12.1.x...dashpa
 - [[`5758ae1bf`](https://github.com/dashpay/dash/commit/5758ae1bf)] Full path in "failed to load cache" warnings (#1411)
 - [[`18c83f58e`](https://github.com/dashpay/dash/commit/18c83f58e)] Qt: bug fixes and enhancement to traffic graph widget  (#1429)
 - [[`72fbfe93d`](https://github.com/dashpay/dash/commit/72fbfe93d)] Icon Cutoff Fix (#1485)
-- [[`4df8a20f9`](https://github.com/dashpay/dash/commit/4df8a20f9)] Fix windows installer script, should handle `dash:`](https://github.com/dashpay/dash/commit/)] uri correctly now (#1550)
+- [[`4df8a20f9`](https://github.com/dashpay/dash/commit/4df8a20f9)] Fix windows installer script, should handle `dash:` uri correctly now (#1550)
 - [[`8b7dffbb6`](https://github.com/dashpay/dash/commit/8b7dffbb6)] Update startup shortcuts (#1551)
 - [[`6ff7b7aa5`](https://github.com/dashpay/dash/commit/6ff7b7aa5)] fix TrafficGraphData bandwidth calculation (#1618)
 - [[`026ad8421`](https://github.com/dashpay/dash/commit/026ad8421)] Fix empty tooltip during sync under specific conditions (#1637)
@@ -272,20 +272,20 @@ Detailed [change log](https://github.com/dashpay/dash/compare/v0.12.1.x...dashpa
 - [[`7efa5e79d`](https://github.com/dashpay/dash/commit/7efa5e79d)] fix fallback fee (#1649)
 
 ### RPC:
-- [[`a0851494d`](https://github.com/dashpay/dash/commit/a0851494d)] add `masternodelist pubkey`](https://github.com/dashpay/dash/commit/)] to rpc (#1549)
+- [[`a0851494d`](https://github.com/dashpay/dash/commit/a0851494d)] add `masternodelist pubkey` to rpc (#1549)
 - [[`825b3ccc9`](https://github.com/dashpay/dash/commit/825b3ccc9)] more "vin" -> "outpoint" in masternode rpc output (#1633)
-- [[`0c1679e58`](https://github.com/dashpay/dash/commit/0c1679e58)] fix `masternode current`](https://github.com/dashpay/dash/commit/)] rpc (#1640)
+- [[`0c1679e58`](https://github.com/dashpay/dash/commit/0c1679e58)] fix `masternode current` rpc (#1640)
 - [[`8c1e5e838`](https://github.com/dashpay/dash/commit/8c1e5e838)] remove send addresses from listreceivedbyaddress output (#1664)
 - [[`c3bc06bbf`](https://github.com/dashpay/dash/commit/c3bc06bbf)] fix Examples section of the RPC output for listreceivedbyaccount, listreceivedbyaccount and sendfrom commands (#1665)
 - [[`ece884994`](https://github.com/dashpay/dash/commit/ece884994)] RPC help formatting updates (#1670)
-- [[`32ad53e77`](https://github.com/dashpay/dash/commit/32ad53e77)] Revert "fix `masternode current`](https://github.com/dashpay/dash/commit/)] rpc (#1640)" (#1681)
+- [[`32ad53e77`](https://github.com/dashpay/dash/commit/32ad53e77)] Revert "fix `masternode current` rpc (#1640)" (#1681)
 
 ### Docs:
 - [[`82a464313`](https://github.com/dashpay/dash/commit/82a464313)] Doc: fix broken formatting in markdown #headers (#1462)
 - [[`ee4daed83`](https://github.com/dashpay/dash/commit/ee4daed83)] Added clarifications in INSTALL readme for newcomers (#1481)
 - [[`5d2795029`](https://github.com/dashpay/dash/commit/5d2795029)] Documentation: Add spork message / details to protocol-documentation.md (#1493)
 - [[`5617aef07`](https://github.com/dashpay/dash/commit/5617aef07)] Documentation: Update undocumented messages in protocol-documentation.md  (#1596)
-- [[`72ef788c5`](https://github.com/dashpay/dash/commit/72ef788c5)] Update `instantsend.md`](https://github.com/dashpay/dash/commit/)] according to PR#1628 changes (#1663)
+- [[`72ef788c5`](https://github.com/dashpay/dash/commit/72ef788c5)] Update `instantsend.md` according to PR#1628 changes (#1663)
 - [[`304b886d0`](https://github.com/dashpay/dash/commit/304b886d0)] Update build-osx.md formatting (#1690)
 
 ### Other (noticeable) refactoring and fixes:
