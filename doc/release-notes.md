@@ -417,6 +417,7 @@ Thanks to everyone who directly contributed to this release:
 - Spencer Lievens
 - thephez
 - UdjinM6
+- Chris Adam
 
 As well as Bitcoin Core Developers and everyone who submitted issues,
 reviewed pull requests or helped translating on
