@@ -3903,7 +3903,6 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     nNextAddrSend = 0;
     fRelayTxes = false;
     fSentAddr = false;
-    timeLastMempoolReq = 0;
     nLastBlockTime = 0;
     nLastTXTime = 0;
     nPingNonceSent = 0;
