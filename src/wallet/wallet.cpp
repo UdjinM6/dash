@@ -3549,6 +3549,18 @@ bool CWallet::CreateTransactionInternal(
     CMutableTransaction txNew;
     FeeCalculation feeCalc;
     CFeeRate discard_rate = coin_control.m_discard_feerate ? *coin_control.m_discard_feerate : GetDiscardRate(*this);
+
+    // Get the fee rate to use effective values in coin selection
+    CFeeRate nFeeRateNeeded = GetMinimumFeeRate(*this, coin_control, &feeCalc);
+    // Do not, ever, assume that it's fine to change the fee rate if the user has explicitly
+    // provided one
+    if (coin_control.m_feerate && nFeeRateNeeded > *coin_control.m_feerate) {
+        error = strprintf(_("Fee rate (%s) is lower than the minimum fee rate setting (%s)"), coin_control.m_feerate->ToString(), nFeeRateNeeded.ToString());
+        // this feature (bitcoin#18275) is uncompatible with our current CoinJoin implementation
+        // TODO: uncomment it when relevant fixes for CJ is done
+        // return false;
+    }
+
     int nBytes{0};
     {
         std::vector<CInputCoin> vecCoins;
