@@ -1263,6 +1263,7 @@ UniValue decodepsbt(const JSONRPCRequest& request)
         const PSBTInput& input = psbtx.inputs[i];
         UniValue in(UniValue::VOBJ);
         // UTXOs
+        bool have_a_utxo = false;
         if (input.non_witness_utxo) {
             UniValue non_wit(UniValue::VOBJ);
             TxToUniv(*input.non_witness_utxo, uint256(), non_wit, false);
@@ -1274,7 +1275,9 @@ UniValue decodepsbt(const JSONRPCRequest& request)
                 // Hack to just not show fee later
                 have_all_utxos = false;
             }
-        } else {
+            have_a_utxo = true;
+        }
+        if (!have_a_utxo) {
             have_all_utxos = false;
         }
 
