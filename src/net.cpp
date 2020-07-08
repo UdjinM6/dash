@@ -1366,12 +1366,9 @@ void CConnman::DisconnectNodes()
             bool fDelete = false;
             if (pnode->GetRefCount() <= 0) {
                 {
-                    TRY_LOCK(pnode->cs_inventory, lockInv);
-                    if (lockInv) {
-                        TRY_LOCK(pnode->cs_vSend, lockSend);
-                        if (lockSend) {
-                            fDelete = true;
-                        }
+                    TRY_LOCK(pnode->cs_vSend, lockSend);
+                    if (lockSend) {
+                        fDelete = true;
                     }
                 }
                 if (fDelete) {

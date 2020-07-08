@@ -1274,7 +1274,7 @@ public:
     // There is no final sorting before sending, as they are always sent immediately
     // and in the order requested.
     std::vector<uint256> vInventoryBlockToSend GUARDED_BY(cs_inventory);
-    RecursiveMutex cs_inventory;
+    Mutex cs_inventory;
     /** UNIX epoch time of the last block received from this peer that we had
      * not yet seen (e.g. not already received from another peer), that passed
      * preliminary validity checks and was saved to disk, even if we don't
@@ -1503,12 +1503,6 @@ public:
             return;
         }
         m_tx_relay->vInventoryOtherToSend.push_back(inv);
-    }
-
-    void PushBlockHash(const uint256 &hash)
-    {
-        LOCK(cs_inventory);
-        vBlockHashesToAnnounce.push_back(hash);
     }
 
     void CloseSocketDisconnect(CConnman* connman);
