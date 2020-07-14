@@ -29,11 +29,8 @@ services:
   - docker
 
 cache:
-  ccache: true
   directories:
     - $BASE_BUILD_DIR/releases/$HOST
-before_cache:
-  - if [ "${TRAVIS_OS_NAME}" = "osx" ]; then brew cleanup; fi
 env:
   global:
     # DOCKER_HUB_USER
@@ -83,7 +80,7 @@ install:
 before_script:
   - set -o errexit; source ./ci/test/05_before_script.sh
 script:
-  - if [ $SECONDS -gt 1200 ]; then set +o errexit; echo "Travis early exit to cache current state"; false; else set -o errexit; source .travis/test_06_script.sh; fi
+  - if [[ $SECONDS -gt 1200 ]]; then set +o errexit; echo "Travis early exit to cache current state"; false; else set -o errexit; source .travis/test_06_script.sh; fi
 after_script:
   - echo $TRAVIS_COMMIT_RANGE
 jobs:
@@ -267,22 +264,12 @@ after_success:
       # Xcode 11.3.1, macOS 10.14, SDK 10.15
       # https://docs.travis-ci.com/user/reference/osx/#macos-version
       osx_image: xcode11.3
-      cache:
-        directories:
-          - $TRAVIS_BUILD_DIR/ci/scratch/.ccache
-          - $TRAVIS_BUILD_DIR/releases/$HOST
-          - $HOME/Library/Caches/Homebrew
-          - /usr/local/Homebrew
       addons:
         homebrew:
           packages:
-          - libtool
           - berkeley-db4
-          - boost
           - miniupnpc
-          - qt
           - qrencode
-          - python3
           - ccache
           - zeromq
       env: >-
