@@ -19,8 +19,8 @@ enum class FeeEstimateMode {
     UNSET,        //!< Use default settings based on other criteria
     ECONOMICAL,   //!< Force estimateSmartFee to use non-conservative estimates
     CONSERVATIVE, //!< Force estimateSmartFee to use conservative estimates
-    DASH_KB,      //!< Use explicit DASH/kB fee given in coin control
-    DUFF_B,       //!< Use explicit duff/B fee given in coin control
+    DASH_KB,      //!< Use DASH/kB fee rate unit
+    DUFF_B,       //!< Use duff/B fee rate unit
 };
 
 /**
@@ -39,7 +39,15 @@ public:
         // We've previously had bugs creep in from silent double->int conversion...
         static_assert(std::is_integral<I>::value, "CFeeRate should be used without floats");
     }
-    /** Constructor for a fee rate in satoshis per kB. The size in bytes must not exceed (2^63 - 1)*/
+    /** Constructor for a fee rate in satoshis per kvB (sat/kvB). The size in bytes must not exceed (2^63 - 1).
+     *
+     *  Passing an num_bytes value of COIN (1e8) returns a fee rate in satoshis per vB (sat/vB),
+     *  e.g. (nFeePaid * 1e8 / 1e3) == (nFeePaid / 1e5),
+     *  where 1e5 is the ratio to convert from BTC/kvB to sat/vB.
+     *
+     *  @param[in] nFeePaid  CAmount fee rate to construct with
+     *  @param[in] num_bytes size_t bytes (units) to construct with
+     */
     CFeeRate(const CAmount& nFeePaid, uint32_t num_bytes);
     /**
      * Return the fee in satoshis for the given size in bytes.
