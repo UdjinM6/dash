@@ -7,6 +7,7 @@
 #include <config/dash-config.h>
 #endif
 
+#include <compat.h>
 #include <util/time.h>
 
 #include <atomic>
@@ -104,4 +105,17 @@ std::string FormatISO8601Time(int64_t nTime) {
     gmtime_r(&time_val, &ts);
 #endif
     return strprintf("%02i:%02i:%02iZ", ts.tm_hour, ts.tm_min, ts.tm_sec);
+}
+
+struct timeval MillisToTimeval(int64_t nTimeout)
+{
+    struct timeval timeout;
+    timeout.tv_sec  = nTimeout / 1000;
+    timeout.tv_usec = (nTimeout % 1000) * 1000;
+    return timeout;
+}
+
+struct timeval MillisToTimeval(std::chrono::milliseconds ms)
+{
+    return MillisToTimeval(count_milliseconds(ms));
 }
