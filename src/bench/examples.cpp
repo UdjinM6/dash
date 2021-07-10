@@ -4,6 +4,18 @@
 
 #include <bench/bench.h>
 #include <validation.h>
+#include <util/time.h>
+
+// Sanity test: this should loop ten times, and
+// min/max/average should be close to 100ms.
+static void Sleep100ms(benchmark::Bench& bench)
+{
+    bench.run([&] {
+        UninterruptibleSleep(std::chrono::milliseconds{100});
+    });
+}
+
+BENCHMARK(Sleep100ms);
 
 // Extremely fast-running benchmark:
 #include <math.h>

@@ -963,7 +963,7 @@ public:
     std::atomic<int64_t> nLastTXTime;
 
     // Last time a "MEMPOOL" request was serviced.
-    std::atomic<int64_t> timeLastMempoolReq;
+    std::atomic<std::chrono::seconds> m_last_mempool_req{std::chrono::seconds{0}};
     // Ping time measurement:
     // The pong reply we're expecting, or 0 if no pong expected.
     std::atomic<uint64_t> nPingNonceSent;

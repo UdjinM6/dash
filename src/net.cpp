@@ -20,6 +20,7 @@
 #include <netbase.h>
 #include <scheduler.h>
 #include <ui_interface.h>
+#include <util/sock.h>
 #include <util/strencodings.h>
 #include <validation.h>
 
@@ -175,11 +176,12 @@ static std::vector<CAddress> convertSeed6(const std::vector<SeedSpec6> &vSeedsIn
     const int64_t nOneWeek = 7*24*60*60;
     std::vector<CAddress> vSeedsOut;
     vSeedsOut.reserve(vSeedsIn.size());
+    FastRandomContext rng;
     for (const auto& seed_in : vSeedsIn) {
         struct in6_addr ip;
         memcpy(&ip, seed_in.addr, sizeof(ip));
         CAddress addr(CService(ip, seed_in.port), GetDesirableServiceFlags(NODE_NONE));
-        addr.nTime = GetTime() - GetRand(nOneWeek) - nOneWeek;
+        addr.nTime = GetTime() - rng.randrange(nOneWeek) - nOneWeek;
         vSeedsOut.push_back(addr);
     }
     return vSeedsOut;
@@ -229,16 +231,16 @@ void AdvertiseLocal(CNode *pnode)
         // If discovery is enabled, sometimes give our peer the address it
         // tells us that it sees us as in case it has a better idea of our
         // address than we do.
+        FastRandomContext rng;
         if (IsPeerAddrLocalGood(pnode) && (!addrLocal.IsRoutable() ||
-             GetRand((GetnScore(addrLocal) > LOCAL_MANUAL) ? 8:2) == 0))
+             rng.randbits((GetnScore(addrLocal) > LOCAL_MANUAL) ? 3 : 1) == 0))
         {
             addrLocal.SetIP(pnode->GetAddrLocal());
         }
         if (addrLocal.IsRoutable() || gArgs.GetBoolArg("-addrmantest", false))
         {
             LogPrint(BCLog::NET, "AdvertiseLocal: advertising address %s\n", addrLocal.ToString());
-            FastRandomContext insecure_rand;
-            pnode->PushAddress(addrLocal, insecure_rand);
+            pnode->PushAddress(addrLocal, rng);
         }
     }
 }
@@ -471,24 +473,25 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
 
     // Connect
     bool connected = false;
-    SOCKET hSocket = INVALID_SOCKET;
+    std::unique_ptr<Sock> sock;
     proxyType proxy;
     if (addrConnect.IsValid()) {
         bool proxyConnectionFailed = false;
 
         if (GetProxy(addrConnect.GetNetwork(), proxy)) {
-            hSocket = CreateSocket(proxy.proxy);
-            if (hSocket == INVALID_SOCKET) {
+            sock = CreateSock(proxy.proxy);
+            if (!sock) {
                 return nullptr;
             }
-            connected = ConnectThroughProxy(proxy, addrConnect.ToStringIP(), addrConnect.GetPort(), hSocket, nConnectTimeout, &proxyConnectionFailed);
+            connected = ConnectThroughProxy(proxy, addrConnect.ToStringIP(), addrConnect.GetPort(),
+                                            *sock, nConnectTimeout, proxyConnectionFailed);
         } else {
             // no proxy needed (none set for target network)
-            hSocket = CreateSocket(addrConnect);
-            if (hSocket == INVALID_SOCKET) {
+            sock = CreateSock(addrConnect);
+            if (!sock) {
                 return nullptr;
             }
-            connected = ConnectSocketDirectly(addrConnect, hSocket, nConnectTimeout, manual_connection);
+            connected = ConnectSocketDirectly(addrConnect, sock->Get(), nConnectTimeout, manual_connection);
         }
         if (!proxyConnectionFailed) {
             // If a connection to the node was attempted, and failure (if any) is not caused by a problem connecting to
@@ -496,25 +499,26 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
             addrman.Attempt(addrConnect, fCountFailure);
         }
     } else if (pszDest && GetNameProxy(proxy)) {
-        hSocket = CreateSocket(proxy.proxy);
-        if (hSocket == INVALID_SOCKET) {
+        sock = CreateSock(proxy.proxy);
+        if (!sock) {
             return nullptr;
         }
         std::string host;
         int port = default_port;
         SplitHostPort(std::string(pszDest), port, host);
-        connected = ConnectThroughProxy(proxy, host, port, hSocket, nConnectTimeout, nullptr);
+        bool proxyConnectionFailed;
+        connected = ConnectThroughProxy(proxy, host, port, *sock, nConnectTimeout,
+                                        proxyConnectionFailed);
     }
     if (!connected) {
-        CloseSocket(hSocket);
         return nullptr;
     }
 
     // Add node
     NodeId id = GetNewNodeId();
     uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
-    CAddress addr_bind = GetBindAddress(hSocket);
-    CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addrConnect, CalculateKeyedNetGroup(addrConnect), nonce, addr_bind, pszDest ? pszDest : "", false);
+    CAddress addr_bind = GetBindAddress(sock->Get());
+    CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), sock->Get(), addrConnect, CalculateKeyedNetGroup(addrConnect), nonce, addr_bind, pszDest ? pszDest : "", false);
     pnode->AddRef();
     statsClient.inc("peers.connect", 1.0f);
 
@@ -2885,9 +2889,8 @@ bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, b
         return false;
     }
 
-    SOCKET hListenSocket = CreateSocket(addrBind);
-    if (hListenSocket == INVALID_SOCKET)
-    {
+    std::unique_ptr<Sock> sock = CreateSock(addrBind);
+    if (!sock) {
         strError = strprintf("Error: Couldn't open socket for incoming connections (socket returned error %s)", NetworkErrorString(WSAGetLastError()));
         LogPrintf("%s\n", strError);
         return false;
@@ -2895,21 +2898,21 @@ bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, b
 
     // Allow binding if the port is still in TIME_WAIT state after
     // the program was closed and restarted.
-    setsockopt(hListenSocket, SOL_SOCKET, SO_REUSEADDR, (sockopt_arg_type)&nOne, sizeof(int));
+    setsockopt(sock->Get(), SOL_SOCKET, SO_REUSEADDR, (sockopt_arg_type)&nOne, sizeof(int));
 
     // some systems don't have IPV6_V6ONLY but are always v6only; others do have the option
     // and enable it by default or not. Try to enable it, if possible.
     if (addrBind.IsIPv6()) {
 #ifdef IPV6_V6ONLY
-        setsockopt(hListenSocket, IPPROTO_IPV6, IPV6_V6ONLY, (sockopt_arg_type)&nOne, sizeof(int));
+        setsockopt(sock->Get(), IPPROTO_IPV6, IPV6_V6ONLY, (sockopt_arg_type)&nOne, sizeof(int));
 #endif
 #ifdef WIN32
         int nProtLevel = PROTECTION_LEVEL_UNRESTRICTED;
-        setsockopt(hListenSocket, IPPROTO_IPV6, IPV6_PROTECTION_LEVEL, (const char*)&nProtLevel, sizeof(int));
+        setsockopt(sock->Get(), IPPROTO_IPV6, IPV6_PROTECTION_LEVEL, (const char*)&nProtLevel, sizeof(int));
 #endif
     }
 
-    if (::bind(hListenSocket, (struct sockaddr*)&sockaddr, len) == SOCKET_ERROR)
+    if (::bind(sock->Get(), (struct sockaddr*)&sockaddr, len) == SOCKET_ERROR)
     {
         int nErr = WSAGetLastError();
         if (nErr == WSAEADDRINUSE)
@@ -2917,28 +2920,25 @@ bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, b
         else
             strError = strprintf(_("Unable to bind to %s on this computer (bind returned error %s)"), addrBind.ToString(), NetworkErrorString(nErr));
         LogPrintf("%s\n", strError);
-        CloseSocket(hListenSocket);
         return false;
     }
     LogPrintf("Bound to %s\n", addrBind.ToString());
 
     // Listen for incoming connections
-    if (listen(hListenSocket, SOMAXCONN) == SOCKET_ERROR)
+    if (listen(sock->Get(), SOMAXCONN) == SOCKET_ERROR)
     {
         strError = strprintf(_("Error: Listening for incoming connections failed (listen returned error %s)"), NetworkErrorString(WSAGetLastError()));
         LogPrintf("%s\n", strError);
-        CloseSocket(hListenSocket);
         return false;
     }
 
 #ifdef USE_KQUEUE
     if (socketEventsMode == SOCKETEVENTS_KQUEUE) {
         struct kevent event;
-        EV_SET(&event, hListenSocket, EVFILT_READ, EV_ADD, 0, 0, nullptr);
+        EV_SET(&event, sock->Get(), EVFILT_READ, EV_ADD, 0, 0, nullptr);
         if (kevent(kqueuefd, &event, 1, nullptr, 0, nullptr) != 0) {
             strError = strprintf(_("Error: failed to add socket to kqueuefd (kevent returned error %s)"), NetworkErrorString(WSAGetLastError()));
             LogPrintf("%s\n", strError);
-            CloseSocket(hListenSocket);
             return false;
         }
     }
@@ -2947,18 +2947,17 @@ bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, b
 #ifdef USE_EPOLL
     if (socketEventsMode == SOCKETEVENTS_EPOLL) {
         epoll_event event;
-        event.data.fd = hListenSocket;
+        event.data.fd = sock->Get();
         event.events = EPOLLIN;
-        if (epoll_ctl(epollfd, EPOLL_CTL_ADD, hListenSocket, &event) != 0) {
+        if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sock->Get(), &event) != 0) {
             strError = strprintf(_("Error: failed to add socket to epollfd (epoll_ctl returned error %s)"), NetworkErrorString(WSAGetLastError()));
             LogPrintf("%s\n", strError);
-            CloseSocket(hListenSocket);
             return false;
         }
     }
 #endif
 
-    vhListenSocket.push_back(ListenSocket(hListenSocket, fWhitelisted));
+    vhListenSocket.push_back(ListenSocket(sock->Release(), fWhitelisted));
 
     if (addrBind.IsRoutable() && fDiscover && !fWhitelisted)
         AddLocal(addrBind, LOCAL_BIND);
@@ -3902,7 +3901,6 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     nNextAddrSend = 0;
     fRelayTxes = false;
     fSentAddr = false;
-    timeLastMempoolReq = 0;
     nLastBlockTime = 0;
     nLastTXTime = 0;
     nPingNonceSent = 0;

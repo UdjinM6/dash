@@ -1036,10 +1036,11 @@ unsigned int LimitOrphanTxSize(unsigned int nMaxOrphansSize)
         nNextSweep = nMinExpTime + ORPHAN_TX_EXPIRE_INTERVAL;
         if (nErased > 0) LogPrint(BCLog::MEMPOOL, "Erased %d orphan tx due to expiration\n", nErased);
     }
+    FastRandomContext rng;
     while (!mapOrphanTransactions.empty() && nMapOrphanTransactionsSize > nMaxOrphansSize)
     {
         // Evict a random orphan:
-        uint256 randomhash = GetRandHash();
+        uint256 randomhash = rng.rand256();
         std::map<uint256, COrphanTx>::iterator it = mapOrphanTransactions.lower_bound(randomhash);
         if (it == mapOrphanTransactions.end())
             it = mapOrphanTransactions.begin();
@@ -1617,11 +1618,11 @@ void static ProcessGetData(CNode* pfrom, const CChainParams& chainparams, CConnm
                         connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::TX, *mi->second));
                     }
                     push = true;
-                } else if (pfrom->timeLastMempoolReq) {
+                } else if (pfrom->m_last_mempool_req.load().count()) {
                     auto txinfo = mempool.info(inv.hash);
                     // To protect privacy, do not answer getdata using the mempool when
                     // that TX couldn't have been INVed in reply to a MEMPOOL request.
-                    if (txinfo.tx && txinfo.nTime <= pfrom->timeLastMempoolReq) {
+                    if (txinfo.tx && txinfo.m_time <= pfrom->m_last_mempool_req.load()) {
                         if (dstx) {
                             connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::DSTX, dstx));
                         } else {
@@ -4305,7 +4306,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                     queueAndMaybePushInv(CInv(MSG_CLSIG, chainlockHash));
                 }
 
-                pto->timeLastMempoolReq = GetTime();
+                pto->m_last_mempool_req = GetTime<std::chrono::seconds>();
             }
 
             // Determine transactions to relay
