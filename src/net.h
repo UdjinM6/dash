@@ -904,11 +904,11 @@ public:
     bool fRelayTxes; //protected by cs_filter
     bool fSentAddr;
     // If 'true' this node will be disconnected on CMasternodeMan::ProcessMasternodeConnections()
-    bool m_masternode_connection;
+    std::atomic<bool> m_masternode_connection;
     // If 'true' this node will be disconnected after MNAUTH
-    bool m_masternode_probe_connection;
+    std::atomic<bool> m_masternode_probe_connection;
     // If 'true', we identified it as an intra-quorum relay connection
-    bool m_masternode_iqr_connection{false};
+    std::atomic<bool> m_masternode_iqr_connection{false};
     CSemaphoreGrant grantOutbound;
     CCriticalSection cs_filter;
     std::unique_ptr<CBloomFilter> pfilter PT_GUARDED_BY(cs_filter){nullptr};

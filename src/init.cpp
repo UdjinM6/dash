@@ -363,9 +363,12 @@ void PrepareShutdown()
         UnregisterValidationInterface(activeMasternodeManager);
     }
 
-    // make sure to clean up BLS keys before global destructors are called (they have allocated from the secure memory pool)
-    activeMasternodeInfo.blsKeyOperator.reset();
-    activeMasternodeInfo.blsPubKeyOperator.reset();
+    {
+        LOCK(activeMasternodeInfoCs);
+        // make sure to clean up BLS keys before global destructors are called (they have allocated from the secure memory pool)
+        activeMasternodeInfo.blsKeyOperator.reset();
+        activeMasternodeInfo.blsPubKeyOperator.reset();
+    }
 
 #ifndef WIN32
     try {
@@ -2316,8 +2319,12 @@ bool AppInitMain()
             return InitError(_("Invalid masternodeblsprivkey. Please see documentation."));
         }
         fMasternodeMode = true;
-        activeMasternodeInfo.blsKeyOperator = std::make_unique<CBLSSecretKey>(keyOperator);
-        activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>(activeMasternodeInfo.blsKeyOperator->GetPublicKey());
+        {
+            LOCK(activeMasternodeInfoCs);
+            activeMasternodeInfo.blsKeyOperator = std::make_unique<CBLSSecretKey>(keyOperator);
+            activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>(
+                    activeMasternodeInfo.blsKeyOperator->GetPublicKey());
+        }
         LogPrintf("MASTERNODE:\n");
         LogPrintf("  blsPubKeyOperator: %s\n", keyOperator.GetPublicKey().ToString());
     }
@@ -2328,11 +2335,14 @@ bool AppInitMain()
         RegisterValidationInterface(activeMasternodeManager);
     }
 
-    if (activeMasternodeInfo.blsKeyOperator == nullptr) {
-        activeMasternodeInfo.blsKeyOperator = std::make_unique<CBLSSecretKey>();
-    }
-    if (activeMasternodeInfo.blsPubKeyOperator == nullptr) {
-        activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>();
+    {
+        LOCK(activeMasternodeInfoCs);
+        if (activeMasternodeInfo.blsKeyOperator == nullptr) {
+            activeMasternodeInfo.blsKeyOperator = std::make_unique<CBLSSecretKey>();
+        }
+        if (activeMasternodeInfo.blsPubKeyOperator == nullptr) {
+            activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>();
+        }
     }
 
     // ********************************************************* Step 10b: setup CoinJoin

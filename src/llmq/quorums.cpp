@@ -61,7 +61,10 @@ void CQuorum::Init(const CFinalCommitmentPtr& _qc, const CBlockIndex* _pindexQuo
 
 bool CQuorum::SetVerificationVector(const BLSVerificationVector& quorumVecIn)
 {
-    if (::SerializeHash(quorumVecIn) != qc->quorumVvecHash) {
+    const auto quorumVecInSerialized = ::SerializeHash(quorumVecIn);
+
+    LOCK(quorumVvecCs);
+    if (quorumVecInSerialized != qc->quorumVvecHash) {
         return false;
     }
     quorumVvec = std::make_shared<BLSVerificationVector>(quorumVecIn);
@@ -70,7 +73,7 @@ bool CQuorum::SetVerificationVector(const BLSVerificationVector& quorumVecIn)
 
 bool CQuorum::SetSecretKeyShare(const CBLSSecretKey& secretKeyShare)
 {
-    if (!secretKeyShare.IsValid() || (secretKeyShare.GetPublicKey() != GetPubKeyShare(GetMemberIndex(activeMasternodeInfo.proTxHash)))) {
+    if (!secretKeyShare.IsValid() || (secretKeyShare.GetPublicKey() != GetPubKeyShare(WITH_LOCK(activeMasternodeInfoCs, return GetMemberIndex(activeMasternodeInfo.proTxHash))))) {
         return false;
     }
     skShare = secretKeyShare;
@@ -99,6 +102,7 @@ bool CQuorum::IsValidMember(const uint256& proTxHash) const
 
 CBLSPublicKey CQuorum::GetPubKeyShare(size_t memberIdx) const
 {
+    LOCK(quorumVvecCs);
     if (quorumVvec == nullptr || memberIdx >= members.size() || !qc->validMembers[memberIdx]) {
         return CBLSPublicKey();
     }
@@ -125,8 +129,11 @@ void CQuorum::WriteContributions(CEvoDB& evoDb) const
 {
     uint256 dbKey = MakeQuorumKey(*this);
 
-    if (quorumVvec != nullptr) {
-        evoDb.GetRawDB().Write(std::make_pair(DB_QUORUM_QUORUM_VVEC, dbKey), *quorumVvec);
+    {
+        LOCK(quorumVvecCs);
+        if (quorumVvec != nullptr) {
+            evoDb.GetRawDB().Write(std::make_pair(DB_QUORUM_QUORUM_VVEC, dbKey), *quorumVvec);
+        }
     }
     if (skShare.IsValid()) {
         evoDb.GetRawDB().Write(std::make_pair(DB_QUORUM_SK_SHARE, dbKey), skShare);
@@ -139,7 +146,7 @@ bool CQuorum::ReadContributions(CEvoDB& evoDb)
 
     BLSVerificationVector qv;
     if (evoDb.Read(std::make_pair(DB_QUORUM_QUORUM_VVEC, dbKey), qv)) {
-        quorumVvec = std::make_shared<BLSVerificationVector>(std::move(qv));
+        WITH_LOCK(quorumVvecCs, quorumVvec = std::make_shared<BLSVerificationVector>(std::move(qv)));
     } else {
         return false;
     }
@@ -197,10 +204,14 @@ void CQuorumManager::TriggerQuorumDataRecoveryThreads(const CBlockIndex* pIndex)
 
         // First check if we are member of any quorum of this type
         bool fWeAreQuorumTypeMember{false};
-        for (const auto& pQuorum : vecQuorums) {
-            if (pQuorum->IsValidMember(activeMasternodeInfo.proTxHash)) {
-                fWeAreQuorumTypeMember = true;
-                break;
+
+        {
+            LOCK(activeMasternodeInfoCs);
+            for (const auto &pQuorum : vecQuorums) {
+                if (pQuorum->IsValidMember(activeMasternodeInfo.proTxHash)) {
+                    fWeAreQuorumTypeMember = true;
+                    break;
+                }
             }
         }
 
@@ -211,12 +222,12 @@ void CQuorumManager::TriggerQuorumDataRecoveryThreads(const CBlockIndex* pIndex)
             }
 
             uint16_t nDataMask{0};
-            const bool fWeAreQuorumMember = pQuorum->IsValidMember(activeMasternodeInfo.proTxHash);
+            const bool fWeAreQuorumMember = WITH_LOCK(activeMasternodeInfoCs, return pQuorum->IsValidMember(activeMasternodeInfo.proTxHash));
             const bool fSyncForTypeEnabled = mapQuorumVvecSync.count(pQuorum->qc->llmqType) > 0;
             const QvvecSyncMode syncMode = fSyncForTypeEnabled ? mapQuorumVvecSync.at(pQuorum->qc->llmqType) : QvvecSyncMode::Invalid;
             const bool fSyncCurrent = syncMode == QvvecSyncMode::Always || (syncMode == QvvecSyncMode::OnlyIfTypeMember && fWeAreQuorumTypeMember);
 
-            if ((fWeAreQuorumMember || (fSyncForTypeEnabled && fSyncCurrent)) && pQuorum->quorumVvec == nullptr) {
+            if ((fWeAreQuorumMember || (fSyncForTypeEnabled && fSyncCurrent)) && WITH_LOCK(pQuorum->quorumVvecCs, return pQuorum->quorumVvec == nullptr)) {
                 nDataMask |= llmq::CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR;
             }
 
@@ -266,7 +277,6 @@ void CQuorumManager::EnsureQuorumConnections(Consensus::LLMQType llmqType, const
 {
     const auto& params = Params().GetConsensus().llmqs.at(llmqType);
 
-    const auto& myProTxHash = activeMasternodeInfo.proTxHash;
     auto lastQuorums = ScanQuorums(llmqType, pindexNew, (size_t)params.keepOldConnections);
 
     auto connmanQuorumsToDelete = g_connman->GetMasternodeQuorums(llmqType);
@@ -277,7 +287,7 @@ void CQuorumManager::EnsureQuorumConnections(Consensus::LLMQType llmqType, const
     connmanQuorumsToDelete.erase(curDkgBlock);
 
     for (const auto& quorum : lastQuorums) {
-        if (CLLMQUtils::EnsureQuorumConnections(llmqType, quorum->pindexQuorum, myProTxHash)) {
+        if (CLLMQUtils::EnsureQuorumConnections(llmqType, quorum->pindexQuorum, WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash))) {
             continue;
         }
         if (connmanQuorumsToDelete.count(quorum->qc->quorumHash) > 0) {
@@ -517,10 +527,13 @@ size_t CQuorumManager::GetQuorumRecoveryStartOffset(const CQuorumCPtr pQuorum, c
     });
     std::sort(vecProTxHashes.begin(), vecProTxHashes.end());
     size_t nIndex{0};
-    for (size_t i = 0; i < vecProTxHashes.size(); ++i) {
-        if (activeMasternodeInfo.proTxHash == vecProTxHashes[i]) {
-            nIndex = i;
-            break;
+    {
+        LOCK(activeMasternodeInfoCs);
+        for (size_t i = 0; i < vecProTxHashes.size(); ++i) {
+            if (activeMasternodeInfo.proTxHash == vecProTxHashes[i]) {
+                nIndex = i;
+                break;
+            }
         }
     }
     return nIndex % pQuorum->qc->validMembers.size();
@@ -699,7 +712,7 @@ void CQuorumManager::ProcessMessage(CNode* pFrom, const std::string& strCommand,
             BLSSecretKeyVector vecSecretKeys;
             vecSecretKeys.resize(vecEncrypted.size());
             for (size_t i = 0; i < vecEncrypted.size(); ++i) {
-                if (!vecEncrypted[i].Decrypt(memberIdx, *activeMasternodeInfo.blsKeyOperator, vecSecretKeys[i], PROTOCOL_VERSION)) {
+                if (!WITH_LOCK(activeMasternodeInfoCs, return vecEncrypted[i].Decrypt(memberIdx, *activeMasternodeInfo.blsKeyOperator, vecSecretKeys[i], PROTOCOL_VERSION))) {
                     errorHandler("Failed to decrypt");
                     return;
                 }
@@ -771,7 +784,7 @@ void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, co
 
         vecMemberHashes.reserve(pQuorum->qc->validMembers.size());
         for (auto& member : pQuorum->members) {
-            if (pQuorum->IsValidMember(member->proTxHash) && member->proTxHash != activeMasternodeInfo.proTxHash) {
+            if (pQuorum->IsValidMember(member->proTxHash) && member->proTxHash != WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash)) {
                 vecMemberHashes.push_back(member->proTxHash);
             }
         }
@@ -781,7 +794,8 @@ void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, co
 
         while (nDataMask > 0 && !quorumThreadInterrupt) {
 
-            if (nDataMask & llmq::CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR && pQuorum->quorumVvec != nullptr) {
+            if (nDataMask & llmq::CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR &&
+                WITH_LOCK(pQuorum->quorumVvecCs, return pQuorum->quorumVvec != nullptr)) {
                 nDataMask &= ~llmq::CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR;
                 printLog("Received quorumVvec");
             }
@@ -824,7 +838,7 @@ void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, co
                     return;
                 }
 
-                if (quorumManager->RequestQuorumData(pNode, pQuorum->qc->llmqType, pQuorum->pindexQuorum, nDataMask, activeMasternodeInfo.proTxHash)) {
+                if (WITH_LOCK(activeMasternodeInfoCs, return quorumManager->RequestQuorumData(pNode, pQuorum->qc->llmqType, pQuorum->pindexQuorum, nDataMask, activeMasternodeInfo.proTxHash))) {
                     nTimeLastSuccess = GetAdjustedTime();
                     printLog("Requested");
                 } else {

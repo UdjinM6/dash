@@ -158,7 +158,8 @@ public:
     std::vector<CDeterministicMNCPtr> members;
 
     // These are only valid when we either participated in the DKG or fully watched it
-    BLSVerificationVectorPtr quorumVvec;
+    mutable CCriticalSection quorumVvecCs;
+    BLSVerificationVectorPtr quorumVvec GUARDED_BY(quorumVvecCs);
     CBLSSecretKey skShare;
 
 private:
