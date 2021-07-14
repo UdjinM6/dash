@@ -377,7 +377,7 @@ bool CSigSharesManager::ProcessMessageSigSharesInv(CNode* pfrom, const CSigShare
     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- signHash=%s, inv={%s}, node=%d\n", __func__,
             sessionInfo.signHash.ToString(), inv.ToString(), pfrom->GetId());
 
-    if (sessionInfo.quorum->quorumVvec == nullptr) {
+    if (!sessionInfo.quorum->HasVerificationVector()) {
         // TODO we should allow to ask other nodes for the quorum vvec if we missed it in the DKG
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- we don't have the quorum vvec for %s, not requesting sig shares. node=%d\n", __func__,
                   sessionInfo.quorumHash.ToString(), pfrom->GetId());
@@ -494,7 +494,7 @@ void CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
         // we're not a member so we can't verify it (we actually shouldn't have received it)
         return;
     }
-    if (quorum->quorumVvec == nullptr) {
+    if (!quorum->HasVerificationVector()) {
         // TODO we should allow to ask other nodes for the quorum vvec if we missed it in the DKG
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- we don't have the quorum vvec for %s, no verification possible. node=%d\n", __func__,
                  quorum->qc->quorumHash.ToString(), fromId);
@@ -543,7 +543,7 @@ bool CSigSharesManager::PreVerifyBatchedSigShares(const CSigSharesNodeState::Ses
         // we're not a member so we can't verify it (we actually shouldn't have received it)
         return false;
     }
-    if (session.quorum->quorumVvec == nullptr) {
+    if (!session.quorum->HasVerificationVector()) {
         // TODO we should allow to ask other nodes for the quorum vvec if we missed it in the DKG
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- we don't have the quorum vvec for %s, no verification possible.\n", __func__,
                   session.quorumHash.ToString());

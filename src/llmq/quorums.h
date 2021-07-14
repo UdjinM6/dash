@@ -157,9 +157,7 @@ public:
     uint256 minedBlockHash;
     std::vector<CDeterministicMNCPtr> members;
 
-    // These are only valid when we either participated in the DKG or fully watched it
-    mutable CCriticalSection quorumVvecCs;
-    BLSVerificationVectorPtr quorumVvec GUARDED_BY(quorumVvecCs);
+    // Only valid when we either participated in the DKG or fully watched it
     CBLSSecretKey skShare;
 
 private:
@@ -167,6 +165,10 @@ private:
     // the public key shares are ready when needed later
     mutable CBLSWorkerCache blsCache;
     mutable std::atomic<bool> fQuorumDataRecoveryThreadRunning{false};
+
+    mutable CCriticalSection quorumVvecCs;
+    // Only valid when we either participated in the DKG or fully watched it
+    BLSVerificationVectorPtr quorumVvec GUARDED_BY(quorumVvecCs);
 
 public:
     CQuorum(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker);
@@ -176,6 +178,7 @@ public:
     bool SetVerificationVector(const BLSVerificationVector& quorumVecIn);
     bool SetSecretKeyShare(const CBLSSecretKey& secretKeyShare);
 
+    bool HasVerificationVector() const;
     bool IsMember(const uint256& proTxHash) const;
     bool IsValidMember(const uint256& proTxHash) const;
     int GetMemberIndex(const uint256& proTxHash) const;

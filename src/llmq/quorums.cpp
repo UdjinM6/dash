@@ -110,6 +110,12 @@ CBLSPublicKey CQuorum::GetPubKeyShare(size_t memberIdx) const
     return blsCache.BuildPubKeyShare(m->proTxHash, quorumVvec, CBLSId(m->proTxHash));
 }
 
+bool CQuorum::HasVerificationVector() const
+{
+    LOCK(quorumVvecCs);
+    return quorumVvec != nullptr;
+}
+
 const CBLSSecretKey& CQuorum::GetSkShare() const
 {
     return skShare;
@@ -225,7 +231,7 @@ void CQuorumManager::TriggerQuorumDataRecoveryThreads(const CBlockIndex* pIndex)
             const QvvecSyncMode syncMode = fSyncForTypeEnabled ? mapQuorumVvecSync.at(pQuorum->qc->llmqType) : QvvecSyncMode::Invalid;
             const bool fSyncCurrent = syncMode == QvvecSyncMode::Always || (syncMode == QvvecSyncMode::OnlyIfTypeMember && fWeAreQuorumTypeMember);
 
-            if ((fWeAreQuorumMember || (fSyncForTypeEnabled && fSyncCurrent)) && WITH_LOCK(pQuorum->quorumVvecCs, return pQuorum->quorumVvec == nullptr)) {
+            if ((fWeAreQuorumMember || (fSyncForTypeEnabled && fSyncCurrent)) && !pQuorum->HasVerificationVector()) {
                 nDataMask |= llmq::CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR;
             }
 
@@ -347,6 +353,7 @@ bool CQuorumManager::BuildQuorumContributions(const CFinalCommitmentPtr& fqc, co
     }
 
     cxxtimer::Timer t2(true);
+    LOCK(quorum->quorumVvecCs);
     quorum->quorumVvec = blsWorker.BuildQuorumVerificationVector(vvecs);
     if (quorum->quorumVvec == nullptr) {
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- failed to build quorumVvec\n", __func__);
@@ -730,7 +737,7 @@ void CQuorumManager::ProcessMessage(CNode* pFrom, const std::string& strCommand,
 
 void CQuorumManager::StartCachePopulatorThread(const CQuorumCPtr pQuorum) const
 {
-    if (pQuorum->quorumVvec == nullptr) {
+    if (!pQuorum->HasVerificationVector()) {
         return;
     }
 
@@ -793,8 +800,7 @@ void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, co
 
         while (nDataMask > 0 && !quorumThreadInterrupt) {
 
-            if (nDataMask & llmq::CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR &&
-                WITH_LOCK(pQuorum->quorumVvecCs, return pQuorum->quorumVvec != nullptr)) {
+            if (nDataMask & llmq::CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR && pQuorum->HasVerificationVector()) {
                 nDataMask &= ~llmq::CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR;
                 printLog("Received quorumVvec");
             }
