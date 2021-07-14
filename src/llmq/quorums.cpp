@@ -63,7 +63,7 @@ bool CQuorum::SetVerificationVector(const BLSVerificationVector& quorumVecIn)
 {
     const auto quorumVecInSerialized = ::SerializeHash(quorumVecIn);
 
-    LOCK(quorumVvecCs);
+    LOCK(cs);
     if (quorumVecInSerialized != qc->quorumVvecHash) {
         return false;
     }
@@ -76,6 +76,7 @@ bool CQuorum::SetSecretKeyShare(const CBLSSecretKey& secretKeyShare)
     if (!secretKeyShare.IsValid() || (secretKeyShare.GetPublicKey() != GetPubKeyShare(GetMemberIndex(WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash))))) {
         return false;
     }
+    LOCK(cs);
     skShare = secretKeyShare;
     return true;
 }
@@ -102,7 +103,7 @@ bool CQuorum::IsValidMember(const uint256& proTxHash) const
 
 CBLSPublicKey CQuorum::GetPubKeyShare(size_t memberIdx) const
 {
-    LOCK(quorumVvecCs);
+    LOCK(cs);
     if (quorumVvec == nullptr || memberIdx >= members.size() || !qc->validMembers[memberIdx]) {
         return CBLSPublicKey();
     }
@@ -112,12 +113,13 @@ CBLSPublicKey CQuorum::GetPubKeyShare(size_t memberIdx) const
 
 bool CQuorum::HasVerificationVector() const
 {
-    LOCK(quorumVvecCs);
+    LOCK(cs);
     return quorumVvec != nullptr;
 }
 
-const CBLSSecretKey& CQuorum::GetSkShare() const
+CBLSSecretKey CQuorum::GetSkShare() const
 {
+    LOCK(cs);
     return skShare;
 }
 
@@ -135,11 +137,9 @@ void CQuorum::WriteContributions(CEvoDB& evoDb) const
 {
     uint256 dbKey = MakeQuorumKey(*this);
 
-    {
-        LOCK(quorumVvecCs);
-        if (quorumVvec != nullptr) {
-            evoDb.GetRawDB().Write(std::make_pair(DB_QUORUM_QUORUM_VVEC, dbKey), *quorumVvec);
-        }
+    LOCK(cs);
+    if (quorumVvec != nullptr) {
+        evoDb.GetRawDB().Write(std::make_pair(DB_QUORUM_QUORUM_VVEC, dbKey), *quorumVvec);
     }
     if (skShare.IsValid()) {
         evoDb.GetRawDB().Write(std::make_pair(DB_QUORUM_SK_SHARE, dbKey), skShare);
@@ -152,13 +152,14 @@ bool CQuorum::ReadContributions(CEvoDB& evoDb)
 
     BLSVerificationVector qv;
     if (evoDb.Read(std::make_pair(DB_QUORUM_QUORUM_VVEC, dbKey), qv)) {
-        WITH_LOCK(quorumVvecCs, quorumVvec = std::make_shared<BLSVerificationVector>(std::move(qv)));
+        WITH_LOCK(cs, quorumVvec = std::make_shared<BLSVerificationVector>(std::move(qv)));
     } else {
         return false;
     }
 
     // We ignore the return value here as it is ok if this fails. If it fails, it usually means that we are not a
     // member of the quorum but observed the whole DKG process to have the quorum verification vector.
+    LOCK(cs);
     evoDb.Read(std::make_pair(DB_QUORUM_SK_SHARE, dbKey), skShare);
 
     return true;
@@ -235,7 +236,7 @@ void CQuorumManager::TriggerQuorumDataRecoveryThreads(const CBlockIndex* pIndex)
                 nDataMask |= llmq::CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR;
             }
 
-            if (fWeAreQuorumMember && !pQuorum->skShare.IsValid()) {
+            if (fWeAreQuorumMember && !pQuorum->GetSkShare().IsValid()) {
                 nDataMask |= llmq::CQuorumDataRequest::ENCRYPTED_CONTRIBUTIONS;
             }
 
@@ -353,7 +354,7 @@ bool CQuorumManager::BuildQuorumContributions(const CFinalCommitmentPtr& fqc, co
     }
 
     cxxtimer::Timer t2(true);
-    LOCK(quorum->quorumVvecCs);
+    LOCK(quorum->cs);
     quorum->quorumVvec = blsWorker.BuildQuorumVerificationVector(vvecs);
     if (quorum->quorumVvec == nullptr) {
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- failed to build quorumVvec\n", __func__);
@@ -805,7 +806,7 @@ void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, co
                 printLog("Received quorumVvec");
             }
 
-            if (nDataMask & llmq::CQuorumDataRequest::ENCRYPTED_CONTRIBUTIONS && pQuorum->skShare.IsValid()) {
+            if (nDataMask & llmq::CQuorumDataRequest::ENCRYPTED_CONTRIBUTIONS && pQuorum->GetSkShare().IsValid()) {
                 nDataMask &= ~llmq::CQuorumDataRequest::ENCRYPTED_CONTRIBUTIONS;
                 printLog("Received skShare");
             }

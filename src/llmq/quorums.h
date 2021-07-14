@@ -157,18 +157,16 @@ public:
     uint256 minedBlockHash;
     std::vector<CDeterministicMNCPtr> members;
 
-    // Only valid when we either participated in the DKG or fully watched it
-    CBLSSecretKey skShare;
-
 private:
     // Recovery of public key shares is very slow, so we start a background thread that pre-populates a cache so that
     // the public key shares are ready when needed later
     mutable CBLSWorkerCache blsCache;
     mutable std::atomic<bool> fQuorumDataRecoveryThreadRunning{false};
 
-    mutable CCriticalSection quorumVvecCs;
-    // Only valid when we either participated in the DKG or fully watched it
-    BLSVerificationVectorPtr quorumVvec GUARDED_BY(quorumVvecCs);
+    mutable CCriticalSection cs;
+    // These are only valid when we either participated in the DKG or fully watched it
+    BLSVerificationVectorPtr quorumVvec GUARDED_BY(cs);
+    CBLSSecretKey skShare GUARDED_BY(cs);;
 
 public:
     CQuorum(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker);
@@ -184,7 +182,7 @@ public:
     int GetMemberIndex(const uint256& proTxHash) const;
 
     CBLSPublicKey GetPubKeyShare(size_t memberIdx) const;
-    const CBLSSecretKey& GetSkShare() const;
+    CBLSSecretKey GetSkShare() const;
 
 private:
     void WriteContributions(CEvoDB& evoDb) const;
