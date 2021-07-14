@@ -310,7 +310,7 @@ static UniValue gobject_submit(const JSONRPCRequest& request)
     }
 
     auto mnList = deterministicMNManager->GetListAtChainTip();
-    bool fMnFound = WITH_LOCK(activeMasternodeInfoCs, return mnList.HasValidMNByCollateral(activeMasternodeInfo.outpoint));
+    bool fMnFound = mnList.HasValidMNByCollateral(WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.outpoint));
 
     LogPrint(BCLog::GOBJECT, "gobject_submit -- pubKeyOperator = %s, outpoint = %s, params.size() = %lld, fMnFound = %d\n",
             (activeMasternodeInfo.blsPubKeyOperator ? activeMasternodeInfo.blsPubKeyOperator->ToString() : "N/A"),
@@ -451,7 +451,7 @@ static UniValue gobject_vote_conf(const JSONRPCRequest& request)
     UniValue statusObj(UniValue::VOBJ);
     UniValue returnObj(UniValue::VOBJ);
 
-    auto dmn = WITH_LOCK(activeMasternodeInfoCs, return deterministicMNManager->GetListAtChainTip().GetValidMNByCollateral(activeMasternodeInfo.outpoint));
+    auto dmn = deterministicMNManager->GetListAtChainTip().GetValidMNByCollateral(WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.outpoint));
 
     if (!dmn) {
         nFailed++;

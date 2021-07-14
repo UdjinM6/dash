@@ -73,7 +73,7 @@ bool CQuorum::SetVerificationVector(const BLSVerificationVector& quorumVecIn)
 
 bool CQuorum::SetSecretKeyShare(const CBLSSecretKey& secretKeyShare)
 {
-    if (!secretKeyShare.IsValid() || (secretKeyShare.GetPublicKey() != GetPubKeyShare(WITH_LOCK(activeMasternodeInfoCs, return GetMemberIndex(activeMasternodeInfo.proTxHash))))) {
+    if (!secretKeyShare.IsValid() || (secretKeyShare.GetPublicKey() != GetPubKeyShare(GetMemberIndex(WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash))))) {
         return false;
     }
     skShare = secretKeyShare;
@@ -205,13 +205,11 @@ void CQuorumManager::TriggerQuorumDataRecoveryThreads(const CBlockIndex* pIndex)
         // First check if we are member of any quorum of this type
         bool fWeAreQuorumTypeMember{false};
 
-        {
-            LOCK(activeMasternodeInfoCs);
-            for (const auto &pQuorum : vecQuorums) {
-                if (pQuorum->IsValidMember(activeMasternodeInfo.proTxHash)) {
-                    fWeAreQuorumTypeMember = true;
-                    break;
-                }
+        uint256 proTxHash = WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash);
+        for (const auto &pQuorum : vecQuorums) {
+            if (pQuorum->IsValidMember(proTxHash)) {
+                fWeAreQuorumTypeMember = true;
+                break;
             }
         }
 
@@ -222,7 +220,7 @@ void CQuorumManager::TriggerQuorumDataRecoveryThreads(const CBlockIndex* pIndex)
             }
 
             uint16_t nDataMask{0};
-            const bool fWeAreQuorumMember = WITH_LOCK(activeMasternodeInfoCs, return pQuorum->IsValidMember(activeMasternodeInfo.proTxHash));
+            const bool fWeAreQuorumMember = pQuorum->IsValidMember(proTxHash);
             const bool fSyncForTypeEnabled = mapQuorumVvecSync.count(pQuorum->qc->llmqType) > 0;
             const QvvecSyncMode syncMode = fSyncForTypeEnabled ? mapQuorumVvecSync.at(pQuorum->qc->llmqType) : QvvecSyncMode::Invalid;
             const bool fSyncCurrent = syncMode == QvvecSyncMode::Always || (syncMode == QvvecSyncMode::OnlyIfTypeMember && fWeAreQuorumTypeMember);
@@ -711,8 +709,9 @@ void CQuorumManager::ProcessMessage(CNode* pFrom, const std::string& strCommand,
 
             BLSSecretKeyVector vecSecretKeys;
             vecSecretKeys.resize(vecEncrypted.size());
+            CBLSSecretKey secret = WITH_LOCK(activeMasternodeInfoCs, return *activeMasternodeInfo.blsKeyOperator);
             for (size_t i = 0; i < vecEncrypted.size(); ++i) {
-                if (!WITH_LOCK(activeMasternodeInfoCs, return vecEncrypted[i].Decrypt(memberIdx, *activeMasternodeInfo.blsKeyOperator, vecSecretKeys[i], PROTOCOL_VERSION))) {
+                if (!vecEncrypted[i].Decrypt(memberIdx, secret, vecSecretKeys[i], PROTOCOL_VERSION)) {
                     errorHandler("Failed to decrypt");
                     return;
                 }
@@ -832,13 +831,14 @@ void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, co
                 printLog("Connect");
             }
 
+            uint256 proTxHash = WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash);
             g_connman->ForEachNode([&](CNode* pNode) {
 
                 if (pCurrentMemberHash == nullptr || pNode->verifiedProRegTxHash != *pCurrentMemberHash) {
                     return;
                 }
 
-                if (WITH_LOCK(activeMasternodeInfoCs, return quorumManager->RequestQuorumData(pNode, pQuorum->qc->llmqType, pQuorum->pindexQuorum, nDataMask, activeMasternodeInfo.proTxHash))) {
+                if (quorumManager->RequestQuorumData(pNode, pQuorum->qc->llmqType, pQuorum->pindexQuorum, nDataMask, proTxHash)) {
                     nTimeLastSuccess = GetAdjustedTime();
                     printLog("Requested");
                 } else {

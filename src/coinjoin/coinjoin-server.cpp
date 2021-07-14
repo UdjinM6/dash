@@ -56,7 +56,7 @@ void CCoinJoinServer::ProcessMessage(CNode* pfrom, const std::string& strCommand
         LogPrint(BCLog::COINJOIN, "DSACCEPT -- nDenom %d (%s)  txCollateral %s", dsa.nDenom, CCoinJoin::DenominationToString(dsa.nDenom), dsa.txCollateral.ToString()); /* Continued */
 
         auto mnList = deterministicMNManager->GetListAtChainTip();
-        auto dmn = WITH_LOCK(activeMasternodeInfoCs, return mnList.GetValidMNByCollateral(activeMasternodeInfo.outpoint));
+        auto dmn = mnList.GetValidMNByCollateral(WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.outpoint));
         if (!dmn) {
             PushStatus(pfrom, STATUS_REJECTED, ERR_MN_LIST, connman);
             return;

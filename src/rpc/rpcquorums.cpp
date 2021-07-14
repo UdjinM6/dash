@@ -191,6 +191,8 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
     }
     int tipHeight = pindexTip->nHeight;
 
+    uint256 proTxHash = WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash);
+
     UniValue minableCommitments(UniValue::VOBJ);
     UniValue quorumConnections(UniValue::VOBJ);
     for (const auto& type : llmq::CLLMQUtils::GetEnabledQuorumTypes(pindexTip)) {
@@ -202,8 +204,8 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
                 LOCK(cs_main);
                 pindexQuorum = chainActive[tipHeight - (tipHeight % params.dkgInterval)];
             }
-            auto allConnections = WITH_LOCK(activeMasternodeInfoCs, return llmq::CLLMQUtils::GetQuorumConnections(params.type, pindexQuorum, activeMasternodeInfo.proTxHash, false));
-            auto outboundConnections = WITH_LOCK(activeMasternodeInfoCs, return llmq::CLLMQUtils::GetQuorumConnections(params.type, pindexQuorum, activeMasternodeInfo.proTxHash, true));
+            auto allConnections = llmq::CLLMQUtils::GetQuorumConnections(params.type, pindexQuorum, proTxHash, false);
+            auto outboundConnections = llmq::CLLMQUtils::GetQuorumConnections(params.type, pindexQuorum, proTxHash, true);
             std::map<uint256, CAddress> foundConnections;
             g_connman->ForEachNode([&](const CNode* pnode) {
                 if (!pnode->verifiedProRegTxHash.IsNull() && allConnections.count(pnode->verifiedProRegTxHash)) {
