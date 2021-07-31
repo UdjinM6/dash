@@ -52,7 +52,6 @@ from test_framework.script import (
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
-    hex_str_to_bytes,
     softfork_active,
 )
 
@@ -86,7 +85,7 @@ def sign_transaction(node, unsignedtx):
     rawtx = unsignedtx.serialize().hex()
     signresult = node.signrawtransactionwithwallet(rawtx)
     tx = CTransaction()
-    f = BytesIO(hex_str_to_bytes(signresult['hex']))
+    f = BytesIO(bytes.fromhex(signresult['hex']))
     tx.deserialize(f)
     return tx
 
