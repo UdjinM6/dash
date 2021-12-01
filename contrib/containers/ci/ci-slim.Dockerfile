@@ -86,7 +86,7 @@ RUN set -ex; \
     cd dash_hash && pip3 install -r requirements.txt .; \
     cd .. && rm -rf dash_hash
 
-ARG SHELLCHECK_VERSION=v0.7.1
+ARG SHELLCHECK_VERSION=v0.8.0
 RUN set -ex; \
     curl -fL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" -o /tmp/shellcheck.tar.xz; \
     mkdir -p /opt/shellcheck && tar -xf /tmp/shellcheck.tar.xz -C /opt/shellcheck --strip-components=1 && rm /tmp/shellcheck.tar.xz
