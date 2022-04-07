@@ -69,12 +69,12 @@ RUN set -ex; \
 # Install Python packages
 RUN set -ex; \
     pip3 install --no-cache-dir \
-    codespell==1.17.1 \
-    flake8==3.8.3 \
+    codespell==2.1.0 \
+    flake8==4.0.1 \
     jinja2 \
     lief==0.13.2 \
     multiprocess \
-    mypy==0.910 \
+    mypy==0.942 \
     pyzmq==22.3.0 \
     vulture==2.3
 
