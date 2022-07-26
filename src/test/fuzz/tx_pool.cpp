@@ -71,21 +71,6 @@ struct TransactionsDelta final : public CValidationInterface {
     }
 };
 
-void SetMempoolConstraints(ArgsManager& args, FuzzedDataProvider& fuzzed_data_provider)
-{
-    args.ForceSetArg("-limitancestorcount",
-                     ToString(fuzzed_data_provider.ConsumeIntegralInRange<unsigned>(0, 50)));
-    args.ForceSetArg("-limitancestorsize",
-                     ToString(fuzzed_data_provider.ConsumeIntegralInRange<unsigned>(0, 202)));
-    args.ForceSetArg("-limitdescendantcount",
-                     ToString(fuzzed_data_provider.ConsumeIntegralInRange<unsigned>(0, 50)));
-    args.ForceSetArg("-limitdescendantsize",
-                     ToString(fuzzed_data_provider.ConsumeIntegralInRange<unsigned>(0, 202)));
-    args.ForceSetArg("-maxmempool",
-                     ToString(fuzzed_data_provider.ConsumeIntegralInRange<unsigned>(0, 200)));
-    args.ForceSetArg("-mempoolexpiry",
-                     ToString(fuzzed_data_provider.ConsumeIntegralInRange<unsigned>(0, 999)));
-}
 
 void Finish(FuzzedDataProvider& fuzzed_data_provider, MockedTxPool& tx_pool, const NodeContext& node, CChainState& chainstate)
 {
@@ -126,7 +111,6 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
     auto& chainstate{static_cast<DummyChainState&>(node.chainman->ActiveChainstate())};
 
     MockTime(fuzzed_data_provider, chainstate);
-    SetMempoolConstraints(*node.args, fuzzed_data_provider);
 
     // All RBF-spendable outpoints
     std::set<COutPoint> outpoints_rbf;
@@ -207,9 +191,6 @@ FUZZ_TARGET(tx_pool_standard, .init = initialize_tx_pool)
 
         if (fuzzed_data_provider.ConsumeBool()) {
             MockTime(fuzzed_data_provider, chainstate);
-        }
-        if (fuzzed_data_provider.ConsumeBool()) {
-            SetMempoolConstraints(*node.args, fuzzed_data_provider);
         }
         if (fuzzed_data_provider.ConsumeBool()) {
             tx_pool.RollingFeeUpdate();
@@ -300,7 +281,6 @@ FUZZ_TARGET(tx_pool, .init = initialize_tx_pool)
     auto& chainstate{static_cast<DummyChainState&>(node.chainman->ActiveChainstate())};
 
     MockTime(fuzzed_data_provider, chainstate);
-    SetMempoolConstraints(*node.args, fuzzed_data_provider);
 
     std::vector<uint256> txids;
     for (const auto& outpoint : g_outpoints_coinbase_init_mature) {
@@ -323,9 +303,6 @@ FUZZ_TARGET(tx_pool, .init = initialize_tx_pool)
 
         if (fuzzed_data_provider.ConsumeBool()) {
             MockTime(fuzzed_data_provider, chainstate);
-        }
-        if (fuzzed_data_provider.ConsumeBool()) {
-            SetMempoolConstraints(*node.args, fuzzed_data_provider);
         }
         if (fuzzed_data_provider.ConsumeBool()) {
             tx_pool.RollingFeeUpdate();
