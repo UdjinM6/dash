@@ -2976,7 +2976,7 @@ void PeerManagerImpl::ProcessMessage(
                   pfrom.nStartingHeight, addrMe.ToString(), pfrom.GetId(),
                   remoteAddr);
 
-        int64_t nTimeOffset = nTime - GetTime();
+        int64_t nTimeOffset = nTime - nTimeReceived / 1000000;
         pfrom.nTimeOffset = nTimeOffset;
         AddTimeData(pfrom.addr, nTimeOffset);
 
