@@ -21,23 +21,19 @@ enum class LLMQType : uint8_t {
     LLMQ_60_75 = 5,  // 60 members, 45 (75%) threshold, one every 12 hours
     LLMQ_25_67 = 6, // 25 members, 17 (67%) threshold, one per hour
 
-    // for testing only
-    LLMQ_TEST = 100, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
-
     // for devnets only
     LLMQ_DEVNET = 101, // 12 members, 6 (50%) threshold, one per hour. Params might differ when -llmqdevnetparams is used
+    LLMQ_DEVNET_DIP0024 = 105,  // 8 members, 4 (50%) threshold, one per hour.
     LLMQ_DEVNET_PLATFORM = 107, // 12 members, 8 (67%) threshold, one per hour.
 
-    // for testing activation of new quorums only
-    LLMQ_TEST_V17 = 102, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
-
-    // for testing only
-    LLMQ_TEST_DIP0024 = 103,     // 4 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
+    // for regtest only
+    LLMQ_TEST = 100, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
+    // for testing activation of new quorums on regtest only
+    LLMQ_TEST_V17 = 102, // 3 members, 2 (66%) threshold, one per hour.
+    // for regtest only
+    LLMQ_TEST_DIP0024 = 103,     // 4 members, 3 (75%) threshold, one per hour.
     LLMQ_TEST_INSTANTSEND = 104, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestinstantsendparams is used
     LLMQ_TEST_PLATFORM = 106,    // 3 members, 2 (66%) threshold, one per hour.
-
-    // for devnets only. rotated version (v2) for devnets
-    LLMQ_DEVNET_DIP0024 = 105 // 8 members, 4 (50%) threshold, one per hour. Params might differ when -llmqdevnetparams is used
 };
 
 // Configures a LLMQ and its DKG
@@ -202,7 +198,7 @@ static constexpr std::array<LLMQParams, 14> available_llmqs = {
         .useRotation = true,
         .size = 4,
         .minSize = 4,
-        .threshold = 2,
+        .threshold = 3,
 
         .dkgInterval = 24, // DKG cycle
         .dkgPhaseBlocks = 2,
