@@ -70,8 +70,6 @@ std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(const CBlockIndex* pindex
 std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuorumParams(const CBlockIndex* pindex);
 
 bool IsQuorumRotationEnabled(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pindex);
-Consensus::LLMQType GetInstantSendLLMQType(const CQuorumManager& qman, const CBlockIndex* pindex);
-Consensus::LLMQType GetInstantSendLLMQType(bool deterministic);
 bool IsDIP0024Active(const CBlockIndex* pindex);
 bool IsV19Active(const CBlockIndex* pindex);
 bool IsV20Active(const CBlockIndex* pindex);

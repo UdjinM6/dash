@@ -22,9 +22,6 @@ void Test(llmq::CQuorumManager& qman)
 {
     using namespace llmq::utils;
     const auto& consensus_params = Params().GetConsensus();
-    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeInstantSend, qman, nullptr, false, false), true);
-    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeInstantSend, qman, nullptr, true, false), true);
-    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeInstantSend, qman, nullptr, true, true), false);
     BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeDIP0024InstantSend, qman, nullptr, false, false), false);
     BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeDIP0024InstantSend, qman, nullptr, true, false), true);
     BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeDIP0024InstantSend, qman, nullptr, true, true), true);

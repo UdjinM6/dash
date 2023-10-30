@@ -62,8 +62,6 @@ static std::pair<CDeterministicMNList, CDeterministicMNList> GetMNUsageBySnapsho
 
 static void BuildQuorumSnapshot(const Consensus::LLMQParams& llmqParams, const CDeterministicMNList& allMns, const CDeterministicMNList& mnUsedAtH, std::vector<CDeterministicMNCPtr>& sortedCombinedMns, CQuorumSnapshot& quorumSnapshot, int nHeight, std::vector<int>& skipList, const CBlockIndex* pCycleQuorumBaseBlockIndex);
 
-static bool IsInstantSendLLMQTypeShared();
-
 uint256 GetHashModifier(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pCycleQuorumBaseBlockIndex)
 {
     ASSERT_IF_DEBUG(pCycleQuorumBaseBlockIndex->nHeight % llmqParams.dkgInterval == 0);
@@ -685,19 +683,6 @@ bool IsQuorumRotationEnabled(const Consensus::LLMQParams& llmqParams, const CBlo
     return IsDIP0024Active(pindex->GetAncestor(cycleQuorumBaseHeight - 1));
 }
 
-Consensus::LLMQType GetInstantSendLLMQType(const CQuorumManager& qman, const CBlockIndex* pindex)
-{
-    if (IsDIP0024Active(pindex) && !qman.ScanQuorums(Params().GetConsensus().llmqTypeDIP0024InstantSend, pindex, 1).empty()) {
-        return Params().GetConsensus().llmqTypeDIP0024InstantSend;
-    }
-    return Params().GetConsensus().llmqTypeInstantSend;
-}
-
-Consensus::LLMQType GetInstantSendLLMQType(bool deterministic)
-{
-    return deterministic ? Params().GetConsensus().llmqTypeDIP0024InstantSend : Params().GetConsensus().llmqTypeInstantSend;
-}
-
 bool IsDIP0024Active(const CBlockIndex* pindex)
 {
     assert(pindex);
@@ -740,17 +725,6 @@ int GetV20Since(const CBlockIndex* pindex)
     assert(pindex);
     LOCK(cs_llmq_vbc);
     return VersionBitsStateSinceHeight(pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V20, llmq_versionbitscache);
-}
-
-bool IsInstantSendLLMQTypeShared()
-{
-    if (Params().GetConsensus().llmqTypeInstantSend == Params().GetConsensus().llmqTypeChainLocks ||
-        Params().GetConsensus().llmqTypeInstantSend == Params().GetConsensus().llmqTypePlatform ||
-        Params().GetConsensus().llmqTypeInstantSend == Params().GetConsensus().llmqTypeMnhf) {
-        return true;
-    }
-
-    return false;
 }
 
 uint256 DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2)
@@ -994,11 +968,12 @@ bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CQuorumMana
 
     switch (llmqType)
     {
-        case Consensus::LLMQType::LLMQ_TEST_INSTANTSEND:
         case Consensus::LLMQType::LLMQ_DEVNET:
-        case Consensus::LLMQType::LLMQ_50_60: {
-            if (IsInstantSendLLMQTypeShared()) return true;
-
+            return true;
+        case Consensus::LLMQType::LLMQ_50_60:
+            if (Params().NetworkIDString() == CBaseChainParams::TESTNET) return true;
+            // fall through
+        case Consensus::LLMQType::LLMQ_TEST_INSTANTSEND: {
             bool fDIP0024IsActive = optDIP0024IsActive.has_value() ? *optDIP0024IsActive : IsDIP0024Active(pindex);
             if (!fDIP0024IsActive) return true;
 
