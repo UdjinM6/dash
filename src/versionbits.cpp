@@ -5,6 +5,8 @@
 #include <versionbits.h>
 #include <consensus/params.h>
 
+#include <limits>
+
 static int calculateStartHeight(const CBlockIndex* pindexPrev, ThresholdState state, const int nPeriod, const ThresholdConditionCache& cache) {
     int nStartHeight{std::numeric_limits<int>::max()};
 
@@ -31,7 +33,7 @@ ThresholdState AbstractThresholdConditionChecker::GetStateFor(const CBlockIndex*
 {
     int nPeriod = Period(params);
     int64_t nTimeStart = BeginTime(params);
-    int masternodeStartHeight = MasternodeBeginHeight(params);
+    int masternodeStartHeight = SignalHeight(pindexPrev, params);
     int64_t nTimeTimeout = EndTime(params);
 
     // Check if this deployment is always active.
@@ -205,15 +207,18 @@ private:
 
 protected:
     int64_t BeginTime(const Consensus::Params& params) const override { return params.vDeployments[id].nStartTime; }
-    int MasternodeBeginHeight(const Consensus::Params& params) const override {
+    int SignalHeight(const CBlockIndex* const pindexPrev, const Consensus::Params& params) const override {
         const auto& deployment = params.vDeployments[id];
-        if (deployment.nMNActivationHeight == 0) {
-            return std::numeric_limits<int>::max();
-        }
-        if (deployment.nMNActivationHeight < 0) {
+        if (!deployment.useEHF) {
             return 0;
         }
-        return deployment.nMNActivationHeight;
+        const auto signals = AbstractEHFManager::getInstance()->GetSignalsStage(pindexPrev);
+        const auto it = signals.find(deployment.bit);
+        if (it == signals.end()) {
+            return std::numeric_limits<int>::max();
+        }
+
+        return it->second;
     }
     int64_t EndTime(const Consensus::Params& params) const override { return params.vDeployments[id].nTimeout; }
     int Period(const Consensus::Params& params) const override { return params.vDeployments[id].nWindowSize ? params.vDeployments[id].nWindowSize : params.nMinerConfirmationWindow; }
@@ -266,4 +271,11 @@ void VersionBitsCache::Clear()
     for (unsigned int d = 0; d < Consensus::MAX_VERSION_BITS_DEPLOYMENTS; d++) {
         caches[d].clear();
     }
+}
+
+AbstractEHFManager* AbstractEHFManager::globalInstance{nullptr};
+
+AbstractEHFManager* AbstractEHFManager::getInstance()
+{
+    return globalInstance;
 }
