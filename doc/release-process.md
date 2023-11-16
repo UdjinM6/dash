@@ -1,29 +1,35 @@
 Release Process
 ====================
 
-* Update translations, see [translation_process.md](https://github.com/dashpay/dash/blob/master/doc/translation_process.md#synchronising-translations).
-
-* Update manpages, see [gen-manpages.sh](https://github.com/dashpay/dash/blob/master/contrib/devtools/README.md#gen-manpagessh).
-* Update release candidate version in `configure.ac` (`CLIENT_VERSION_RC`)
+* [ ] Update translations, see [translation_process.md](https://github.com/dashpay/dash/blob/master/doc/translation_process.md#synchronising-translations).
+* [ ] Update manpages, see [gen-manpages.sh](https://github.com/dashpay/dash/blob/master/contrib/devtools/README.md#gen-manpagessh).
+* [ ] Update release candidate version in `configure.ac` (`CLIENT_VERSION_RC`)
 
 Before every minor and major release:
 
-* Update [bips.md](bips.md) to account for changes since the last release.
-* Update version in `configure.ac` (don't forget to set `CLIENT_VERSION_IS_RELEASE` to `true`) (don't forget to set `CLIENT_VERSION_RC` to `0`)
-* Write release notes (see below)
-* Update `src/chainparams.cpp` nMinimumChainWork with information from the getblockchaininfo rpc.
-* Update `src/chainparams.cpp` defaultAssumeValid with information from the getblockhash rpc.
+* [ ] Update [bips.md](bips.md) to account for changes since the last release.
+* [ ] Update [dips.md](https://github.com/dashpay/dips/) to account for changes since the last release.
+* [ ] Update version in `configure.ac` (don't forget to set `CLIENT_VERSION_IS_RELEASE` to `true`) (don't forget to set `CLIENT_VERSION_RC` to `0`)
+* [ ] Write release notes (see below)
+* [ ] Update `src/chainparams.cpp` nMinimumChainWork with information from the getblockchaininfo rpc.
+* [ ] Update `src/chainparams.cpp` defaultAssumeValid with information from the getblockhash rpc.
   - The selected value must not be orphaned so it may be useful to set the value two blocks back from the tip.
   - Testnet should be set some tens of thousands back from the tip due to reorgs there.
   - This update should be reviewed with a reindex-chainstate with assumevalid=0 to catch any defect
      that causes rejection of blocks in the past history.
+* [ ] Ensure that governance is functional after sentinel changes are done
+* [ ] Ensure all TODOs are evaluated and resolved if needed
+* [ ] Verify insight works
+* [ ] Verify p2pool works (unmaintained; no responsible party)
+* [ ] Tag version and push (see below)
+* [ ] Validate that CI passes
 
 Before every major release:
 
-* Update hardcoded [seeds](/contrib/seeds/README.md). TODO: Give example PR for Dash
-* Update [`src/chainparams.cpp`](/src/chainparams.cpp) m_assumed_blockchain_size and m_assumed_chain_state_size with the current size plus some overhead (see [this](#how-to-calculate-m_assumed_blockchain_size-and-m_assumed_chain_state_size) for information on how to calculate them).
-* Update `src/chainparams.cpp` chainTxData with statistics about the transaction count and rate. Use the output of the RPC `getchaintxstats`, see
-  [this pull request](https://github.com/bitcoin/bitcoin/pull/12270) for an example. Reviewers can verify the results by running `getchaintxstats <window_block_count> <window_last_block_hash>` with the `window_block_count` and `window_last_block_hash` from your output.
+* [ ] Update hardcoded [seeds](/contrib/seeds/README.md), see [this pull request](https://github.com/dashpay/dash/pull/5692) for an example.
+* [ ] Update [`src/chainparams.cpp`](/src/chainparams.cpp) m_assumed_blockchain_size and m_assumed_chain_state_size with the current size plus some overhead (see [this](#how-to-calculate-m_assumed_blockchain_size-and-m_assumed_chain_state_size) for information on how to calculate them).
+* [ ] Update `src/chainparams.cpp` chainTxData with statistics about the transaction count and rate. Use the output of the RPC `getchaintxstats`, see
+  [this pull request](https://github.com/dashpay/dash/pull/5692) for an example. Reviewers can verify the results by running `getchaintxstats <window_block_count> <window_last_block_hash>` with the `window_block_count` and `window_last_block_hash` from your output.
 
 ### First time / New builders
 
@@ -41,15 +47,15 @@ Check out the source code in the following directory hierarchy.
 
 Write release notes. git shortlog helps a lot, for example:
 
-    git shortlog --no-merges v(current version, e.g. 0.12.2)..v(new version, e.g. 0.12.3)
+    git shortlog --no-merges v(current version, e.g. 19.3.0)..v(new version, e.g. 20.0.0)
 
 Generate list of authors:
 
-    git log --format='- %aN' v(current version, e.g. 0.16.0)..v(new version, e.g. 0.16.1) | sort -fiu
+    git log --format='- %aN' v(current version, e.g. 19.3.0)..v(new version, e.g. 20.0.0) | sort -fiu
 
 Tag version (or release candidate) in git
 
-    git tag -s v(new version, e.g. 0.12.3)
+    git tag -s v(new version, e.g. 20.0.0)
 
 ### Setup and perform Guix builds
 
@@ -57,7 +63,7 @@ Checkout the Dash Core version you'd like to build:
 
 ```sh
 pushd ./dash
-export SIGNER='(your builder key, ie UdjinM6, Pasta, etc)'
+export SIGNER='(your builder key, ie udjinm6, pasta, etc)'
 export VERSION='(new version, e.g. 20.0.0)'
 git fetch "v${VERSION}"
 git checkout "v${VERSION}"
@@ -72,6 +78,8 @@ git -C ./guix.sigs pull
 ```
 
 ### Create the macOS SDK tarball: (first time, or when SDK version changes)
+
+_Note: this step can be skipped if [our CI](https://github.com/dashpay/dash/blob/master/ci/test/00_setup_env.sh#L64) still uses bitcoin's SDK package (see SDK_URL)_
 
 Create the macOS SDK tarball, see the [macOS build
 instructions](build-osx.md#deterministic-macos-dmg-notes) for
@@ -101,6 +109,12 @@ git commit -a
 git push  # Assuming you can push to the guix.sigs tree
 popd
 ```
+
+* [ ] Pasta Guix Build
+* [ ] UdjinM6 Guix Build
+* [ ] Thephez Guix Build
+* [ ] kwvg Guix Build
+* [ ] knst Guix Build
 
 Codesigner only: Create Windows/macOS detached signatures:
 - Only one person handles codesigning. Everyone else should skip to the next step.
@@ -154,15 +168,21 @@ git push  # Assuming you can push to the guix.sigs tree
 popd
 ```
 
+* [ ] Pasta
+* [ ] UdjinM6
+* [ ] Thephez
+* [ ] kwvg
+* [ ] knst
+
+
 ### After 3 or more people have guix-built and their results match:
 
-Combine the `all.SHA256SUMS.asc` file from all signers into `SHA256SUMS.asc`:
-
+* [ ] Combine the `all.SHA256SUMS.asc` file from all signers into `SHA256SUMS.asc`:
 ```bash
 cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
 ```
-
-- Upload to the dash.org server:
+* [ ] GPG sign each download / binary
+* [ ] Upload zips and installers, as well as SHA256SUMS.asc from last step, to github as github draft release.
     1. The contents of each `./dash/guix-build-${VERSION}/output/${HOST}/` directory, except for
        `*-debug*` files.
 
@@ -184,20 +204,23 @@ cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
     2. The `SHA256SUMS` file
 
     3. The `SHA256SUMS.asc` combined signature file you just created
+* [ ] Validate SHA256SUMS.asc and all binaries attached to github draft release are correct
+* [ ] Notarize OS X binaries (we can't do this) (talk to @tikhop (pavel) about this
+* [ ] Release on github
+* [ ] Update website
+* [ ] Ensure that docker hub images are up to date
 
-- Announce the release:
+### Announce the release:
 
-  - Release on Dash forum: https://www.dash.org/forum/topic/official-announcements.54/
-
-  - Optionally Discord, twitter, reddit /r/Dashpay, ... but this will usually sort out itself
-
-  - Notify flare so that he can start building [the PPAs](https://launchpad.net/~dash.org/+archive/ubuntu/dash)
-
-  - Archive release notes for the new version to `doc/release-notes/` (branch `master` and branch of the release)
-
-  - Create a [new GitHub release](https://github.com/dashpay/dash/releases/new) with a link to the archived release notes.
-
-  - Celebrate
+  - [ ] Release on Dash forum: https://www.dash.org/forum/topic/official-announcements.54/ (necessary so we have a permalink to use on twitter, reddit, etc.)
+  - [ ] Prepare product brief (major versions only)
+  - [ ] Prepare a release announcement tweet
+  - [ ] Follow-up tweets with any important block heights for consensus changes
+  - [ ] Post on Reddit
+  - [ ] Update docs (readme and RTD)
+  - [ ] Test Docker build runs without error in Dashmate
+  - [ ] Add new Release Process items to repo [Release Process](release-process.md) document
+  - [ ] Celebrate
 
 ### MacOS Notarization
 
