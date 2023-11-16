@@ -203,10 +203,13 @@ cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
   - [ ] Prepare a release announcement tweet
   - [ ] Follow-up tweets with any important block heights for consensus changes
   - [ ] Post on Reddit
+  - [ ] Celebrate
+
+### After the release:
+  - [ ] Submit patches to BTCPay to ensure they use latest / compatible version see https://github.com/dashpay/dash/issues/4211#issuecomment-966608207
   - [ ] Update docs (readme and RTD)
   - [ ] Test Docker build runs without error in Dashmate
   - [ ] Add new Release Process items to repo [Release Process](release-process.md) document
-  - [ ] Celebrate
 
 ### MacOS Notarization
 
