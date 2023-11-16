@@ -17,7 +17,6 @@ Before every minor and major release:
   - Testnet should be set some tens of thousands back from the tip due to reorgs there.
   - This update should be reviewed with a reindex-chainstate with assumevalid=0 to catch any defect
      that causes rejection of blocks in the past history.
-* [ ] Ensure that governance is functional after sentinel changes are done
 * [ ] Ensure all TODOs are evaluated and resolved if needed
 * [ ] Verify insight works
 * [ ] Verify p2pool works (unmaintained; no responsible party)
@@ -110,12 +109,6 @@ git push  # Assuming you can push to the guix.sigs tree
 popd
 ```
 
-* [ ] Pasta Guix Build
-* [ ] UdjinM6 Guix Build
-* [ ] Thephez Guix Build
-* [ ] kwvg Guix Build
-* [ ] knst Guix Build
-
 Codesigner only: Create Windows/macOS detached signatures:
 - Only one person handles codesigning. Everyone else should skip to the next step.
 - Only once the Windows/macOS builds each have 3 matching signatures may they be signed with their respective release keys.
@@ -167,13 +160,6 @@ git commit -m "Add ${SIGNER} ${VERSION} signed binaries signatures"
 git push  # Assuming you can push to the guix.sigs tree
 popd
 ```
-
-* [ ] Pasta
-* [ ] UdjinM6
-* [ ] Thephez
-* [ ] kwvg
-* [ ] knst
-
 
 ### After 3 or more people have guix-built and their results match:
 
