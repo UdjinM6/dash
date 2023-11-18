@@ -97,6 +97,7 @@ void SendCoinsEntry::clear()
 {
     // clear UI elements for normal payment
     ui->payTo->clear();
+    ui->rawData->clear();
     ui->addAsLabel->clear();
     ui->payAmount->clear();
     if (model && model->getOptionsModel()) {
@@ -133,10 +134,9 @@ bool SendCoinsEntry::validate(interfaces::Node& node)
     // Check input validity
     bool retval = true;
 
-    if (!model->validateAddress(ui->payTo->text()))
-    {
-        ui->payTo->setValid(false);
-        retval = false;
+    if (ui->payTo->text().isEmpty() && !ui->rawData->text().isEmpty() && ui->payAmount->value(nullptr) == 0) {
+        // OP_RETURN
+        return true;
     }
 
     if (!ui->payAmount->validate())
@@ -164,6 +164,7 @@ SendCoinsRecipient SendCoinsEntry::getValue()
 {
     // Normal payment
     recipient.address = ui->payTo->text();
+    recipient.rawData = ui->rawData->text();
     recipient.label = ui->addAsLabel->text();
     recipient.amount = ui->payAmount->value();
     recipient.message = ui->messageTextLabel->text();
@@ -175,7 +176,8 @@ SendCoinsRecipient SendCoinsEntry::getValue()
 QWidget *SendCoinsEntry::setupTabChain(QWidget *prev)
 {
     QWidget::setTabOrder(prev, ui->payTo);
-    QWidget::setTabOrder(ui->payTo, ui->addAsLabel);
+    QWidget::setTabOrder(ui->payTo, ui->rawData);
+    QWidget::setTabOrder(ui->rawData, ui->addAsLabel);
     QWidget *w = ui->payAmount->setupTabChain(ui->addAsLabel);
     QWidget::setTabOrder(w, ui->checkboxSubtractFeeFromAmount);
     QWidget::setTabOrder(ui->checkboxSubtractFeeFromAmount, ui->addressBookButton);
@@ -214,7 +216,7 @@ void SendCoinsEntry::setAmount(const CAmount &amount)
 
 bool SendCoinsEntry::isClear()
 {
-    return ui->payTo->text().isEmpty();
+    return ui->payTo->text().isEmpty() && ui->rawData->text().isEmpty();
 }
 
 void SendCoinsEntry::setFocus()

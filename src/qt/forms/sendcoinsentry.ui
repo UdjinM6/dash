@@ -55,6 +55,16 @@
       </widget>
     </item>
     <item>
+     <widget class="QLineEdit" name="rawData">
+      <property name="toolTip">
+       <string>The message to send over the Dash network</string>
+      </property>
+      <property name="placeholderText">
+       <string>This message will be embedded into OP_RETURN and sent over the Dash network</string>
+      </property>
+     </widget>
+    </item>
+    <item>
       <widget class="QToolButton" name="addressBookButton">
       <property name="toolTip">
         <string>Choose previously used address</string>

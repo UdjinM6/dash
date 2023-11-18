@@ -25,6 +25,8 @@
 #include <node/interface_ui.h>
 #include <primitives/transaction.h>
 #include <psbt.h>
+#include <streams.h>
+#include <util/strencodings.h>
 #include <util/system.h> // for GetBoolArg
 #include <util/translation.h>
 #include <wallet/coincontrol.h>
@@ -304,30 +306,53 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
     QSet<QString> setAddress; // Used to detect duplicates
     int nAddresses = 0;
+    bool hasData{false};
 
     // Pre-check input data for validity
     for (const SendCoinsRecipient &rcp : recipients)
     {
-        if (rcp.fSubtractFeeFromAmount)
+        if (rcp.fSubtractFeeFromAmount) {
             fSubtractFeeFromAmount = true;
-        {   // User-entered dash address / amount:
-            if(!validateAddress(rcp.address))
-            {
+        }
+        CScript scriptPubKey;
+        if (rcp.rawData.isEmpty()) {
+            // User-entered dash address / amount:
+            if (!validateAddress(rcp.address)) {
                 return InvalidAddress;
             }
-            if(rcp.amount <= 0)
-            {
+            if (rcp.amount <= 0) {
                 return InvalidAmount;
             }
+            scriptPubKey = GetScriptForDestination(DecodeDestination(rcp.address.toStdString()));
             setAddress.insert(rcp.address);
-            ++nAddresses;
-
-            CScript scriptPubKey = GetScriptForDestination(DecodeDestination(rcp.address.toStdString()));
-            CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
-            vecSend.push_back(recipient);
-
-            total += rcp.amount;
+        } else {
+            if (hasData) {
+                // Only one OP_RETURN is allowed
+                return MultipleMessages;
+            }
+            if (!rcp.address.isEmpty()) {
+                // Users should provide either Dash address or raw data but not both
+                return InvalidMessageAddress;
+            }
+            if (rcp.amount < 0) {
+                // 0 is ok for OP_RETURN
+                return InvalidMessageAmount;
+            }
+            if (rcp.amount > m_wallet->getDefaultMaxTxFee()) {
+                // Do not allow burning too much
+                return MessageAmountLimit;
+            }
+            // User-entered data:
+            scriptPubKey = CScript() << OP_RETURN << ParseHex(HexStr(rcp.rawData.toStdString()));
+            setAddress.insert("OP_RETURN " + rcp.rawData);
+            hasData = true;
         }
+        ++nAddresses;
+
+        CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
+        vecSend.push_back(recipient);
+
+        total += rcp.amount;
     }
 
     CAmount nBalance = m_wallet->getAvailableBalance(coinControl);
@@ -403,6 +428,7 @@ void WalletModel::sendCoins(WalletModelTransaction& transaction, bool fIsCoinJoi
     for (const SendCoinsRecipient &rcp : transaction.getRecipients())
     {
         {
+            if (!rcp.rawData.isEmpty()) continue;
             std::string strAddress = rcp.address.toStdString();
             CTxDestination dest = DecodeDestination(strAddress);
             std::string strLabel = rcp.label.toStdString();

@@ -29,6 +29,7 @@ public:
     // payment requests, we can abuse it for displaying an address list.
     // Todo: This is a hack, should be replaced with a cleaner solution!
     QString address;
+    QString rawData; // mem-only
     QString label;
     CAmount amount;
     // If from a payment request, this is used for storing the memo

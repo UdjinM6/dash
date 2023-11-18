@@ -367,7 +367,7 @@ bool SendCoinsDialog::send(const QList<SendCoinsRecipient>& recipients, QString&
 
         QString recipientElement;
 
-        {
+        if (rcp.rawData.isEmpty()) {
             if(rcp.label.length() > 0) // label with address
             {
                 recipientElement.append(tr("%1 to '%2'").arg(amount, rcp.label));
@@ -377,6 +377,10 @@ bool SendCoinsDialog::send(const QList<SendCoinsRecipient>& recipients, QString&
             {
                 recipientElement.append(tr("%1 to %2").arg(amount, address));
             }
+        } else {
+            QString script = QString::fromStdString("OP_RETURN " + HexStr(rcp.rawData.toStdString()));
+            recipientElement.append(tr("%1 to '%2'").arg(amount, rcp.rawData));
+            recipientElement.append(QString(" (%1)").arg(script));
         }
         formatted.append(recipientElement);
     }
@@ -832,6 +836,18 @@ void SendCoinsDialog::processSendCoinsReturn(const WalletModel::SendCoinsReturn 
         break;
     case WalletModel::AbsurdFee:
         msgParams.first = tr("A fee higher than %1 is considered an absurdly high fee.").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), model->wallet().getDefaultMaxTxFee()));
+        break;
+    case WalletModel::InvalidMessageAmount:
+        msgParams.first = tr("The amount to burn must be larger than or equal to 0.");
+        break;
+    case WalletModel::InvalidMessageAddress:
+        msgParams.first = tr("The recipient address must be empty for data transactions.");
+        break;
+    case WalletModel::MessageAmountLimit:
+        msgParams.first = tr("Burning amounts higher than %1 is not allowed.").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), model->wallet().getDefaultMaxTxFee()));
+        break;
+    case WalletModel::MultipleMessages:
+        msgParams.first = tr("Multiple message found: messages should only be used once per transaction.");
         break;
     // included to prevent a compiler warning.
     case WalletModel::DuplicateAddress:

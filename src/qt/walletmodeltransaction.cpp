@@ -9,6 +9,8 @@
 #include <qt/walletmodeltransaction.h>
 
 #include <key_io.h>
+#include <streams.h>
+#include <util/strencodings.h>
 
 WalletModelTransaction::WalletModelTransaction(const QList<SendCoinsRecipient>& _recipients)
     : recipients(_recipients)
@@ -51,11 +53,16 @@ void WalletModelTransaction::reassignAmounts(const int nChangePos)
     for (QList<SendCoinsRecipient>::iterator it = recipients.begin(); it != recipients.end(); ++it)
     {
         SendCoinsRecipient& rcp = (*it);
+        CScript scriptPubKey;
+        if (rcp.rawData.isEmpty()) {
+            scriptPubKey = GetScriptForDestination(DecodeDestination(rcp.address.toStdString()));
+        } else {
+            scriptPubKey = CScript() << OP_RETURN << ParseHex(HexStr(rcp.rawData.toStdString()));
+        }
         {
             int nPos = 0;
             for (const auto& txout : wtx.get()->vout) {
                 if (nPos++ == nChangePos) continue; // ignore change output
-                CScript scriptPubKey = GetScriptForDestination(DecodeDestination(rcp.address.toStdString()));
                 if (txout.scriptPubKey == scriptPubKey) {
                     rcp.amount = txout.nValue;
                     break;
