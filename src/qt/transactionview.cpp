@@ -94,6 +94,7 @@ TransactionView::TransactionView(QWidget* parent) :
     typeWidget->addItem(tr("%1 Mixing").arg(strCoinJoinName), TransactionFilterProxy::TYPE(TransactionRecord::CoinJoinMixing));
     typeWidget->addItem(tr("%1 Collateral Payment").arg(strCoinJoinName), TransactionFilterProxy::TYPE(TransactionRecord::CoinJoinCollateralPayment));
     typeWidget->addItem(tr("To yourself"), TransactionFilterProxy::TYPE(TransactionRecord::SendToSelf));
+    typeWidget->addItem(tr("Messages"), TransactionFilterProxy::TYPE(TransactionRecord::RecvMessage) | TransactionFilterProxy::TYPE(TransactionRecord::SendMessage));
     typeWidget->addItem(tr("Mined"), TransactionFilterProxy::TYPE(TransactionRecord::Generated));
     typeWidget->addItem(tr("Platform Transfer"), TransactionFilterProxy::TYPE(TransactionRecord::PlatformTransfer));
     typeWidget->addItem(tr("Dust Receive"), TransactionFilterProxy::TYPE(TransactionRecord::DustReceive));

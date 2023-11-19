@@ -59,11 +59,11 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(interfaces::Nod
         {
             const CTxOut& txout = wtx.tx->vout[i];
             isminetype mine = wtx.txout_is_mine[i];
+            TransactionRecord sub(hash, nTime);
+            sub.idx = i; // vout index
+            sub.credit = txout.nValue;
             if(mine)
             {
-                TransactionRecord sub(hash, nTime);
-                sub.idx = i; // vout index
-                sub.credit = txout.nValue;
                 sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
                 if (wtx.txout_address_is_mine[i])
                 {
@@ -101,6 +101,20 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(interfaces::Nod
                 }
 
                 parts.append(sub);
+            } else if (!wtx.is_coinbase) {
+                CScript::const_iterator pc = txout.scriptPubKey.begin();
+                opcodetype opcode;
+                std::vector<unsigned char> vch;
+                if (txout.scriptPubKey.GetOp(pc, opcode, vch) && opcode == OP_RETURN && pc < txout.scriptPubKey.end()) {
+                    std::string message;
+                    message.reserve(vch.size());
+                    for (const auto& c : vch) {
+                        message += static_cast<char>(c);
+                    }
+                    sub.strAddress = "'" + message + "' (OP_RETURN " + HexStr(vch) + ")";
+                    sub.type = TransactionRecord::RecvMessage;
+                    parts.append(sub);
+                }
             }
         }
     }
@@ -239,7 +253,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(interfaces::Nod
                 if (!std::get_if<CNoDestination>(&wtx.txout_address[nOut]))
                 {
                     // Sent to Dash Address
-                    sub.type = TransactionRecord::SendToAddress;
+                    sub.type = mapValue["DS"] == "1" ? TransactionRecord::CoinJoinSend : TransactionRecord::SendToAddress;
                     sub.strAddress = EncodeDestination(wtx.txout_address[nOut]);
                     sub.txDest = wtx.txout_address[nOut];
                     sub.updateLabel(wallet);
@@ -247,14 +261,24 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(interfaces::Nod
                 else
                 {
                     // Sent to IP, or other non-address transaction like OP_EVAL
-                    sub.type = TransactionRecord::SendToOther;
-                    sub.strAddress = mapValue["to"];
-                    sub.txDest = DecodeDestination(sub.strAddress);
-                }
-
-                if(mapValue["DS"] == "1")
-                {
-                    sub.type = TransactionRecord::CoinJoinSend;
+                    CScript::const_iterator pc = txout.scriptPubKey.begin();
+                    opcodetype opcode;
+                    std::vector<unsigned char> vch;
+                    if (txout.scriptPubKey.GetOp(pc, opcode, vch) && opcode == OP_RETURN && pc < txout.scriptPubKey.end()) {
+                        txout.scriptPubKey.GetOp(pc, opcode, vch);
+                        std::string message;
+                        message.reserve(vch.size());
+                        for (const auto& c : vch) {
+                            message += static_cast<char>(c);
+                        }
+                        // NOTE: OP_RETURNs are always of type "Message" even when they are sent via CoinJoin
+                        sub.type = TransactionRecord::SendMessage;
+                        sub.strAddress = "'" + message + "' (OP_RETURN " + HexStr(vch) + ")";
+                    } else {
+                        sub.type = mapValue["DS"] == "1" ? TransactionRecord::CoinJoinSend : TransactionRecord::SendToOther;
+                        sub.strAddress = mapValue["to"];
+                        sub.txDest = DecodeDestination(sub.strAddress);
+                    }
                 }
 
                 CAmount nValue = txout.nValue;

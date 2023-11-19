@@ -86,6 +86,8 @@ public:
         CoinJoinCreateDenominations,
         CoinJoinSend,
         PlatformTransfer,
+        SendMessage,
+        RecvMessage,
         DustReceive,
     };
 

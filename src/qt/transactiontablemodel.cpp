@@ -422,11 +422,15 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Received with");
     case TransactionRecord::RecvFromOther:
         return tr("Received from");
+    case TransactionRecord::RecvMessage:
+        return tr("Received message");
     case TransactionRecord::RecvWithCoinJoin:
         return tr("Received via %1").arg(QString::fromStdString(gCoinJoinName));
     case TransactionRecord::SendToAddress:
     case TransactionRecord::SendToOther:
         return tr("Sent to");
+    case TransactionRecord::SendMessage:
+        return tr("Sent message");
     case TransactionRecord::SendToSelf:
         return tr("Payment to yourself");
     case TransactionRecord::Generated:
@@ -472,6 +476,7 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     switch(wtx->type)
     {
     case TransactionRecord::RecvFromOther:
+    case TransactionRecord::RecvMessage:
         return QString::fromStdString(wtx->strAddress) + watchAddress;
     case TransactionRecord::RecvWithAddress:
     case TransactionRecord::RecvWithCoinJoin:
@@ -482,6 +487,7 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     case TransactionRecord::DustReceive:
         return formatAddressLabel(wtx->strAddress, wtx->label, tooltip) + watchAddress;
     case TransactionRecord::SendToOther:
+    case TransactionRecord::SendMessage:
         return QString::fromStdString(wtx->strAddress) + watchAddress;
     case TransactionRecord::SendToSelf:
         return formatAddressLabel(wtx->strAddress, wtx->label, tooltip) + watchAddress;
@@ -517,6 +523,8 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
     case TransactionRecord::CoinJoinMixing:
     case TransactionRecord::CoinJoinMakeCollaterals:
     case TransactionRecord::CoinJoinCollateralPayment:
+    case TransactionRecord::RecvMessage:
+    case TransactionRecord::SendMessage:
         return GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BAREADDRESS);
     case TransactionRecord::SendToOther:
     case TransactionRecord::RecvFromOther:
@@ -560,6 +568,9 @@ QVariant TransactionTableModel::amountColor(const TransactionRecord *rec) const
     case TransactionRecord::CoinJoinCreateDenominations:
     case TransactionRecord::DustReceive:
         return GUIUtil::getThemedQColor(GUIUtil::ThemedColor::ORANGE);
+    case TransactionRecord::RecvMessage:
+    case TransactionRecord::SendMessage:
+        return GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BLUE);
     }
     return GUIUtil::getThemedQColor(GUIUtil::ThemedColor::DEFAULT);
 }
