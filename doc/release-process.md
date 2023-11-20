@@ -8,7 +8,7 @@ Release Process
 Before every minor and major release:
 
 * [ ] Update [bips.md](bips.md) to account for changes since the last release.
-* [ ] Update [dips.md](https://github.com/dashpay/dips/) to account for changes since the last release.
+* [ ] Update DIPs with any changes introduced by this release (see [this pull request](https://github.com/dashpay/dips/pull/142) for an example)
 * [ ] Update version in `configure.ac` (don't forget to set `CLIENT_VERSION_IS_RELEASE` to `true`) (don't forget to set `CLIENT_VERSION_RC` to `0`)
 * [ ] Write release notes (see below)
 * [ ] Update `src/chainparams.cpp` nMinimumChainWork with information from the getblockchaininfo rpc.
@@ -18,7 +18,7 @@ Before every minor and major release:
   - This update should be reviewed with a reindex-chainstate with assumevalid=0 to catch any defect
      that causes rejection of blocks in the past history.
 * [ ] Ensure all TODOs are evaluated and resolved if needed
-* [ ] Verify insight works
+* [ ] Verify Insight works
 * [ ] Verify p2pool works (unmaintained; no responsible party)
 * [ ] Tag version and push (see below)
 * [ ] Validate that CI passes
@@ -168,7 +168,7 @@ popd
 cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
 ```
 * [ ] GPG sign each download / binary
-* [ ] Upload zips and installers, as well as SHA256SUMS.asc from last step, to github as github draft release.
+* [ ] Upload zips and installers, as well as SHA256SUMS.asc from last step, to GitHub as GitHub draft release.
     1. The contents of each `./dash/guix-build-${VERSION}/output/${HOST}/` directory, except for
        `*-debug*` files.
 
@@ -190,10 +190,10 @@ cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
     2. The `SHA256SUMS` file
 
     3. The `SHA256SUMS.asc` combined signature file you just created
-* [ ] Validate SHA256SUMS.asc and all binaries attached to github draft release are correct
-* [ ] Notarize OS X binaries (we can't do this) (talk to @tikhop (pavel) about this
-* [ ] Release on github
-* [ ] Update website
+* [ ] Validate SHA256SUMS.asc and all binaries attached to GitHub draft release are correct
+* [ ] Notarize macOS binaries
+* [ ] Release on GitHub
+* [ ] Update the dash.org download links
 * [ ] Ensure that docker hub images are up to date
 
 ### Announce the release:
@@ -207,7 +207,7 @@ cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
 
 ### After the release:
   - [ ] Submit patches to BTCPay to ensure they use latest / compatible version see https://github.com/dashpay/dash/issues/4211#issuecomment-966608207
-  - [ ] Update docs (readme and RTD)
+  - [ ] Update Core and User docs (docs.dash.org)
   - [ ] Test Docker build runs without error in Dashmate
   - [ ] Add new Release Process items to repo [Release Process](release-process.md) document
 
