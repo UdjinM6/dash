@@ -11,12 +11,12 @@ Before every minor and major release:
 * [ ] Update DIPs with any changes introduced by this release (see [this pull request](https://github.com/dashpay/dips/pull/142) for an example)
 * [ ] Update version in `configure.ac` (don't forget to set `CLIENT_VERSION_IS_RELEASE` to `true`) (don't forget to set `CLIENT_VERSION_RC` to `0`)
 * [ ] Write release notes (see below)
-* [ ] Update `src/chainparams.cpp` nMinimumChainWork with information from the getblockchaininfo rpc.
-* [ ] Update `src/chainparams.cpp` defaultAssumeValid with information from the getblockhash rpc.
+* [ ] Update `src/chainparams.cpp` `nMinimumChainWork` with information from the `getblockchaininfo` rpc.
+* [ ] Update `src/chainparams.cpp` `defaultAssumeValid` with information from the `getblockhash` rpc.
   - The selected value must not be orphaned so it may be useful to set the value two blocks back from the tip.
   - Testnet should be set some tens of thousands back from the tip due to reorgs there.
-  - This update should be reviewed with a reindex-chainstate with assumevalid=0 to catch any defect
-     that causes rejection of blocks in the past history.
+  - This update should be reviewed with a `reindex-chainstate` with `assumevalid=0` to catch any defect
+    that causes rejection of blocks in the past history.
 * [ ] Ensure all TODOs are evaluated and resolved if needed
 * [ ] Verify Insight works
 * [ ] Verify p2pool works (unmaintained; no responsible party)
@@ -26,8 +26,8 @@ Before every minor and major release:
 Before every major release:
 
 * [ ] Update hardcoded [seeds](/contrib/seeds/README.md), see [this pull request](https://github.com/dashpay/dash/pull/5692) for an example.
-* [ ] Update [`src/chainparams.cpp`](/src/chainparams.cpp) m_assumed_blockchain_size and m_assumed_chain_state_size with the current size plus some overhead (see [this](#how-to-calculate-m_assumed_blockchain_size-and-m_assumed_chain_state_size) for information on how to calculate them).
-* [ ] Update `src/chainparams.cpp` chainTxData with statistics about the transaction count and rate. Use the output of the RPC `getchaintxstats`, see
+* [ ] Update [`src/chainparams.cpp`](/src/chainparams.cpp) `m_assumed_blockchain_size` and `m_assumed_chain_state_size` with the current size plus some overhead (see [this](#how-to-calculate-m_assumed_blockchain_size-and-m_assumed_chain_state_size) for information on how to calculate them).
+* [ ] Update `src/chainparams.cpp` `chainTxData` with statistics about the transaction count and rate. Use the output of the RPC `getchaintxstats`, see
   [this pull request](https://github.com/dashpay/dash/pull/5692) for an example. Reviewers can verify the results by running `getchaintxstats <window_block_count> <window_last_block_hash>` with the `window_block_count` and `window_last_block_hash` from your output.
 
 ### First time / New builders
@@ -37,24 +37,32 @@ Install Guix using one of the installation methods detailed in
 
 Check out the source code in the following directory hierarchy.
 
-	cd /path/to/your/toplevel/build
-	git clone https://github.com/dashpay/guix.sigs.git
-	git clone https://github.com/dashpay/dash-detached-sigs.git
-	git clone https://github.com/dashpay/dash.git
+```sh
+cd /path/to/your/toplevel/build
+git clone https://github.com/dashpay/guix.sigs.git
+git clone https://github.com/dashpay/dash-detached-sigs.git
+git clone https://github.com/dashpay/dash.git
+```
 
 ### Dash Core maintainers/release engineers, suggestion for writing release notes
 
 Write release notes. git shortlog helps a lot, for example:
 
-    git shortlog --no-merges v(current version, e.g. 19.3.0)..v(new version, e.g. 20.0.0)
+```sh
+git shortlog --no-merges v(current version, e.g. 19.3.0)..v(new version, e.g. 20.0.0)
+```
 
 Generate list of authors:
 
-    git log --format='- %aN' v(current version, e.g. 19.3.0)..v(new version, e.g. 20.0.0) | sort -fiu
+```sh
+git log --format='- %aN' v(current version, e.g. 19.3.0)..v(new version, e.g. 20.0.0) | sort -fiu
+```
 
 Tag version (or release candidate) in git
 
-    git tag -s v(new version, e.g. 20.0.0)
+```sh
+git tag -s v(new version, e.g. 20.0.0)
+```
 
 ### Setup and perform Guix builds
 
@@ -99,7 +107,7 @@ Follow the relevant Guix README.md sections:
 
 ### Next steps:
 
-Commit your signature to guix.sigs:
+Commit your signature to `guix.sigs`:
 
 ```sh
 pushd guix.sigs
@@ -115,31 +123,41 @@ Codesigner only: Create Windows/macOS detached signatures:
 
 Codesigner only: Sign the macOS binary:
 
-    transfer dashcore-osx-unsigned.tar.gz to macOS for signing
+* Transfer `dashcore-osx-unsigned.tar.gz` to macOS for signing
+* Extract and sign:
+
+    ```sh
     tar xf dashcore-osx-unsigned.tar.gz
     ./detached-sig-create.sh -s "Key ID" -o runtime
-    Enter the keychain password and authorize the signature
-    Move signature-osx.tar.gz back to the guix-build host
+    ```
+
+* Enter the keychain password and authorize the signature
+* Move `signature-osx.tar.gz` back to the guix-build host
 
 Codesigner only: Sign the windows binaries:
 
+* Extract and sign:
+
+    ```sh
     tar xf dashcore-win-unsigned.tar.gz
     ./detached-sig-create.sh -key /path/to/codesign.key
-    Enter the passphrase for the key when prompted
-    signature-win.tar.gz will be created
+    ```
+
+* Enter the passphrase for the key when prompted
+* `signature-win.tar.gz` will be created
 
 Codesigner only: Commit the detached codesign payloads:
 
 ```sh
 pushd ~/dashcore-detached-sigs
 # checkout the appropriate branch for this release series
+git checkout "v${VERSION}"
 rm -rf *
 tar xf signature-osx.tar.gz
 tar xf signature-win.tar.gz
 git add -A
-git commit -m "point to ${VERSION}"
-git tag -s "v${VERSION}" HEAD
-git push the current branch and new tag
+git commit -m "add detached sigs for win/osx for ${VERSION}"
+git push
 popd
 ```
 
@@ -164,18 +182,20 @@ popd
 ### After 3 or more people have guix-built and their results match:
 
 * [ ] Combine the `all.SHA256SUMS.asc` file from all signers into `SHA256SUMS.asc`:
-```bash
-cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
-```
+
+    ```sh
+    cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
+    ```
+
 * [ ] GPG sign each download / binary
-* [ ] Upload zips and installers, as well as SHA256SUMS.asc from last step, to GitHub as GitHub draft release.
+* [ ] Upload zips and installers, as well as `SHA256SUMS.asc` from last step, to GitHub as GitHub draft release.
     1. The contents of each `./dash/guix-build-${VERSION}/output/${HOST}/` directory, except for
        `*-debug*` files.
 
-       Guix will output all of the results into host subdirectories, but the SHA256SUMS
+       Guix will output all of the results into host subdirectories, but the `SHA256SUMS`
        file does not include these subdirectories. In order for downloads via torrent
        to verify without directory structure modification, all of the uploaded files
-       need to be in the same directory as the SHA256SUMS file.
+       need to be in the same directory as the `SHA256SUMS` file.
 
        The `*-debug*` files generated by the guix build contain debug symbols
        for troubleshooting by developers. It is assumed that anyone that is
@@ -190,34 +210,37 @@ cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
     2. The `SHA256SUMS` file
 
     3. The `SHA256SUMS.asc` combined signature file you just created
-* [ ] Validate SHA256SUMS.asc and all binaries attached to GitHub draft release are correct
+* [ ] Validate `SHA256SUMS.asc` and all binaries attached to GitHub draft release are correct
 * [ ] Notarize macOS binaries
-* [ ] Release on GitHub
+* [ ] Publish release on GitHub
+* [ ] Fast-forward `master` branch on GitHub
 * [ ] Update the dash.org download links
 * [ ] Ensure that docker hub images are up to date
 
 ### Announce the release:
 
-  - [ ] Release on Dash forum: https://www.dash.org/forum/topic/official-announcements.54/ (necessary so we have a permalink to use on twitter, reddit, etc.)
-  - [ ] Prepare product brief (major versions only)
-  - [ ] Prepare a release announcement tweet
-  - [ ] Follow-up tweets with any important block heights for consensus changes
-  - [ ] Post on Reddit
-  - [ ] Celebrate
+* [ ] Release on Dash forum: https://www.dash.org/forum/topic/official-announcements.54/ (necessary so we have a permalink to use on twitter, reddit, etc.)
+* [ ] Prepare product brief (major versions only)
+* [ ] Prepare a release announcement tweet
+* [ ] Follow-up tweets with any important block heights for consensus changes
+* [ ] Post on Reddit
+* [ ] Celebrate
 
 ### After the release:
-  - [ ] Submit patches to BTCPay to ensure they use latest / compatible version see https://github.com/dashpay/dash/issues/4211#issuecomment-966608207
-  - [ ] Update Core and User docs (docs.dash.org)
-  - [ ] Test Docker build runs without error in Dashmate
-  - [ ] Add new Release Process items to repo [Release Process](release-process.md) document
+* [ ] Submit patches to BTCPay to ensure they use latest / compatible version see https://github.com/dashpay/dash/issues/4211#issuecomment-966608207
+* [ ] Update Core and User docs (docs.dash.org)
+* [ ] Test Docker build runs without error in Dashmate
+* [ ] Add new Release Process items to repo [Release Process](release-process.md) document
+* [ ] Merge `master` branch back into `develop` so that `master` could be fast-forwarded on next release again
 
 ### MacOS Notarization
 
 #### Prerequisites
 Make sure you have the latest Xcode installed on your macOS device. You can download it from the Apple Developer website.
 You should have a valid Apple Developer ID under the team you are using which is necessary for the notarization process.
-To avoid including your password as cleartext in a notarization script, you can provide a reference to a keychain item. You can add a new keychain item named AC_PASSWORD from the command line using the notarytool utility:
-```
+To avoid including your password as cleartext in a notarization script, you can provide a reference to a keychain item. You can add a new keychain item named `AC_PASSWORD` from the command line using the `notarytool` utility:
+
+```sh
 xcrun notarytool store-credentials "AC_PASSWORD" --apple-id "AC_USERNAME" --team-id <WWDRTeamID> --password <secret_2FA_password>
 ```
 
@@ -226,25 +249,27 @@ Open Terminal, and navigate to the location of the .dmg file.
 
 Then, run the following command to notarize the .dmg file:
 
-```
+```sh
 xcrun notarytool submit dashcore-{version}-{x86_64, arm64}-apple-darwin.dmg --keychain-profile "AC_PASSWORD" --wait
 ```
-Replace "{version}" with the version you are notarizing. This command uploads the .dmg file to Apple's notary service.
 
-The --wait option makes the command wait to return until the notarization process is complete.
+Replace `{version}` with the version you are notarizing. This command uploads the .dmg file to Apple's notary service.
+
+The `--wait` option makes the command wait to return until the notarization process is complete.
 
 If the notarization process is successful, the notary service generates a log file URL. Please save this URL, as it contains valuable information regarding the notarization process.
 
 #### Notarization Validation
 
-After successfully notarizing the .dmg file, extract "Dash-Qt.app" from the .dmg.
+After successfully notarizing the .dmg file, extract `Dash-Qt.app` from the .dmg.
 To verify that the notarization process was successful, run the following command:
 
-```
+```sh
 spctl -a -vv -t install Dash-Qt.app
 ```
-Replace "Dash-Qt.app" with the path to your .app file. This command checks whether your .app file passes Gatekeeper’s
-checks. If the app is successfully notarized, the command line will include a line stating source=Notarized Developer ID.
+
+Replace `Dash-Qt.app` with the path to your .app file. This command checks whether your .app file passes Gatekeeper’s
+checks. If the app is successfully notarized, the command line will include a line stating `source=<Notarized Developer ID>`.
 
 ### Additional information
 
