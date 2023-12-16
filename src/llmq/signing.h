@@ -129,14 +129,14 @@ public:
     void WriteRecoveredSig(const CRecoveredSig& recSig);
     void TruncateRecoveredSig(Consensus::LLMQType llmqType, const uint256& id);
 
-    void CleanupOldRecoveredSigs(int64_t maxAge);
+    void CleanupOldRecoveredSigs(int64_t maxAge, bool fSync);
 
     // votes are removed when the recovered sig is written to the db
     bool HasVotedOnId(Consensus::LLMQType llmqType, const uint256& id) const;
     bool GetVoteForId(Consensus::LLMQType llmqType, const uint256& id, uint256& msgHashRet) const;
     void WriteVoteForId(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash);
 
-    void CleanupOldVotes(int64_t maxAge);
+    void CleanupOldVotes(int64_t maxAge, bool fSync);
 
 private:
     void MigrateRecoveredSigs();
@@ -178,6 +178,7 @@ private:
     FastRandomContext rnd GUARDED_BY(cs);
 
     int64_t lastCleanupTime{0};
+    int64_t lastCleanupSyncTime{0};
 
     std::vector<CRecoveredSigsListener*> recoveredSigsListeners GUARDED_BY(cs);
 

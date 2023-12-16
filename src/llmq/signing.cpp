@@ -227,7 +227,10 @@ void CRecoveredSigsDb::MigrateRecoveredSigs()
         pcursor->Next();
     }
 
-    db->WriteBatch(batch);
+    // Sync DB changes to disk
+    db->WriteBatch(batch, /*fSync=*/ true);
+    batch.Clear();
+
     pcursor.reset();
     oldDb.reset();
 
@@ -416,7 +419,7 @@ void CRecoveredSigsDb::TruncateRecoveredSig(Consensus::LLMQType llmqType, const 
     db->WriteBatch(batch);
 }
 
-void CRecoveredSigsDb::CleanupOldRecoveredSigs(int64_t maxAge)
+void CRecoveredSigsDb::CleanupOldRecoveredSigs(int64_t maxAge, bool fSync)
 {
     std::unique_ptr<CDBIterator> pcursor(db->NewIterator());
 
@@ -465,7 +468,8 @@ void CRecoveredSigsDb::CleanupOldRecoveredSigs(int64_t maxAge)
         batch.Erase(e);
     }
 
-    db->WriteBatch(batch);
+    db->WriteBatch(batch, fSync);
+    batch.Clear();
 
     LogPrint(BCLog::LLMQ, "CRecoveredSigsDb::%d -- deleted %d entries\n", __func__, toDelete.size());
 }
@@ -494,7 +498,7 @@ void CRecoveredSigsDb::WriteVoteForId(Consensus::LLMQType llmqType, const uint25
     db->WriteBatch(batch);
 }
 
-void CRecoveredSigsDb::CleanupOldVotes(int64_t maxAge)
+void CRecoveredSigsDb::CleanupOldVotes(int64_t maxAge, bool fSync)
 {
     std::unique_ptr<CDBIterator> pcursor(db->NewIterator());
 
@@ -530,7 +534,8 @@ void CRecoveredSigsDb::CleanupOldVotes(int64_t maxAge)
         return;
     }
 
-    db->WriteBatch(batch);
+    db->WriteBatch(batch, fSync);
+    batch.Clear();
 
     LogPrint(BCLog::LLMQ, "CRecoveredSigsDb::%d -- deleted %d entries\n", __func__, cnt);
 }
@@ -862,10 +867,15 @@ void CSigningManager::Cleanup()
 
     int64_t maxAge = gArgs.GetArg("-maxrecsigsage", DEFAULT_MAX_RECOVERED_SIGS_AGE);
 
-    db.CleanupOldRecoveredSigs(maxAge);
-    db.CleanupOldVotes(maxAge);
+    // Once per hour force it to flush all data to disk
+    bool fSync = now - lastCleanupSyncTime > 60 * 60 * 1000;
+    db.CleanupOldRecoveredSigs(maxAge, fSync);
+    db.CleanupOldVotes(maxAge, fSync);
 
     lastCleanupTime = GetTimeMillis();
+    if (fSync) {
+        lastCleanupSyncTime = now;
+    }
 }
 
 void CSigningManager::RegisterRecoveredSigsListener(CRecoveredSigsListener* l)

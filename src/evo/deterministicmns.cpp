@@ -1191,6 +1191,7 @@ void CDeterministicMNManager::CleanupCache(int nHeight)
         if (erased) {
             LogPrintf("CDeterministicMNManager::%s -- updating db...\n", __func__);
             db.WriteBatch(batch);
+            batch.Clear();
             LogPrintf("CDeterministicMNManager::%s -- done cleaning old data for %s\n", __func__, db_key_prefix);
         }
     }
@@ -1283,6 +1284,7 @@ bool CDeterministicMNManager::MigrateDBIfNeeded()
     }
 
     m_evoDb.GetRawDB().WriteBatch(batch);
+    batch.Clear();
 
     // Writing EVODB_BEST_BLOCK (which is b_b4 now) marks the DB as upgraded
     auto dbTx = m_evoDb.BeginTransaction();
@@ -1393,6 +1395,7 @@ bool CDeterministicMNManager::MigrateDBIfNeeded2()
     }
 
     m_evoDb.GetRawDB().WriteBatch(batch);
+    batch.Clear();
 
     // Writing EVODB_BEST_BLOCK (which is b_b4 now) marks the DB as upgraded
     auto dbTx = m_evoDb.BeginTransaction();

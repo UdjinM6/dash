@@ -56,7 +56,8 @@ bool CEvoDB::CommitRootTransaction()
     LOCK(cs);
     assert(curDBTransaction.IsClean());
     rootDBTransaction.Commit();
-    bool ret = db.WriteBatch(rootBatch);
+    // Sync DB changes to disk
+    bool ret = db.WriteBatch(rootBatch, /*fSync=*/ true);
     rootBatch.Clear();
     return ret;
 }

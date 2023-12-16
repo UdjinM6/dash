@@ -135,7 +135,10 @@ void CDKGSessionManager::MigrateDKG()
         pcursor->Next();
     }
 
-    db->WriteBatch(batch);
+    // Sync DB changes to disk
+    db->WriteBatch(batch, /*fSync=*/ true);
+    batch.Clear();
+
     pcursor.reset();
     oldDb.reset();
 
@@ -463,12 +466,12 @@ void CDKGSessionManager::CleanupOldContributions() const
         return;
     }
 
+    CDBBatch batch(*db);
     const auto prefixes = {DB_VVEC, DB_SKCONTRIB, DB_ENC_CONTRIB};
 
     for (const auto& params : Params().GetConsensus().llmqs) {
         LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- looking for old entries for llmq type %d\n", __func__, ToUnderlying(params.type));
 
-        CDBBatch batch(*db);
         size_t cnt_old{0}, cnt_all{0};
         for (const auto& prefix : prefixes) {
             std::unique_ptr<CDBIterator> pcursor(db->NewIterator());
@@ -495,9 +498,13 @@ void CDKGSessionManager::CleanupOldContributions() const
         LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- found %lld entries for llmq type %d\n", __func__, cnt_all, uint8_t(params.type));
         if (cnt_old > 0) {
             db->WriteBatch(batch);
+            batch.Clear();
             LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- removed %lld old entries for llmq type %d\n", __func__, cnt_old, uint8_t(params.type));
         }
     }
+    // Sync DB changes to disk
+    db->WriteBatch(batch, /*fSync=*/ true);
+    batch.Clear();
 }
 
 bool IsQuorumDKGEnabled(const CSporkManager& sporkManager)

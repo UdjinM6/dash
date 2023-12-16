@@ -95,7 +95,9 @@ void CInstantSendDb::Upgrade(const CTxMemPool& mempool)
             it->Next();
         }
         batch.Write(DB_VERSION, CInstantSendDb::CURRENT_VERSION);
-        db->WriteBatch(batch);
+        // Sync DB changes to disk
+        db->WriteBatch(batch, /*fSync=*/ true);
+        batch.Clear();
     }
 }
 
@@ -253,8 +255,9 @@ void CInstantSendDb::RemoveArchivedInstantSendLocks(int nUntilHeight)
 
         it->Next();
     }
-
-    db->WriteBatch(batch);
+    // Sync DB changes to disk
+    db->WriteBatch(batch, /*fSync=*/ true);
+    batch.Clear();
 }
 
 void CInstantSendDb::WriteBlockInstantSendLocks(const gsl::not_null<std::shared_ptr<const CBlock>>& pblock,

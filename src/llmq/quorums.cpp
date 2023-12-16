@@ -1018,10 +1018,12 @@ static void DataCleanupHelper(CDBWrapper& db, std::set<uint256> skip_list, bool 
             }
         }
 
-        db.WriteBatch(batch);
-
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- %s removed %d\n", __func__, prefix, count);
     }
+
+    // Sync DB changes to disk
+    db.WriteBatch(batch, /*fSync=*/ true);
+    batch.Clear();
 
     pcursor.reset();
 
