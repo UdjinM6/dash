@@ -166,7 +166,7 @@ public:
     explicit CCoinJoinClientSession(CWallet& pwallet, CJClientManager& clientman, const CMasternodeSync& mn_sync,
                                     const std::unique_ptr<CCoinJoinClientQueueManager>& queueman);
 
-    void ProcessMessage(CNode& peer, PeerManager& peerman, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv);
+    void ProcessMessage(CNode& peer, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv);
 
     void UnlockCoins();
 
@@ -252,7 +252,7 @@ public:
                                     const std::unique_ptr<CCoinJoinClientQueueManager>& queueman) :
         m_wallet(wallet), m_clientman(clientman), m_mn_sync(mn_sync), m_queueman(queueman) {}
 
-    void ProcessMessage(CNode& peer, PeerManager& peerman, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv) LOCKS_EXCLUDED(cs_deqsessions);
+    void ProcessMessage(CNode& peer, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv) LOCKS_EXCLUDED(cs_deqsessions);
 
     bool StartMixing();
     void StopMixing();
