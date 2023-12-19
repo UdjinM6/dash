@@ -91,7 +91,12 @@ std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqTy
     static std::map<Consensus::LLMQType, unordered_lru_cache<uint256, std::vector<CDeterministicMNCPtr>, StaticSaltedHasher>> mapQuorumMembers GUARDED_BY(cs_members);
     static RecursiveMutex cs_indexed_members;
     static std::map<Consensus::LLMQType, unordered_lru_cache<std::pair<uint256, int>, std::vector<CDeterministicMNCPtr>, StaticSaltedHasher>> mapIndexedQuorumMembers GUARDED_BY(cs_indexed_members);
-    if (!IsQuorumTypeEnabled(llmqType, *llmq::quorumManager, pQuorumBaseBlockIndex->pprev)) {
+
+    const auto& llmq_params_opt = GetLLMQParams(llmqType);
+    assert(llmq_params_opt.has_value());
+    const auto& llmq_params = llmq_params_opt.value();
+
+    if (!IsQuorumTypeEnabled(llmq_params, *llmq::quorumManager, pQuorumBaseBlockIndex->pprev)) {
         return {};
     }
     std::vector<CDeterministicMNCPtr> quorumMembers;
@@ -106,10 +111,6 @@ std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqTy
             return quorumMembers;
         }
     }
-
-    const auto& llmq_params_opt = GetLLMQParams(llmqType);
-    assert(llmq_params_opt.has_value());
-    const auto& llmq_params = llmq_params_opt.value();
 
     if (IsQuorumRotationEnabled(llmq_params, pQuorumBaseBlockIndex)) {
         if (LOCK(cs_indexed_members); mapIndexedQuorumMembers.empty()) {
@@ -937,21 +938,21 @@ bool IsQuorumActive(Consensus::LLMQType llmqType, const CQuorumManager& qman, co
     // fail while we are on the brink of a new quorum
     const auto& llmq_params_opt = GetLLMQParams(llmqType);
     assert(llmq_params_opt.has_value());
-    auto quorums = qman.ScanQuorums(llmqType, llmq_params_opt->keepOldConnections);
+    auto quorums = qman.ScanQuorums(*llmq_params_opt, llmq_params_opt->keepOldConnections);
     return ranges::any_of(quorums, [&quorumHash](const auto& q){ return q->qc->quorumHash == quorumHash; });
 }
 
-bool IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CQuorumManager& qman, gsl::not_null<const CBlockIndex*> pindex)
+bool IsQuorumTypeEnabled(const Consensus::LLMQParams& llmqParams, const CQuorumManager& qman, gsl::not_null<const CBlockIndex*> pindex)
 {
-    return IsQuorumTypeEnabledInternal(llmqType, qman, pindex, std::nullopt, std::nullopt);
+    return IsQuorumTypeEnabledInternal(llmqParams, qman, pindex, std::nullopt, std::nullopt);
 }
 
-bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CQuorumManager& qman, gsl::not_null<const CBlockIndex*> pindex,
+bool IsQuorumTypeEnabledInternal(const Consensus::LLMQParams& llmqParams, const CQuorumManager& qman, gsl::not_null<const CBlockIndex*> pindex,
                                 std::optional<bool> optDIP0024IsActive, std::optional<bool> optHaveDIP0024Quorums)
 {
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
-    switch (llmqType)
+    switch (llmqParams.type)
     {
         case Consensus::LLMQType::LLMQ_DEVNET:
             return true;
@@ -962,9 +963,11 @@ bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CQuorumMana
             bool fDIP0024IsActive = optDIP0024IsActive.has_value() ? *optDIP0024IsActive : IsDIP0024Active(pindex);
             if (!fDIP0024IsActive) return true;
 
-            bool fHaveDIP0024Quorums = optHaveDIP0024Quorums.has_value() ? *optHaveDIP0024Quorums
-                                                                         : !qman.ScanQuorums(
-                            consensusParams.llmqTypeDIP0024InstantSend, pindex, 1).empty();
+            const auto& llmq_params_opt = GetLLMQParams(consensusParams.llmqTypeDIP0024InstantSend);
+            assert(llmq_params_opt.has_value());
+            bool fHaveDIP0024Quorums = optHaveDIP0024Quorums.has_value()
+                    ? *optHaveDIP0024Quorums
+                    : !qman.ScanQuorums(*llmq_params_opt, pindex, 1).empty();
             return !fHaveDIP0024Quorums;
         }
         case Consensus::LLMQType::LLMQ_TEST:
@@ -990,7 +993,7 @@ bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CQuorumMana
             return pindex->nHeight >= TESTNET_LLMQ_25_67_ACTIVATION_HEIGHT;
 
         default:
-            throw std::runtime_error(strprintf("%s: Unknown LLMQ type %d", __func__, ToUnderlying(llmqType)));
+            throw std::runtime_error(strprintf("%s: Unknown LLMQ type %d", __func__, ToUnderlying(llmqParams.type)));
     }
 
     // Something wrong with conditions above, they are not consistent
@@ -1002,7 +1005,7 @@ std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(gsl::not_null<const CBloc
     std::vector<Consensus::LLMQType> ret;
     ret.reserve(Params().GetConsensus().llmqs.size());
     for (const auto& params : Params().GetConsensus().llmqs) {
-        if (IsQuorumTypeEnabled(params.type, *llmq::quorumManager, pindex)) {
+        if (IsQuorumTypeEnabled(params, *llmq::quorumManager, pindex)) {
             ret.push_back(params.type);
         }
     }
@@ -1015,7 +1018,7 @@ std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuoru
     ret.reserve(Params().GetConsensus().llmqs.size());
 
     std::copy_if(Params().GetConsensus().llmqs.begin(), Params().GetConsensus().llmqs.end(), std::back_inserter(ret),
-                 [&pindex](const auto& params){return IsQuorumTypeEnabled(params.type, *llmq::quorumManager, pindex);});
+                 [&pindex](const auto& params){return IsQuorumTypeEnabled(params, *llmq::quorumManager, pindex);});
 
     return ret;
 }

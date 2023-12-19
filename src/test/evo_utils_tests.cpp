@@ -23,18 +23,26 @@ void Test(llmq::CQuorumManager& qman, NodeContext& node)
     using namespace llmq::utils;
     auto tip = node.chainman->ActiveTip();
     const auto& consensus_params = Params().GetConsensus();
-    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeDIP0024InstantSend, qman, tip, false, false), false);
-    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeDIP0024InstantSend, qman, tip, true, false), true);
-    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeDIP0024InstantSend, qman, tip, true, true), true);
-    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeChainLocks, qman, tip, false, false), true);
-    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeChainLocks, qman, tip, true, false), true);
-    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeChainLocks, qman, tip, true, true), true);
-    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypePlatform, qman, tip, false, false), Params().IsTestChain());
-    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypePlatform, qman, tip, true, false), Params().IsTestChain());
-    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypePlatform, qman, tip, true, true), Params().IsTestChain());
-    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeMnhf, qman, tip, false, false), true);
-    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeMnhf, qman, tip, true, false), true);
-    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(consensus_params.llmqTypeMnhf, qman, tip, true, true), true);
+    const auto& llmq_params_DIP00024IS_opt = llmq::GetLLMQParams(consensus_params.llmqTypeDIP0024InstantSend);
+    const auto& llmq_params_ChainLocks_opt = llmq::GetLLMQParams(consensus_params.llmqTypeChainLocks);
+    const auto& llmq_params_Platform_opt = llmq::GetLLMQParams(consensus_params.llmqTypePlatform);
+    const auto& llmq_params_Mnhf_opt = llmq::GetLLMQParams(consensus_params.llmqTypeMnhf);
+    assert(llmq_params_DIP00024IS_opt.has_value());
+    assert(llmq_params_ChainLocks_opt.has_value());
+    assert(llmq_params_Platform_opt.has_value());
+    assert(llmq_params_Mnhf_opt.has_value());
+    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(*llmq_params_DIP00024IS_opt, qman, tip, false, false), false);
+    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(*llmq_params_DIP00024IS_opt, qman, tip, true, false), true);
+    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(*llmq_params_DIP00024IS_opt, qman, tip, true, true), true);
+    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(*llmq_params_ChainLocks_opt, qman, tip, false, false), true);
+    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(*llmq_params_ChainLocks_opt, qman, tip, true, false), true);
+    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(*llmq_params_ChainLocks_opt, qman, tip, true, true), true);
+    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(*llmq_params_Platform_opt, qman, tip, false, false), Params().IsTestChain());
+    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(*llmq_params_Platform_opt, qman, tip, true, false), Params().IsTestChain());
+    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(*llmq_params_Platform_opt, qman, tip, true, true), Params().IsTestChain());
+    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(*llmq_params_Mnhf_opt, qman, tip, false, false), true);
+    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(*llmq_params_Mnhf_opt, qman, tip, true, false), true);
+    BOOST_CHECK_EQUAL(IsQuorumTypeEnabledInternal(*llmq_params_Mnhf_opt, qman, tip, true, true), true);
 }
 
 BOOST_FIXTURE_TEST_CASE(utils_IsQuorumTypeEnabled_tests_regtest, RegTestingSetup)

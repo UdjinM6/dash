@@ -1011,7 +1011,7 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(const Consensus::LLMQParams&
     }
 
     if (utils::IsQuorumRotationEnabled(llmq_params, pindexStart)) {
-        auto quorums = quorum_manager.ScanQuorums(llmq_params.type, pindexStart, poolSize);
+        auto quorums = quorum_manager.ScanQuorums(llmq_params, pindexStart, poolSize);
         if (quorums.empty()) {
             return nullptr;
         }
@@ -1035,7 +1035,7 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(const Consensus::LLMQParams&
         }
         return *itQuorum;
     } else {
-        auto quorums = quorum_manager.ScanQuorums(llmq_params.type, pindexStart, poolSize);
+        auto quorums = quorum_manager.ScanQuorums(llmq_params, pindexStart, poolSize);
         if (quorums.empty()) {
             return nullptr;
         }

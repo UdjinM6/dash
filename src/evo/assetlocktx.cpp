@@ -115,9 +115,11 @@ bool CAssetUnlockPayload::VerifySig(const uint256& msgHash, gsl::not_null<const 
     // and the sig must validate against that specific quorumHash.
 
     Consensus::LLMQType llmqType = Params().GetConsensus().llmqTypeAssetLocks;
+    const auto& llmq_params_opt = llmq::GetLLMQParams(llmqType);
+    assert(llmq_params_opt.has_value());
 
     // We check at most 2 quorums
-    const auto quorums = llmq::quorumManager->ScanQuorums(llmqType, pindexTip, 2);
+    const auto quorums = llmq::quorumManager->ScanQuorums(*llmq_params_opt, pindexTip, 2);
 
     if (bool isActive = std::any_of(quorums.begin(), quorums.end(), [&](const auto &q) { return q->qc->quorumHash == quorumHash; }); !isActive) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlock-not-active-quorum");

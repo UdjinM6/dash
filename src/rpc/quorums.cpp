@@ -78,7 +78,7 @@ static UniValue quorum_list(const JSONRPCRequest& request, const ChainstateManag
         CHECK_NONFATAL(llmq_params_opt.has_value());
         UniValue v(UniValue::VARR);
 
-        auto quorums = llmq_ctx.qman->ScanQuorums(type, pindexTip, count > -1 ? count : llmq_params_opt->signingActiveQuorumCount);
+        auto quorums = llmq_ctx.qman->ScanQuorums(*llmq_params_opt, pindexTip, count > -1 ? count : llmq_params_opt->signingActiveQuorumCount);
         for (const auto& q : quorums) {
             v.push_back(q->qc->quorumHash.ToString());
         }
@@ -144,7 +144,7 @@ static UniValue quorum_list_extended(const JSONRPCRequest& request, const Chains
         const auto& llmq_params = llmq_params_opt.value();
         UniValue v(UniValue::VARR);
 
-        auto quorums = llmq_ctx.qman->ScanQuorums(type, pblockindex, llmq_params.signingActiveQuorumCount);
+        auto quorums = llmq_ctx.qman->ScanQuorums(*llmq_params_opt, pblockindex, llmq_params.signingActiveQuorumCount);
         for (const auto& q : quorums) {
             size_t num_members = q->members.size();
             size_t num_valid_members = std::count_if(q->qc->validMembers.begin(), q->qc->validMembers.begin() + num_members, [](auto val){return val;});
@@ -407,7 +407,7 @@ static UniValue quorum_memberof(const JSONRPCRequest& request, const ChainstateM
         if (scanQuorumsCount != -1) {
             count = (size_t)scanQuorumsCount;
         }
-        auto quorums = llmq_ctx.qman->ScanQuorums(llmq_params_opt->type, count);
+        auto quorums = llmq_ctx.qman->ScanQuorums(*llmq_params_opt, count);
         for (auto& quorum : quorums) {
             if (quorum->IsMember(dmn->proTxHash)) {
                 auto json = BuildQuorumInfo(quorum, false, false);
