@@ -56,7 +56,7 @@
 #if (__cplusplus > 201103L) && !defined(TL_EXPECTED_GCC49)
 #include <cassert>
 #define TL_ASSERT(x) assert(x)
-#else 
+#else
 #define TL_ASSERT(x)
 #endif
 #endif
@@ -627,9 +627,9 @@ template <class E> struct expected_storage_base<void, E, false, true> {
   //no constexpr for GCC 4/5 bug
   #else
   TL_EXPECTED_MSVC2015_CONSTEXPR
-  #endif 
+  #endif
   expected_storage_base() : m_has_val(true) {}
-     
+
   constexpr expected_storage_base(no_init_t) : m_val(), m_has_val(false) {}
 
   constexpr expected_storage_base(in_place_t) : m_has_val(true) {}
