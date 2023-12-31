@@ -2195,6 +2195,7 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
     // ********************************************************* Step 7c: Setup CoinJoin
 
     node.cj_ctx = std::make_unique<CJContext>(chainman.ActiveChainstate(), *node.connman, *node.mempool, *::masternodeSync, !ignores_incoming_txs);
+    node.coinjoin_loader = interfaces::MakeCoinJoinLoader(*node.cj_ctx->walletman);
 
 #ifdef ENABLE_WALLET
     g_wallet_init_interface.InitCoinJoinSettings(*node.cj_ctx->walletman);
