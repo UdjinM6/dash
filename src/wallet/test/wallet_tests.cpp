@@ -11,7 +11,9 @@
 #include <vector>
 
 #include <coinjoin/client.h>
+#include <coinjoin/context.h>
 #include <interfaces/chain.h>
+#include <interfaces/coinjoin.h>
 #include <key_io.h>
 #include <node/context.h>
 #include <policy/policy.h>
@@ -43,7 +45,7 @@ namespace {
 constexpr CAmount fallbackFee = 1000;
 } // anonymous namespace
 
-static std::shared_ptr<CWallet> TestLoadWallet(interfaces::Chain& chain)
+static std::shared_ptr<CWallet> TestLoadWallet(NodeContext& node)
 {
     DatabaseOptions options;
     DatabaseStatus status;
@@ -1223,7 +1225,7 @@ BOOST_FIXTURE_TEST_CASE(CreateWalletFromFile, TestChain100Setup)
 {
     gArgs.ForceSetArg("-unsafesqlitesync", "1");
     // Create new wallet with known key and unload it.
-    auto wallet = TestLoadWallet(*m_node.chain);
+    auto wallet = TestLoadWallet(m_node);
     CKey key;
     key.MakeNewKey(true);
     AddKey(*wallet, key);
@@ -1263,7 +1265,7 @@ BOOST_FIXTURE_TEST_CASE(CreateWalletFromFile, TestChain100Setup)
 
     // Reload wallet and make sure new transactions are detected despite events
     // being blocked
-    wallet = TestLoadWallet(*m_node.chain);
+    wallet = TestLoadWallet(m_node);
     BOOST_CHECK(rescan_completed);
     BOOST_CHECK_EQUAL(addtx_count, 2);
     {
@@ -1302,7 +1304,7 @@ BOOST_FIXTURE_TEST_CASE(CreateWalletFromFile, TestChain100Setup)
             ENTER_CRITICAL_SECTION(wallet->wallet()->cs_wallet);
             ENTER_CRITICAL_SECTION(cs_wallets);
         });
-    wallet = TestLoadWallet(*m_node.chain);
+    wallet = TestLoadWallet(m_node);
     BOOST_CHECK_EQUAL(addtx_count, 4);
     {
         LOCK(wallet->cs_wallet);
@@ -1335,8 +1337,7 @@ static size_t CalculateNestedKeyhashInputSize(bool use_max_sig)
     node.fee_estimator = std::make_unique<CBlockPolicyEstimator>();
     node.mempool = std::make_unique<CTxMemPool>(node.fee_estimator.get());
     auto chain = interfaces::MakeChain(node);
-    auto coinjoin_loader = interfaces::MakeCoinJoinLoader(*::coinJoinWalletManager);
-    CWallet wallet(chain.get(), coinjoin_loader, "", CreateDummyWalletDatabase());
+    CWallet wallet(chain.get(), nullptr /* coinjoin_loader */, "", CreateDummyWalletDatabase());
     AddKey(wallet, key);
     auto spk_man = wallet.GetLegacyScriptPubKeyMan();
     spk_man->AddCScript(inner_script);
