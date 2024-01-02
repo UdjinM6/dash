@@ -172,6 +172,9 @@ void CGovernanceTriggerManager::CleanAndRemove()
                 if (pSuperblock->IsExpired(*governance)) {
                     // update corresponding object
                     pObj->SetExpired();
+                    // Note: it doesn't matter if the trigger we voted for matches the executed superblock
+                    // or not, we must reset votedFundingYesTriggerHash regardless
+                    governanceManager.ResetVotedFundingTrigger();
                     remove = true;
                 }
                 break;
@@ -387,7 +390,6 @@ void CSuperblockManager::ExecuteBestSuperblock(CGovernanceManager& governanceMan
         // All checks are done in CSuperblock::IsValid via IsBlockValueValid and IsBlockPayeeValid,
         // tip wouldn't be updated if anything was wrong. Mark this trigger as executed.
         pSuperblock->SetExecuted();
-        governanceManager.ResetVotedFundingTrigger();
     }
 }
 
