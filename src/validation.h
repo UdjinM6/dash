@@ -131,7 +131,8 @@ static const uint64_t MIN_DISK_SPACE_FOR_BLOCK_FILES = 945 * 1024 * 1024;
 enum class SynchronizationState {
     INIT_REINDEX,
     INIT_DOWNLOAD,
-    POST_INIT
+    POST_INIT,
+    RESET
 };
 
 extern RecursiveMutex cs_main;
