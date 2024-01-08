@@ -1253,6 +1253,12 @@ void BitcoinGUI::updateNetworkState()
         stopSpinner();
     }
 
+    /*
+    if (fNetworkBecameActive || fNetworkBecameInactive) {
+        setNumBlocks(m_node.getNumBlocks(), QDateTime::fromTime_t(m_node.getLastBlockTime()), QString::fromStdString(m_node.getLastBlockHash()), m_node.getVerificationProgress(), false);
+    }
+    */
+
     nCountPrev = count;
     fNetworkActivePrev = fNetworkActive;
 
@@ -1491,6 +1497,9 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
 
     // If masternodeSync->Reset() has been called make sure status bar shows the correct information.
     if (nSyncProgress == -1) {
+        /*
+        setNumBlocks(m_node.getNumBlocks(), QDateTime::fromTime_t(m_node.getLastBlockTime()), QString::fromStdString(m_node.getLastBlockHash()), m_node.getVerificationProgress(), false);
+        */
         if (clientModel->getNumConnections()) {
             labelBlocksIcon->show();
             startSpinner();
