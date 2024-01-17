@@ -236,7 +236,13 @@ void TransactionView::setModel(WalletModel *_model)
         connect(transactionView->selectionModel(), &QItemSelectionModel::selectionChanged, this, &TransactionView::computeSum);
 
         transactionView->horizontalHeader()->setMinimumSectionSize(MINIMUM_COLUMN_WIDTH);
-        transactionView->horizontalHeader()->setStretchLastSection(true);
+        transactionView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
+        transactionView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
+        transactionView->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Fixed);
+        transactionView->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Fixed);
+        transactionView->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
+        transactionView->horizontalHeader()->setSectionResizeMode(5, QHeaderView::Fixed);
+        transactionView->horizontalHeader()->setStretchLastSection(false);
 
         if (_model->getOptionsModel())
         {
