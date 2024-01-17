@@ -236,13 +236,12 @@ void TransactionView::setModel(WalletModel *_model)
         connect(transactionView->selectionModel(), &QItemSelectionModel::selectionChanged, this, &TransactionView::computeSum);
 
         transactionView->horizontalHeader()->setMinimumSectionSize(MINIMUM_COLUMN_WIDTH);
-        transactionView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
-        transactionView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
-        transactionView->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Fixed);
-        transactionView->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Fixed);
-        transactionView->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
-        transactionView->horizontalHeader()->setSectionResizeMode(5, QHeaderView::Fixed);
-        transactionView->horizontalHeader()->setStretchLastSection(false);
+        transactionView->horizontalHeader()->setSectionResizeMode(TransactionTableModel::Status, QHeaderView::Fixed);
+        transactionView->horizontalHeader()->setSectionResizeMode(TransactionTableModel::Watchonly, QHeaderView::Fixed);
+        transactionView->horizontalHeader()->setSectionResizeMode(TransactionTableModel::Date, QHeaderView::Interactive);
+        transactionView->horizontalHeader()->setSectionResizeMode(TransactionTableModel::Type, QHeaderView::Interactive);
+        transactionView->horizontalHeader()->setSectionResizeMode(TransactionTableModel::ToAddress, QHeaderView::Stretch);
+        transactionView->horizontalHeader()->setSectionResizeMode(TransactionTableModel::Amount, QHeaderView::Fixed);
 
         if (_model->getOptionsModel())
         {

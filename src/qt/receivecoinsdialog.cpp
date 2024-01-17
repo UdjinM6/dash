@@ -77,11 +77,10 @@ void ReceiveCoinsDialog::setModel(WalletModel *_model)
         tableView->setColumnWidth(RecentRequestsTableModel::Label, LABEL_COLUMN_WIDTH);
         tableView->setColumnWidth(RecentRequestsTableModel::Amount, AMOUNT_MINIMUM_COLUMN_WIDTH);
         tableView->horizontalHeader()->setMinimumSectionSize(MINIMUM_COLUMN_WIDTH);
-        tableView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
-        tableView->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-        tableView->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
-        tableView->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Fixed);
-        tableView->horizontalHeader()->setStretchLastSection(false);
+        tableView->horizontalHeader()->setSectionResizeMode(RecentRequestsTableModel::Date, QHeaderView::Interactive);
+        tableView->horizontalHeader()->setSectionResizeMode(RecentRequestsTableModel::Label, QHeaderView::Stretch);
+        tableView->horizontalHeader()->setSectionResizeMode(RecentRequestsTableModel::Message, QHeaderView::Stretch);
+        tableView->horizontalHeader()->setSectionResizeMode(RecentRequestsTableModel::Amount, QHeaderView::Fixed);
 
         connect(tableView->selectionModel(),
             &QItemSelectionModel::selectionChanged, this,
