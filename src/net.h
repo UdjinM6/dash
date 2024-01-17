@@ -1487,12 +1487,8 @@ public:
 
     void PushInventory(const CInv& inv)
     {
-        if (inv.type == MSG_BLOCK) {
-            LogPrint(BCLog::NET, "%s -- adding new inv: %s peer=%d\n", __func__, inv.ToString(), id);
-            LOCK(cs_inventory);
-            vInventoryBlockToSend.push_back(inv.hash);
-            return;
-        }
+        assert(inv.type != MSG_BLOCK);
+
         LOCK(m_tx_relay->cs_tx_inventory);
         if (m_tx_relay->filterInventoryKnown.contains(inv.hash)) {
             LogPrint(BCLog::NET, "%s -- skipping known inv: %s peer=%d\n", __func__, inv.ToString(), id);

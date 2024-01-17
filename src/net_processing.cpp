@@ -1890,13 +1890,7 @@ void PeerManagerImpl::RelayTransaction(const uint256& txid)
     CInv inv(::dstxManager->GetDSTX(txid) ? MSG_DSTX : MSG_TX, txid);
     m_connman.ForEachNode([&inv](CNode* pnode)
     {
-        LOCK(pnode->m_tx_relay->cs_tx_inventory);
-        if (pnode->m_tx_relay->filterInventoryKnown.contains(inv.hash)) {
-            LogPrint(BCLog::NET, "%s -- skipping known inv: %s peer=%d\n", __func__, inv.ToString(), pnode->GetId());
-            return;
-        }
-        LogPrint(BCLog::NET, "%s -- adding new inv: %s peer=%d\n", __func__, inv.ToString(), pnode->GetId());
-        pnode->m_tx_relay->setInventoryTxToSend.insert(inv.hash);
+        pnode->PushInventory(inv);
     });
 }
 
