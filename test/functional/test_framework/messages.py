@@ -21,6 +21,7 @@ import copy
 from collections import namedtuple
 import hashlib
 from io import BytesIO
+import math
 import random
 import socket
 import struct
@@ -504,6 +505,11 @@ class CTransaction:
             if tout.nValue < 0 or tout.nValue > 21000000 * COIN:
                 return False
         return True
+
+    # Calculate the virtual transaction size using
+    # serialization size (does NOT use sigops).
+    def get_vsize(self):
+        return math.ceil(len(self.serialize()))
 
     def __repr__(self):
         return "CTransaction(nVersion=%i vin=%s vout=%s nLockTime=%i)" \
