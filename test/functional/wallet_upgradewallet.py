@@ -26,10 +26,11 @@ class UpgradeWalletTest(BitcoinTestFramework):
         self.setup_clean_chain = True
         self.num_nodes = 3
         self.extra_args = [
-            [], # current wallet version
-            ["-usehd=1"],            # v20.0.1 wallet
-            ["-usehd=0"]             # v19.3.0 wallet
+            [],                      # current wallet version
+            ["-usehd=1"],            # v18.2.2 wallet
+            ["-usehd=0"]             # v0.16.1.1 wallt
         ]
+        self.wallet_names = [self.default_wallet_name, None, None]
 
     def skip_test_if_missing_module(self):
         self.skip_if_no_wallet()
@@ -39,8 +40,8 @@ class UpgradeWalletTest(BitcoinTestFramework):
     def setup_nodes(self):
         self.add_nodes(self.num_nodes, extra_args=self.extra_args, versions=[
             None,
-            20000100,
-            19030000,
+            18020200, # that's last version before `default wallets` are created
+            160101,   # that's oldest version that support `import_deterministic_coinbase_privkeys`
         ])
         self.start_nodes()
         self.import_deterministic_coinbase_privkeys()
@@ -56,13 +57,13 @@ class UpgradeWalletTest(BitcoinTestFramework):
         Further info: https://github.com/bitcoin/bitcoin/pull/18774#discussion_r416967844
         """
         node_from = self.nodes[0]
-        v20_0_node = self.nodes[1]
+        v18_2_node = self.nodes[1]
         to_height = node_from.getblockcount()
         height = self.nodes[1].getblockcount()
         for i in range(height, to_height+1):
             b = node_from.getblock(blockhash=node_from.getblockhash(i), verbose=0)
-            v20_0_node.submitblock(b)
-        assert_equal(v20_0_node.getblockcount(), to_height)
+            v18_2_node.submitblock(b)
+        assert_equal(v18_2_node.getblockcount(), to_height)
 
     def run_test(self):
         self.nodes[0].generatetoaddress(COINBASE_MATURITY + 1, self.nodes[0].getnewaddress())
@@ -71,28 +72,28 @@ class UpgradeWalletTest(BitcoinTestFramework):
         res = self.nodes[0].getblockchaininfo()
         assert_equal(res['blocks'], COINBASE_MATURITY + 1)
         node_master = self.nodes[0]
-        v20_0_node  = self.nodes[1]
-        v19_3_node  = self.nodes[2]
+        v18_2_node  = self.nodes[1]
+        v16_1_node  = self.nodes[2]
 
         # Send coins to old wallets for later conversion checks.
-        v20_0_wallet  = v20_0_node.get_wallet_rpc(self.default_wallet_name)
-        v20_0_address = v20_0_wallet.getnewaddress()
-        node_master.generatetoaddress(COINBASE_MATURITY + 1, v20_0_address)
+        v18_2_wallet  = v18_2_node.get_wallet_rpc(self.default_wallet_name)
+        v18_2_address = v18_2_wallet.getnewaddress()
+        node_master.generatetoaddress(COINBASE_MATURITY + 1, v18_2_address)
         self.dumb_sync_blocks()
-        v20_0_balance = v20_0_wallet.getbalance()
+        v18_2_balance = v18_2_wallet.getbalance()
 
         self.log.info("Test upgradewallet RPC...")
         # Prepare for copying of the older wallet
         node_master_wallet_dir = os.path.join(node_master.datadir, "regtest/wallets")
-        v20_0_wallet       = os.path.join(v20_0_node.datadir, "regtest/wallets/wallet.dat")
-        v19_3_wallet       = os.path.join(v19_3_node.datadir, "regtest/wallets/wallet.dat")
+        v18_2_wallet       = os.path.join(v18_2_node.datadir, "regtest/wallets/wallet.dat")
+        v16_1_wallet       = os.path.join(v16_1_node.datadir, "regtest/wallets/wallet.dat")
         self.stop_nodes()
 
         # Copy the 0.16.3 wallet to the last Dash Core version and open it:
         shutil.rmtree(node_master_wallet_dir)
         os.mkdir(node_master_wallet_dir)
         shutil.copy(
-            v20_0_wallet,
+            v18_2_wallet,
             node_master_wallet_dir
         )
         self.restart_node(0, ['-nowallet'])
@@ -108,14 +109,14 @@ class UpgradeWalletTest(BitcoinTestFramework):
         # upgraded wallet version should be greater than older one
         assert_greater_than_or_equal(new_version, old_version)
         # wallet should still contain the same balance
-        assert_equal(wallet.getbalance(), v20_0_balance)
+        assert_equal(wallet.getbalance(), v18_2_balance)
 
         self.stop_node(0)
         # Copy the 19.3.0 wallet to the last Dash Core version and open it:
         shutil.rmtree(node_master_wallet_dir)
         os.mkdir(node_master_wallet_dir)
         shutil.copy(
-            v19_3_wallet,
+            v16_1_wallet,
             node_master_wallet_dir
         )
         self.restart_node(0, ['-nowallet'])
