@@ -15,9 +15,9 @@ from test_framework.blocktools import COINBASE_MATURITY
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
+    assert_greater_than,
     assert_greater_than_or_equal,
     assert_is_hex_string,
-    assert_raises_rpc_error,
 )
 
 
@@ -127,14 +127,15 @@ class UpgradeWalletTest(BitcoinTestFramework):
         assert_equal('hdseedid' in wallet.getwalletinfo(), False)
         # calling upgradewallet with explicit version number
         # should return nothing if successful
-        assert_raises_rpc_error(-4, "You should use upgradetohd RPC to upgrade non-HD wallet to HD", wallet.upgradewallet, 120200)
+        assert_equal(wallet.upgradewallet(120200), "")
 
+        new_version = wallet.getwalletinfo()["walletversion"]
+        # upgraded wallet would not have 120200 version until HD seed actually appeared
+        assert_greater_than(120200, new_version)
+        # after conversion master key hash should not be present yet
         assert 'hdchainid' not in wallet.getwalletinfo()
-
         assert_equal(wallet.upgradetohd(), True)
         new_version = wallet.getwalletinfo()["walletversion"]
-        # after conversion master key hash should not be present yet
-        assert 'hdchainid' in wallet.getwalletinfo()
         assert_equal(new_version, 120200)
         assert_is_hex_string(wallet.getwalletinfo()['hdchainid'])
 
