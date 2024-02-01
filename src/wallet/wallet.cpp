@@ -298,7 +298,7 @@ std::shared_ptr<CWallet> CreateWallet(interfaces::Chain& chain, interfaces::Coin
         return nullptr;
     }
     if (gArgs.GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET)) {
-        LogPrintf("set HD by default\n");
+        wallet->WalletLogPrintf("Set HD by default\n");
         wallet->SetMinVersion(FEATURE_HD);
     }
 
@@ -310,13 +310,6 @@ std::shared_ptr<CWallet> CreateWallet(interfaces::Chain& chain, interfaces::Coin
             return nullptr;
         }
         if (!create_blank) {
-            // Unlock the wallet
-            if (!wallet->Unlock(passphrase)) {
-                error = Untranslated("Error: Wallet was encrypted but could not be unlocked");
-                status = DatabaseStatus::FAILED_ENCRYPT;
-                return nullptr;
-            }
-
             {
                 // TODO: drop this condition after removing option to create non-HD wallets
                 // related backport bitcoin#11250
@@ -327,6 +320,13 @@ std::shared_ptr<CWallet> CreateWallet(interfaces::Chain& chain, interfaces::Coin
                        return nullptr;
                     }
                 }
+            }
+
+            // Unlock the wallet
+            if (!wallet->Unlock(passphrase)) {
+                error = Untranslated("Error: Wallet was encrypted but could not be unlocked");
+                status = DatabaseStatus::FAILED_ENCRYPT;
+                return nullptr;
             }
 
             // backup the wallet we just encrypted
