@@ -196,10 +196,12 @@ class LLMQSimplePoSeTest(DashTestFramework):
                     mn.node.setnetworkactive(True)
             self.connect_nodes(mn.node.index, 0)
 
+        # syncing blocks only since node 0 has txes waiting to be mined
+        self.sync_blocks()
+
         # Make sure protxes are "safe" to mine even when InstantSend and ChainLocks are no longer functional
         self.bump_mocktime(60 * 10 + 1)
         self.nodes[0].generate(1)
-        self.wait_until(lambda: all([x.getconnectioncount() > 0 for x in self.nodes]))
         self.sync_all()
 
         # Isolate and re-connect all MNs (otherwise there might be open connections with no MNAUTH for MNs which were banned before)
