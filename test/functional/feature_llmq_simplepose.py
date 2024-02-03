@@ -189,21 +189,22 @@ class LLMQSimplePoSeTest(DashTestFramework):
                 addr = self.nodes[0].getnewaddress()
                 self.nodes[0].sendtoaddress(addr, 0.1)
                 self.nodes[0].protx('update_service', mn.proTxHash, '127.0.0.1:%d' % p2p_port(mn.node.index), mn.keyOperator, "", addr)
-                # Make sure this tx "safe" to mine even when InstantSend and ChainLocks are no longer functional
-                self.bump_mocktime(60 * 10 + 1)
-                self.nodes[0].generate(1)
-                assert not self.check_banned(mn)
-
                 if restart:
                     self.stop_node(mn.node.index)
                     self.start_masternode(mn)
                 else:
                     mn.node.setnetworkactive(True)
             self.connect_nodes(mn.node.index, 0)
+
+        # Make sure protxes are "safe" to mine even when InstantSend and ChainLocks are no longer functional
+        self.bump_mocktime(60 * 10 + 1)
+        self.nodes[0].generate(1)
+        self.wait_until(lambda: all([x.getconnectioncount() > 0 for x in self.nodes]))
         self.sync_all()
 
         # Isolate and re-connect all MNs (otherwise there might be open connections with no MNAUTH for MNs which were banned before)
         for mn in self.mninfo:
+            assert not self.check_banned(mn)
             mn.node.setnetworkactive(False)
             self.wait_until(lambda: mn.node.getconnectioncount() == 0)
             mn.node.setnetworkactive(True)
