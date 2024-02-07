@@ -44,7 +44,7 @@ def mini_parser(dat_file):
             tmp_header = BytesIO(tmp_header_raw)
             tmp_header.read(TIME_SIZE) # skip the timestamp field
             raw_msgtype = tmp_header.read(MSGTYPE_SIZE)
-            msgtype: bytes = raw_msgtype.split(b'\x00', 1)[0]     # type: bytes
+            msgtype: bytes = raw_msgtype.split(b'\x00', 1)[0]
             remainder =  raw_msgtype.split(b'\x00', 1)[1]
             assert(len(msgtype) > 0)
             assert(msgtype in MESSAGEMAP)
