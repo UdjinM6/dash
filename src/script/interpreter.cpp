@@ -359,7 +359,7 @@ static bool EvalChecksig(const valtype& vchSig, const valtype& vchPubKey, CScrip
         //serror is set
         return false;
     }
-    fSuccess = checker.CheckSig(vchSig, vchPubKey, scriptCode, sigversion);
+    fSuccess = checker.CheckSig(vchSig, vchPubKey, scriptCode, GetSigVersionFromFlags(flags));
 
     if (!fSuccess && (flags & SCRIPT_VERIFY_NULLFAIL) && vchSig.size())
         return set_error(serror, SCRIPT_ERR_SIG_NULLFAIL);
@@ -1190,7 +1190,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         }
 
                         // Check signature
-                        bool fOk = checker.CheckSig(vchSig, vchPubKey, scriptCode, sigversion);
+                        bool fOk = checker.CheckSig(vchSig, vchPubKey, scriptCode, GetSigVersionFromFlags(flags));
 
                         if (fOk) {
                             isig++;
@@ -1541,6 +1541,10 @@ template PrecomputedTransactionData::PrecomputedTransactionData(const CMutableTr
 template void PrecomputedTransactionData::Init(const CTransaction& txTo, std::vector<CTxOut>&& spent_outputs);
 template void PrecomputedTransactionData::Init(const CMutableTransaction& txTo, std::vector<CTxOut>&& spent_outputs);
 
+SigVersion GetSigVersionFromFlags(unsigned int flags){
+    return (flags | SCRIPT_ENABLE_DIP0143) ? SigVersion::DIP0143 : SigVersion::BASE;
+}
+
 template <class T>
 uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn, int nHashType, const CAmount& amount, const PrecomputedTransactionData* cache)
 {
@@ -1636,6 +1640,9 @@ bool GenericTransactionSignatureChecker<T>::CheckSig(const std::vector<unsigned 
         return false;
     int nHashType = vchSig.back();
     vchSig.pop_back();
+    if ((nHashType & SIGHASH_DIP0143) && sigversion != SigVersion::DIP0143){
+        return false;
+    }
 
     uint256 sighash = SignatureHash(scriptCode, *txTo, nIn, nHashType, amount, this->txdata);
 
