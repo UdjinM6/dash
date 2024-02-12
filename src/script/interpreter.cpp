@@ -350,16 +350,14 @@ static bool EvalChecksig(const valtype& vchSig, const valtype& vchPubKey, CScrip
 
     // Drop the signatures when SIGHASH_DIP0143 is not used, since there's no way for a signature to sign itself
     int nHashType = vchSig.empty() ? 0 : vchSig.back();
-    if (nHashType & SIGHASH_DIP0143) {
-        // Can't use using SIGHASH_DIP0143 hash type without SCRIPT_ENABLE_DIP0143 flag
-        if ((flags & SCRIPT_ENABLE_DIP0143) == 0) {
-            return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE); //TODO
-        }
-    } else {
-        int found = FindAndDelete(scriptCode, CScript() << vchSig);
-        if (found > 0 && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
-            return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE);
+    // Can't use using SIGHASH_DIP0143 hash type without SCRIPT_ENABLE_DIP0143 flag
+    if ((nHashType & SIGHASH_DIP0143) && (~flags & SCRIPT_ENABLE_DIP0143)) {
+        return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE); //TODO: introduce and use new script error
     }
+
+    int found = FindAndDelete(scriptCode, CScript() << vchSig);
+    if (found > 0 && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
+        return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE);
 
     if (!CheckSignatureEncoding(vchSig, flags, serror) || !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
         //serror is set
@@ -441,7 +439,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 return set_error(serror, SCRIPT_ERR_DISABLED_OPCODE); // Disabled opcodes (CVE-2010-5137).
 
             // With SCRIPT_VERIFY_CONST_SCRIPTCODE, OP_CODESEPARATOR is rejected even in an unexecuted branch
-            if (opcode == OP_CODESEPARATOR && /*sigversion == SigVersion::BASE && TODO*/ (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
+            if (opcode == OP_CODESEPARATOR && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
                 return set_error(serror, SCRIPT_ERR_OP_CODESEPARATOR);
 
             if (fExec && 0 <= opcode && opcode <= OP_PUSHDATA4) {
@@ -1175,16 +1173,14 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     {
                         valtype& vchSig = stacktop(-isig-k);
                         int nHashType = vchSig.empty() ? 0 : vchSig.back();
-                        if (nHashType & SIGHASH_DIP0143) {
-                            // Can't use using SIGHASH_DIP0143 hash type without SCRIPT_ENABLE_DIP0143 flag
-                            if ((flags & SCRIPT_ENABLE_DIP0143) == 0) {
-                                return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE); //TODO
-                            }
-                        } else {
-                            int found = FindAndDelete(scriptCode, CScript() << vchSig);
-                            if (found > 0 && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
-                                return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE);
+                        // Can't use using SIGHASH_DIP0143 hash type without SCRIPT_ENABLE_DIP0143 flag
+                        if ((nHashType & SIGHASH_DIP0143) && (~flags & SCRIPT_ENABLE_DIP0143)) {
+                            return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE); //TODO: introduce and use new script error
                         }
+
+                        int found = FindAndDelete(scriptCode, CScript() << vchSig);
+                        if (found > 0 && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
+                            return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE);
                     }
 
                     bool fSuccess = true;
