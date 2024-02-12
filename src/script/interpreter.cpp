@@ -348,16 +348,24 @@ static bool EvalChecksig(const valtype& vchSig, const valtype& vchPubKey, CScrip
     // Subset of script starting at the most recent codeseparator
     CScript scriptCode(pbegincodehash, pend);
 
-    // Drop the signature, since there's no way for a signature to sign itself
-    int found = FindAndDelete(scriptCode, CScript() << vchSig);
-    if (found > 0 && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
-        return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE);
+    // Drop the signatures when SIGHASH_DIP0143 is not used, since there's no way for a signature to sign itself
+    int nHashType = vchSig.empty() ? 0 : vchSig.back();
+    if (nHashType & SIGHASH_DIP0143) {
+        // Can't use using SIGHASH_DIP0143 hash type without SCRIPT_ENABLE_DIP0143 flag
+        if ((flags & SCRIPT_ENABLE_DIP0143) == 0) {
+            return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE); //TODO
+        }
+    } else {
+        int found = FindAndDelete(scriptCode, CScript() << vchSig);
+        if (found > 0 && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
+            return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE);
+    }
 
     if (!CheckSignatureEncoding(vchSig, flags, serror) || !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
         //serror is set
         return false;
     }
-    fSuccess = checker.CheckSig(vchSig, vchPubKey, scriptCode, GetSigVersionFromFlags(flags));
+    fSuccess = checker.CheckSig(vchSig, vchPubKey, scriptCode, GetSigVersion(flags, nHashType));
 
     if (!fSuccess && (flags & SCRIPT_VERIFY_NULLFAIL) && vchSig.size())
         return set_error(serror, SCRIPT_ERR_SIG_NULLFAIL);
@@ -433,7 +441,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 return set_error(serror, SCRIPT_ERR_DISABLED_OPCODE); // Disabled opcodes (CVE-2010-5137).
 
             // With SCRIPT_VERIFY_CONST_SCRIPTCODE, OP_CODESEPARATOR is rejected even in an unexecuted branch
-            if (opcode == OP_CODESEPARATOR && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
+            if (opcode == OP_CODESEPARATOR && /*sigversion == SigVersion::BASE && TODO*/ (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
                 return set_error(serror, SCRIPT_ERR_OP_CODESEPARATOR);
 
             if (fExec && 0 <= opcode && opcode <= OP_PUSHDATA4) {
@@ -1162,13 +1170,21 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     // Subset of script starting at the most recent codeseparator
                     CScript scriptCode(pbegincodehash, pend);
 
-                    // Drop the signatures, since there's no way for a signature to sign itself
+                    // Drop the signatures when SIGHASH_DIP0143 is not used, since there's no way for a signature to sign itself
                     for (int k = 0; k < nSigsCount; k++)
                     {
                         valtype& vchSig = stacktop(-isig-k);
-                        int found = FindAndDelete(scriptCode, CScript() << vchSig);
-                        if (found > 0 && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
-                            return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE);
+                        int nHashType = vchSig.empty() ? 0 : vchSig.back();
+                        if (nHashType & SIGHASH_DIP0143) {
+                            // Can't use using SIGHASH_DIP0143 hash type without SCRIPT_ENABLE_DIP0143 flag
+                            if ((flags & SCRIPT_ENABLE_DIP0143) == 0) {
+                                return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE); //TODO
+                            }
+                        } else {
+                            int found = FindAndDelete(scriptCode, CScript() << vchSig);
+                            if (found > 0 && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
+                                return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE);
+                        }
                     }
 
                     bool fSuccess = true;
@@ -1186,7 +1202,8 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         }
 
                         // Check signature
-                        bool fOk = checker.CheckSig(vchSig, vchPubKey, scriptCode, GetSigVersionFromFlags(flags));
+                        int nHashType = vchSig.empty() ? 0 : vchSig.back();
+                        bool fOk = checker.CheckSig(vchSig, vchPubKey, scriptCode, GetSigVersion(flags, nHashType));
 
                         if (fOk) {
                             isig++;
@@ -1518,9 +1535,9 @@ void PrecomputedTransactionData::Init(const T& txTo, std::vector<CTxOut>&& spent
     assert(!m_ready);
 
     m_spent_outputs = std::move(spent_outputs);
-    hashPrevouts = GetPrevoutsHash(txTo);
-    hashSequence = GetSequencesHash(txTo);
-    hashOutputs = GetOutputsHash(txTo);
+    hashPrevouts = GetPrevoutsSHA256(txTo);
+    hashSequence = GetSequencesSHA256(txTo);
+    hashOutputs = GetOutputsSHA256(txTo);
 
     m_ready = true;
 }
@@ -1537,8 +1554,9 @@ template PrecomputedTransactionData::PrecomputedTransactionData(const CMutableTr
 template void PrecomputedTransactionData::Init(const CTransaction& txTo, std::vector<CTxOut>&& spent_outputs);
 template void PrecomputedTransactionData::Init(const CMutableTransaction& txTo, std::vector<CTxOut>&& spent_outputs);
 
-SigVersion GetSigVersionFromFlags(unsigned int flags){
-    return (flags | SCRIPT_ENABLE_DIP0143) ? SigVersion::DIP0143 : SigVersion::BASE;
+SigVersion GetSigVersion(unsigned int flags, int nHashType)
+{
+    return (flags & SCRIPT_ENABLE_DIP0143) && (nHashType & SIGHASH_DIP0143) ? SigVersion::DIP0143 : SigVersion::BASE;
 }
 
 template <class T>
@@ -1546,7 +1564,12 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
 {
     assert(nIn < txTo.vin.size());
 
-    if (nHashType & SIGHASH_DIP0143) {
+    // Hash type must have SIGHASH_DIP0143 bit for DIP0143 signatures
+    if (sigversion == SigVersion::DIP0143 && (nHashType & ~SIGHASH_DIP0143)) {
+        return uint256::ONE;
+    }
+
+    if (sigversion == SigVersion::DIP0143) {
         int32_t n32bitVersion = txTo.nVersion | (txTo.nType << 16);
         uint256 hashPrevouts;
         uint256 hashSequence;
@@ -1554,15 +1577,15 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
         const bool cacheready = cache && cache->m_ready;
 
         if (!(nHashType & SIGHASH_ANYONECANPAY)) {
-            hashPrevouts = cacheready ? cache->hashPrevouts : GetPrevoutsHash(txTo);
+            hashPrevouts = cacheready ? cache->hashPrevouts : SHA256Uint256(GetPrevoutsSHA256(txTo));
         }
 
         if (!(nHashType & SIGHASH_ANYONECANPAY) && (nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
-            hashSequence = cacheready ? cache->hashSequence : GetSequencesHash(txTo);
+            hashSequence = cacheready ? cache->hashSequence : SHA256Uint256(GetSequencesSHA256(txTo));
         }
 
         if ((nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
-            hashOutputs = cacheready ? cache->hashOutputs : GetOutputsHash(txTo);
+            hashOutputs = cacheready ? cache->hashOutputs : SHA256Uint256(GetOutputsSHA256(txTo));
         } else if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn < txTo.vout.size()) {
             CHashWriter ss(SER_GETHASH, 0);
             ss << txTo.vout[nIn];
@@ -1636,9 +1659,6 @@ bool GenericTransactionSignatureChecker<T>::CheckSig(const std::vector<unsigned 
         return false;
     int nHashType = vchSig.back();
     vchSig.pop_back();
-    if ((nHashType & SIGHASH_DIP0143) && sigversion != SigVersion::DIP0143){
-        return false;
-    }
 
     uint256 sighash = SignatureHash(scriptCode, *txTo, nIn, nHashType, amount, sigversion, this->txdata);
 

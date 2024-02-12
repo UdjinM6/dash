@@ -134,7 +134,7 @@ enum class SigVersion
     DIP0143 = 1,
 };
 
-SigVersion GetSigVersionFromFlags(unsigned int flags);
+SigVersion GetSigVersion(unsigned int flags, int nHashType);
 
 template <class T>
 uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn, int nHashType, const CAmount& amount, SigVersion sigversion, const PrecomputedTransactionData* cache = nullptr);
