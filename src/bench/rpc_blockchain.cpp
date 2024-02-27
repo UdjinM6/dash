@@ -18,7 +18,7 @@
 namespace {
 
 struct TestBlockAndIndex {
-    TestingSetup test_setup{};
+    const std::unique_ptr<const TestingSetup> testing_setup{MakeNoLogFileContext<const TestingSetup>(CBaseChainParams::MAIN)};
     CBlock block{};
     uint256 blockHash{};
     CBlockIndex blockindex{};
