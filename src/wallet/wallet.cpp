@@ -3979,6 +3979,11 @@ size_t CWallet::KeypoolCountExternalKeys() const
 {
     AssertLockHeld(cs_wallet);
 
+    auto legacy_spk_man = GetLegacyScriptPubKeyMan();
+    if (legacy_spk_man) {
+        return legacy_spk_man->KeypoolCountExternalKeys();
+    }
+
     unsigned int count = 0;
     for (auto spk_man : GetActiveScriptPubKeyMans()) {
         count += spk_man->KeypoolCountExternalKeys();
@@ -3991,12 +3996,12 @@ size_t CWallet::KeypoolCountInternalKeys() const
 {
     AssertLockHeld(cs_wallet);
 
-    unsigned int count = 0;
-    for (auto spk_man : GetActiveScriptPubKeyMans()) {
-        count += spk_man->KeypoolCountInternalKeys();
+    auto legacy_spk_man = GetLegacyScriptPubKeyMan();
+    if (legacy_spk_man) {
+        return legacy_spk_man->KeypoolCountInternalKeys();
     }
 
-    return count;
+    return GetKeyPoolSize() - KeypoolCountExternalKeys();
 }
 
 unsigned int CWallet::GetKeyPoolSize() const

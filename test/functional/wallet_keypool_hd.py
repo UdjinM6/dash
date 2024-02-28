@@ -99,13 +99,8 @@ class KeyPoolTest(BitcoinTestFramework):
         nodes[0].keypoolrefill(6)
         nodes[0].walletlock()
         wi = nodes[0].getwalletinfo()
-        if self.options.descriptors:
-            # this counters are zero, bitcoin have here 6 * 3 (3 different types)
-            assert_equal(wi['keypoolsize_hd_internal'], 0)
-            assert_equal(wi['keypoolsize'], 6)
-        else:
-            assert_equal(wi['keypoolsize_hd_internal'], 6)
-            assert_equal(wi['keypoolsize'], 6)
+        assert_equal(wi['keypoolsize_hd_internal'], 6)
+        assert_equal(wi['keypoolsize'], 6)
 
         # drain the internal keys
         nodes[0].getrawchangeaddress()
@@ -152,12 +147,8 @@ class KeyPoolTest(BitcoinTestFramework):
         nodes[0].walletpassphrase('test', 100)
         nodes[0].keypoolrefill(100)
         wi = nodes[0].getwalletinfo()
-        if self.options.descriptors:
-            assert_equal(wi['keypoolsize_hd_internal'], 0)
-            assert_equal(wi['keypoolsize'], 100)
-        else:
-            assert_equal(wi['keypoolsize_hd_internal'], 100)
-            assert_equal(wi['keypoolsize'], 100)
+        assert_equal(wi['keypoolsize_hd_internal'], 100)
+        assert_equal(wi['keypoolsize'], 100)
 
         # create a blank wallet
         nodes[0].createwallet(wallet_name='w2', blank=True, disable_private_keys=True)

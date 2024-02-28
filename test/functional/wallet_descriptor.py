@@ -38,13 +38,9 @@ class WalletDescriptorTest(BitcoinTestFramework):
         # A descriptor wallet should have 100 addresses * 1 type = 100 keys
         self.log.info("Checking wallet info")
         wallet_info = self.nodes[0].getwalletinfo()
-        assert_equal(wallet_info['keypoolsize'], 100)
         assert_equal(wallet_info['format'], 'sqlite')
-        # due to different implemenation SetupGeneration hd_internal is different for new wallets
-        # TODO: revert it when unify keypool implementation
-        #assert_equal(wallet_info['keypoolsize_hd_internal'], 100)
-        assert_equal(wallet_info['keypoolsize_hd_internal'], 0)
         assert_equal(wallet_info['keypoolsize'], 100)
+        assert_equal(wallet_info['keypoolsize_hd_internal'], 100)
         assert 'keypoololdest' not in wallet_info
 
         # Check that getnewaddress works
