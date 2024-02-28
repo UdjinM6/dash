@@ -170,7 +170,6 @@ class ImportDescriptorsTest(BitcoinTestFramework):
         xpriv = "tprv8ZgxMBicQKsPeuVhWwi6wuMQGfPKi9Li5GtX35jVNknACgqe3CY4g5xgkfDDJcmtF7o1QnxWDRYw4H5P26PXq7sbcUkEqeR4fg3Kxp2tigg"
         xpub = "tpubDAXcJ7s7ZwicqjprRaEWdPoHKrCS215qxGYxpusRLLmJuT69ZSicuGdSfyvyKpvUNYBW1s2U3NSrT6vrCYB9e6nZUEvrqnwXPF8ArTCRXMY"
         addresses = ["yUxX4qnzWntXhEGrYB92v7ez4EZBnUjB1y", "yRhTPsPd2qYgYbFFCqY2nuPHJQBjTnMQxg"] # hdkeypath=m/0'/0'/0' and 1'
-        addresses += ["yi8GEkfLBgK85wGmBFsMFdSbEvPPNCSnVx", "yYB4whdY8APWoCez6ryNdMBrrDjwzFbqMi"] # wpkh subscripts corresponding to the above addresses
         desc = "sh(pkh(" + xpub + "/0/0/*" + "))"
 
         self.log.info("Ranged descriptors cannot have labels")
