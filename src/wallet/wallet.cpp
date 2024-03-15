@@ -3384,10 +3384,10 @@ bool CWallet::CreateTransactionInternal(
         bilingual_str& error,
         const CCoinControl& coin_control,
         bool sign,
-        int nExtraPayloadSize)
+        int nExtraPayloadSize,
+        const CScript& scriptChange)
 {
     CAmount nValue = 0;
-    ReserveDestination reservedest(this);
     int nChangePosRequest = nChangePosInOut;
     unsigned int nSubtractFeeFromAmount = 0;
     for (const auto& recipient : vecSend)
@@ -3427,35 +3427,6 @@ bool CWallet::CreateTransactionInternal(
                 if (out.fSpendable) {
                     nAmountAvailable += out.tx->tx->vout[out.i].nValue;
                 }
-            }
-
-            // Create change script that will be used if we need change
-            // TODO: pass in scriptChange instead of reservedest so
-            // change transaction isn't always pay-to-bitcoin-address
-            CScript scriptChange;
-
-            // coin control: send change to custom address
-            if (!std::get_if<CNoDestination>(&coin_control.destChange)) {
-                scriptChange = GetScriptForDestination(coin_control.destChange);
-            } else { // no coin control: send change to newly generated address
-                // Note: We use a new key here to keep it from being obvious which side is the change.
-                //  The drawback is that by not reusing a previous key, the change may be lost if a
-                //  backup is restored, if the backup doesn't have the new private key for the change.
-                //  If we reused the old key, it would be possible to add code to look for and
-                //  rediscover unknown transactions that were written with keys of ours to recover
-                //  post-backup change.
-
-                // Reserve a new key pair from key pool. If it fails, provide a dummy
-                // destination in case we don't need change.
-                CTxDestination dest;
-                if (!reservedest.GetReservedDestination(dest, true)) {
-                    error = _("Transaction needs a change address, but we can't generate it. Please call keypoolrefill first.");
-                }
-                scriptChange = GetScriptForDestination(dest);
-                // A valid destination implies a change script (and
-                // vice-versa). An empty change script will abort later, if the
-                // change keypool ran out, but change is required.
-                CHECK_NONFATAL(IsValidDestination(dest) != scriptChange.empty());
             }
 
             nFeeRet = 0;
@@ -3737,10 +3708,6 @@ bool CWallet::CreateTransactionInternal(
         }
     }
 
-    // Before we return success, we assume any change key will be used to prevent
-    // accidental re-use.
-    reservedest.KeepDestination();
-
     WalletLogPrintf("Fee Calculation: Fee:%d Bytes:%u Tgt:%d (requested %d) Reason:\"%s\" Decay %.5f: Estimation: (%g - %g) %.2f%% %.1f/(%.1f %d mem %.1f out) Fail: (%g - %g) %.2f%% %.1f/(%.1f %d mem %.1f out)\n",
               nFeeRet, nBytes, feeCalc.returnedTarget, feeCalc.desiredTarget, StringForFeeReason(feeCalc.reason), feeCalc.est.decay,
               feeCalc.est.pass.start, feeCalc.est.pass.end,
@@ -3762,9 +3729,38 @@ bool CWallet::CreateTransaction(
         bool sign,
         int nExtraPayloadSize)
 {
+    ReserveDestination reservedest(this);
+
+    // Create change script that will be used if we need change
+    CScript scriptChange;
+
+    // coin control: send change to custom address
+    if (!std::get_if<CNoDestination>(&coin_control.destChange)) {
+        scriptChange = GetScriptForDestination(coin_control.destChange);
+    } else { // no coin control: send change to newly generated address
+        // Note: We use a new key here to keep it from being obvious which side is the change.
+        //  The drawback is that by not reusing a previous key, the change may be lost if a
+        //  backup is restored, if the backup doesn't have the new private key for the change.
+        //  If we reused the old key, it would be possible to add code to look for and
+        //  rediscover unknown transactions that were written with keys of ours to recover
+        //  post-backup change.
+
+        // Reserve a new key pair from key pool. If it fails, provide a dummy
+        // destination in case we don't need change.
+        CTxDestination dest;
+        if (!reservedest.GetReservedDestination(dest, true)) {
+            error = _("Transaction needs a change address, but we can't generate it. Please call keypoolrefill first.");
+        }
+        scriptChange = GetScriptForDestination(dest);
+        // A valid destination implies a change script (and
+        // vice-versa). An empty change script will abort later, if the
+        // change keypool ran out, but change is required.
+        CHECK_NONFATAL(IsValidDestination(dest) != scriptChange.empty());
+    }
+
     int nChangePosIn = nChangePosInOut;
     CTransactionRef tx2 = tx;
-    bool res = CreateTransactionInternal(vecSend, tx, nFeeRet, nChangePosInOut, error, coin_control, sign, nExtraPayloadSize);
+    bool res = CreateTransactionInternal(vecSend, tx, nFeeRet, nChangePosInOut, error, coin_control, sign, nExtraPayloadSize, scriptChange);
     // try with avoidpartialspends unless it's enabled already
     if (res && nFeeRet > 0 /* 0 means non-functional fee rate estimation */ && m_max_aps_fee > -1 && !coin_control.m_avoid_partial_spends) {
         CCoinControl tmp_cc = coin_control;
@@ -3772,7 +3768,7 @@ bool CWallet::CreateTransaction(
         CAmount nFeeRet2;
         int nChangePosInOut2 = nChangePosIn;
         bilingual_str error2; // fired and forgotten; if an error occurs, we discard the results
-        if (CreateTransactionInternal(vecSend, tx2, nFeeRet2, nChangePosInOut2, error2, tmp_cc, sign, nExtraPayloadSize)) {
+        if (CreateTransactionInternal(vecSend, tx2, nFeeRet2, nChangePosInOut2, error2, tmp_cc, sign, nExtraPayloadSize, scriptChange)) {
             // if fee of this alternative one is within the range of the max fee, we use this one
             const bool use_aps = nFeeRet2 <= nFeeRet + m_max_aps_fee;
             WalletLogPrintf("Fee non-grouped = %lld, grouped = %lld, using %s\n", nFeeRet, nFeeRet2, use_aps ? "grouped" : "non-grouped");
@@ -3783,6 +3779,13 @@ bool CWallet::CreateTransaction(
             }
         }
     }
+
+    if (res) {
+        // Before we return success, we assume any change key will be used to prevent
+        // accidental re-use.
+        reservedest.KeepDestination();
+    }
+
     return res;
 }
 
