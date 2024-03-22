@@ -316,8 +316,7 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, gsl::not_null<const C
         return false;
     }
 
-    for (auto& [_, qc2] : qcs) {
-        auto& qc = qc2; // cannot capture structured binding into lambda
+    for (const auto& [_, qc] : qcs) {
         if (qc.IsNull()) {
             continue;
         }
@@ -333,7 +332,9 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, gsl::not_null<const C
             m_evoDb.Erase(BuildInversedHeightKey(qc.llmqType, pindex->nHeight));
         }
 
-        WITH_LOCK(minableCommitmentsCs, mapHasMinedCommitmentCache[qc.llmqType].erase(qc.quorumHash));
+        [&qc2 = qc, this]() { // TODO: can drop this init-capture once we start requiring c++20
+            WITH_LOCK(minableCommitmentsCs, mapHasMinedCommitmentCache[qc2.llmqType].erase(qc2.quorumHash));
+        }();
 
         // if a reorg happened, we should allow to mine this commitment later
         AddMineableCommitment(qc);
