@@ -113,10 +113,10 @@ class CRecoveredSigsDb
 private:
     std::unique_ptr<CDBWrapper> db{nullptr};
 
-    mutable RecursiveMutex cs;
-    mutable unordered_lru_cache<std::pair<Consensus::LLMQType, uint256>, bool, StaticSaltedHasher, 30000> hasSigForIdCache GUARDED_BY(cs);
-    mutable unordered_lru_cache<uint256, bool, StaticSaltedHasher, 30000> hasSigForSessionCache GUARDED_BY(cs);
-    mutable unordered_lru_cache<uint256, bool, StaticSaltedHasher, 30000> hasSigForHashCache GUARDED_BY(cs);
+    mutable Mutex cs_cache;
+    mutable unordered_lru_cache<std::pair<Consensus::LLMQType, uint256>, bool, StaticSaltedHasher, 30000> hasSigForIdCache GUARDED_BY(cs_cache);
+    mutable unordered_lru_cache<uint256, bool, StaticSaltedHasher, 30000> hasSigForSessionCache GUARDED_BY(cs_cache);
+    mutable unordered_lru_cache<uint256, bool, StaticSaltedHasher, 30000> hasSigForHashCache GUARDED_BY(cs_cache);
 
 public:
     explicit CRecoveredSigsDb(bool fMemory, bool fWipe);
@@ -144,7 +144,7 @@ private:
     void MigrateRecoveredSigs();
 
     bool ReadRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, CRecoveredSig& ret) const;
-    void RemoveRecoveredSig(CDBBatch& batch, Consensus::LLMQType llmqType, const uint256& id, bool deleteHashKey, bool deleteTimeKey) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void RemoveRecoveredSig(CDBBatch& batch, Consensus::LLMQType llmqType, const uint256& id, bool deleteHashKey, bool deleteTimeKey);
 };
 
 class CRecoveredSigsListener
@@ -158,7 +158,6 @@ public:
 class CSigningManager
 {
 private:
-    mutable RecursiveMutex cs;
 
     CRecoveredSigsDb db;
     CConnman& connman;
@@ -166,15 +165,17 @@ private:
 
     std::atomic<PeerManager*> m_peerman{nullptr};
 
+    mutable Mutex cs_pending;
     // Incoming and not verified yet
-    std::unordered_map<NodeId, std::list<std::shared_ptr<const CRecoveredSig>>> pendingRecoveredSigs GUARDED_BY(cs);
-    std::unordered_map<uint256, std::shared_ptr<const CRecoveredSig>, StaticSaltedHasher> pendingReconstructedRecoveredSigs GUARDED_BY(cs);
+    std::unordered_map<NodeId, std::list<std::shared_ptr<const CRecoveredSig>>> pendingRecoveredSigs GUARDED_BY(cs_pending);
+    std::unordered_map<uint256, std::shared_ptr<const CRecoveredSig>, StaticSaltedHasher> pendingReconstructedRecoveredSigs GUARDED_BY(cs_pending);
 
-    FastRandomContext rnd GUARDED_BY(cs);
+    FastRandomContext rnd GUARDED_BY(cs_pending);
 
     int64_t lastCleanupTime{0};
 
-    std::vector<CRecoveredSigsListener*> recoveredSigsListeners GUARDED_BY(cs);
+    mutable Mutex cs_listeners;
+    std::vector<CRecoveredSigsListener*> recoveredSigsListeners GUARDED_BY(cs_listeners);
 
 public:
     CSigningManager(CConnman& _connman, const CQuorumManager& _qman, bool fMemory, bool fWipe);
