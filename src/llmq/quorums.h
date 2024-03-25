@@ -20,6 +20,7 @@
 
 #include <atomic>
 #include <map>
+#include <utility>
 
 class CBlockIndex;
 class CChainState;
@@ -181,10 +182,10 @@ private:
     mutable CBLSWorkerCache blsCache;
     mutable std::atomic<bool> fQuorumDataRecoveryThreadRunning{false};
 
-    mutable RecursiveMutex cs;
+    mutable Mutex cs_vvec_shShare;
     // These are only valid when we either participated in the DKG or fully watched it
-    BLSVerificationVectorPtr quorumVvec GUARDED_BY(cs);
-    CBLSSecretKey skShare GUARDED_BY(cs);
+    BLSVerificationVectorPtr quorumVvec GUARDED_BY(cs_vvec_shShare);
+    CBLSSecretKey skShare GUARDED_BY(cs_vvec_shShare);
 
 public:
     CQuorum(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker);
@@ -192,6 +193,10 @@ public:
     void Init(CFinalCommitmentPtr _qc, const CBlockIndex* _pQuorumBaseBlockIndex, const uint256& _minedBlockHash, Span<CDeterministicMNCPtr> _members);
 
     bool SetVerificationVector(const std::vector<CBLSPublicKey>& quorumVecIn);
+    void SetVerificationVector(BLSVerificationVectorPtr vvec_in) {
+        LOCK(cs_vvec_shShare);
+        quorumVvec = std::move(vvec_in);
+    }
     bool SetSecretKeyShare(const CBLSSecretKey& secretKeyShare);
 
     bool HasVerificationVector() const;
@@ -226,9 +231,9 @@ private:
     const CSporkManager& m_sporkman;
     const std::unique_ptr<CMasternodeSync>& m_mn_sync;
 
-    mutable RecursiveMutex cs_map_quorums;
+    mutable Mutex cs_map_quorums;
     mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, CQuorumPtr, StaticSaltedHasher>> mapQuorumsCache GUARDED_BY(cs_map_quorums);
-    mutable RecursiveMutex cs_scan_quorums;
+    mutable Mutex cs_scan_quorums;
     mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, std::vector<CQuorumCPtr>, StaticSaltedHasher>> scanQuorumsCache GUARDED_BY(cs_scan_quorums);
     mutable Mutex cs_cleanup;
     mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, uint256, StaticSaltedHasher>> cleanupQuorumsCache GUARDED_BY(cs_cleanup);
