@@ -199,7 +199,7 @@ public:
     }
     bool SetSecretKeyShare(const CBLSSecretKey& secretKeyShare);
 
-    bool HasVerificationVector() const;
+    bool HasVerificationVector() const LOCKS_EXCLUDED(cs_vvec_shShare);
     bool IsMember(const uint256& proTxHash) const;
     bool IsValidMember(const uint256& proTxHash) const;
     int GetMemberIndex(const uint256& proTxHash) const;
@@ -208,6 +208,7 @@ public:
     CBLSSecretKey GetSkShare() const;
 
 private:
+    bool HasVerificationVectorInternal() const EXCLUSIVE_LOCKS_REQUIRED(cs_vvec_shShare);
     void WriteContributions(CEvoDB& evoDb) const;
     bool ReadContributions(CEvoDB& evoDb);
 };

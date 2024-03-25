@@ -132,7 +132,7 @@ bool CQuorum::IsValidMember(const uint256& proTxHash) const
 CBLSPublicKey CQuorum::GetPubKeyShare(size_t memberIdx) const
 {
     LOCK(cs_vvec_shShare);
-    if (!HasVerificationVector() || memberIdx >= members.size() || !qc->validMembers[memberIdx]) {
+    if (!HasVerificationVectorInternal() || memberIdx >= members.size() || !qc->validMembers[memberIdx]) {
         return CBLSPublicKey();
     }
     const auto& m = members[memberIdx];
@@ -141,6 +141,11 @@ CBLSPublicKey CQuorum::GetPubKeyShare(size_t memberIdx) const
 
 bool CQuorum::HasVerificationVector() const {
     LOCK(cs_vvec_shShare);
+    return HasVerificationVectorInternal();
+}
+
+bool CQuorum::HasVerificationVectorInternal() const {
+    AssertLockHeld(cs_vvec_shShare);
     return quorumVvec != nullptr;
 }
 
@@ -166,7 +171,7 @@ void CQuorum::WriteContributions(CEvoDB& evoDb) const
     uint256 dbKey = MakeQuorumKey(*this);
 
     LOCK(cs_vvec_shShare);
-    if (HasVerificationVector()) {
+    if (HasVerificationVectorInternal()) {
         CDataStream s(SER_DISK, CLIENT_VERSION);
         WriteCompactSize(s, quorumVvec->size());
         for (auto& pubkey : *quorumVvec) {
