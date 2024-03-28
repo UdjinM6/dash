@@ -55,7 +55,7 @@ public:
 
     void UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork, bool fInitialDownload) override;
 
-    void Init(const CBlockIndex* pindex);
+    void Init(const CBlockIndex* pindex) LOCKS_EXCLUDED(cs) { LOCK(cs); InitInternal(pindex); };
 
     std::string GetStateString() const;
     std::string GetStatus() const;
@@ -76,7 +76,8 @@ public:
     [[nodiscard]] bool IsLegacy() const { READ_LOCK(cs); return m_info.legacy; }
 
 private:
-    bool GetLocalAddress(CService& addrRet);
+    void InitInternal(const CBlockIndex* pindex) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    bool GetLocalAddress(CService& addrRet) EXCLUSIVE_LOCKS_REQUIRED(cs);
 };
 
 extern std::unique_ptr<CActiveMasternodeManager> activeMasternodeManager;

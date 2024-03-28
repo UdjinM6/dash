@@ -74,9 +74,9 @@ std::string CActiveMasternodeManager::GetStatus() const
     }
 }
 
-void CActiveMasternodeManager::Init(const CBlockIndex* pindex)
+void CActiveMasternodeManager::InitInternal(const CBlockIndex* pindex)
 {
-    LOCK(cs);
+    AssertLockHeld(cs);
 
     if (!fMasternodeMode) return;
 
@@ -163,7 +163,7 @@ void CActiveMasternodeManager::UpdatedBlockTip(const CBlockIndex* pindexNew, con
             m_info.proTxHash = uint256();
             m_info.outpoint.SetNull();
             // MN might have reappeared in same block with a new ProTx
-            Init(pindexNew);
+            InitInternal(pindexNew);
         };
 
         if (!newMNList.IsMNValid(cur_protx_hash)) {
@@ -190,6 +190,7 @@ void CActiveMasternodeManager::UpdatedBlockTip(const CBlockIndex* pindexNew, con
 
 bool CActiveMasternodeManager::GetLocalAddress(CService& addrRet)
 {
+    AssertLockHeld(cs);
     // First try to find whatever our own local address is known internally.
     // Addresses could be specified via externalip or bind option, discovered via UPnP
     // or added by TorController. Use some random dummy IPv4 peer to prefer the one
@@ -207,7 +208,7 @@ bool CActiveMasternodeManager::GetLocalAddress(CService& addrRet)
     if (!fFoundLocal) {
         bool empty = true;
         // If we have some peers, let's try to find our local address from one of them
-        auto service = WITH_READ_LOCK(cs, return m_info.service);
+        auto service = m_info.service;
         m_connman.ForEachNodeContinueIf(CConnman::AllNodes, [&](CNode* pnode) {
             empty = false;
             if (pnode->addr.IsIPv4())
@@ -216,7 +217,6 @@ bool CActiveMasternodeManager::GetLocalAddress(CService& addrRet)
         });
         // nothing and no live connections, can't do anything for now
         if (empty) {
-            LOCK(cs);
             m_error = "Can't detect valid external address. Please consider using the externalip configuration option if problem persists. Make sure to use IPv4 address only.";
             LogPrintf("CActiveMasternodeManager::GetLocalAddress -- ERROR: %s\n", m_error);
             return false;
