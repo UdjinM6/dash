@@ -25,6 +25,11 @@ public:
     explicit EdgeTriggeredEvents(EdgeEventsMode events_mode);
     ~EdgeTriggeredEvents();
 
+    /* Add socket to interest list */
+    bool AddSocket(SOCKET socket) const;
+    /* Remove socket from interest list */
+    bool RemoveSocket(SOCKET socket) const;
+
     bool IsValid() const { return m_valid; }
 
 public:
