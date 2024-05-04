@@ -1292,9 +1292,6 @@ private:
     // Whether the node should be passed out in ForEach* callbacks
     static bool NodeFullyConnected(const CNode* pnode);
 
-    void RegisterEvents(CNode* pnode);
-    void UnregisterEvents(CNode* pnode);
-
     // Network usage totals
     mutable RecursiveMutex cs_totalBytesRecv;
     mutable RecursiveMutex cs_totalBytesSent;
