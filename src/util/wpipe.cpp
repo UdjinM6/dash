@@ -39,8 +39,12 @@ WakeupPipe::~WakeupPipe()
         if (m_edge_trig_events && !m_edge_trig_events->UnregisterPipe(m_pipe[0])) {
             LogPrintf("Destroying WakeupPipe instance, EdgeTriggeredEvents::UnregisterPipe() failed\n");
         }
-        close(m_pipe[0]);
-        close(m_pipe[1]);
+        for (size_t idx = 0; idx < m_pipe.size(); idx++) {
+            if (close(m_pipe[idx]) != 0) {
+                LogPrintf("Destroying WakeupPipe instance, close() failed for m_pipe[%d] = %d with error %s\n",
+                          idx, m_pipe[idx], NetworkErrorString(WSAGetLastError()));
+            }
+        }
 #else
         assert(false);
 #endif /* USE_WAKEUP_PIPE */
