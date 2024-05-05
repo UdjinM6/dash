@@ -29,6 +29,7 @@
 #include <util/thread.h>
 #include <util/time.h>
 #include <util/translation.h>
+#include <util/wpipe.h>
 #include <validation.h> // for fDIP0001ActiveAtTip
 
 #include <masternode/meta.h>
@@ -1589,7 +1590,7 @@ bool CConnman::GenerateSelectSet(std::set<SOCKET> &recv_set, std::set<SOCKET> &s
     // This is currently only implemented for POSIX compliant systems. This means that Windows will fall back to
     // timing out after 50ms and then trying to send. This is ok as we assume that heavy-load daemons are usually
     // run on Linux and friends.
-    recv_set.insert(wakeupPipe[0]);
+    recv_set.insert(Assert(m_wakeup_pipe)->m_pipe[0]);
 #endif
 
     return !recv_set.empty() || !send_set.empty() || !error_set.empty();
@@ -1605,9 +1606,8 @@ void CConnman::SocketEventsKqueue(std::set<SOCKET> &recv_set, std::set<SOCKET> &
     timeout.tv_sec = fOnlyPoll ? 0 : SELECT_TIMEOUT_MILLISECONDS / 1000;
     timeout.tv_nsec = (fOnlyPoll ? 0 : SELECT_TIMEOUT_MILLISECONDS % 1000) * 1000 * 1000;
 
-    wakeupSelectNeeded = true;
-    int n = kevent(Assert(m_edge_trig_events)->m_fd, nullptr, 0, events, maxEvents, &timeout);
-    wakeupSelectNeeded = false;
+    int n{-1};
+    ToggleWakeupPipe([&](){n = kevent(Assert(m_edge_trig_events)->m_fd, nullptr, 0, events, maxEvents, &timeout);});
     if (n == -1) {
         LogPrintf("kevent wait error\n");
     } else if (n > 0) {
@@ -1636,9 +1636,8 @@ void CConnman::SocketEventsEpoll(std::set<SOCKET> &recv_set, std::set<SOCKET> &s
     const size_t maxEvents = 64;
     epoll_event events[maxEvents];
 
-    wakeupSelectNeeded = true;
-    int n = epoll_wait(Assert(m_edge_trig_events)->m_fd, events, maxEvents, fOnlyPoll ? 0 : SELECT_TIMEOUT_MILLISECONDS);
-    wakeupSelectNeeded = false;
+    int n{-1};
+    ToggleWakeupPipe([&](){n = epoll_wait(Assert(m_edge_trig_events)->m_fd, events, maxEvents, fOnlyPoll ? 0 : SELECT_TIMEOUT_MILLISECONDS);});
     for (int i = 0; i < n; i++) {
         auto& e = events[i];
         if((e.events & EPOLLERR) || (e.events & EPOLLHUP)) {
@@ -1689,9 +1688,8 @@ void CConnman::SocketEventsPoll(std::set<SOCKET> &recv_set, std::set<SOCKET> &se
         vpollfds.push_back(std::move(it.second));
     }
 
-    wakeupSelectNeeded = true;
-    int r = poll(vpollfds.data(), vpollfds.size(), fOnlyPoll ? 0 : SELECT_TIMEOUT_MILLISECONDS);
-    wakeupSelectNeeded = false;
+    int r{-1};
+    ToggleWakeupPipe([&](){r = poll(vpollfds.data(), vpollfds.size(), fOnlyPoll ? 0 : SELECT_TIMEOUT_MILLISECONDS);});
     if (r < 0) {
         return;
     }
@@ -1744,9 +1742,8 @@ void CConnman::SocketEventsSelect(std::set<SOCKET> &recv_set, std::set<SOCKET> &
         hSocketMax = std::max(hSocketMax, hSocket);
     }
 
-    wakeupSelectNeeded = true;
-    int nSelect = select(hSocketMax + 1, &fdsetRecv, &fdsetSend, &fdsetError, &timeout);
-    wakeupSelectNeeded = false;
+    int nSelect{-1};
+    ToggleWakeupPipe([&](){nSelect = select(hSocketMax + 1, &fdsetRecv, &fdsetSend, &fdsetError, &timeout);});
     if (interruptNet)
         return;
 
@@ -1834,14 +1831,8 @@ void CConnman::SocketHandler(CMasternodeSync& mn_sync)
 
 #ifdef USE_WAKEUP_PIPE
     // drain the wakeup pipe
-    if (recv_set.count(wakeupPipe[0])) {
-        char buf[128];
-        while (true) {
-            int r = read(wakeupPipe[0], buf, sizeof(buf));
-            if (r <= 0) {
-                break;
-            }
-        }
+    if (recv_set.count(Assert(m_wakeup_pipe)->m_pipe[0])) {
+        m_wakeup_pipe->Drain();
     }
 #endif
 
@@ -2101,17 +2092,8 @@ void CConnman::WakeMessageHandler()
 void CConnman::WakeSelect()
 {
 #ifdef USE_WAKEUP_PIPE
-    if (wakeupPipe[1] == -1) {
-        return;
-    }
-
-    char buf{0};
-    if (write(wakeupPipe[1], &buf, sizeof(buf)) != 1) {
-        LogPrint(BCLog::NET, "write to wakeupPipe failed\n");
-    }
+    Assert(m_wakeup_pipe)->Write();
 #endif
-
-    wakeupSelectNeeded = false;
 }
 
 void CConnman::ThreadDNSAddressSeed()
@@ -3338,23 +3320,13 @@ bool CConnman::Start(CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_met
     }
 
 #ifdef USE_WAKEUP_PIPE
-    if (pipe(wakeupPipe) != 0) {
-        wakeupPipe[0] = wakeupPipe[1] = -1;
-        LogPrint(BCLog::NET, "pipe() for wakeupPipe failed\n");
-    } else {
-        int fFlags = fcntl(wakeupPipe[0], F_GETFL, 0);
-        if (fcntl(wakeupPipe[0], F_SETFL, fFlags | O_NONBLOCK) == -1) {
-            LogPrint(BCLog::NET, "fcntl for O_NONBLOCK on wakeupPipe failed\n");
-        }
-        fFlags = fcntl(wakeupPipe[1], F_GETFL, 0);
-        if (fcntl(wakeupPipe[1], F_SETFL, fFlags | O_NONBLOCK) == -1) {
-            LogPrint(BCLog::NET, "fcntl for O_NONBLOCK on wakeupPipe failed\n");
-        }
-        if (m_edge_trig_events && !m_edge_trig_events->RegisterPipe(wakeupPipe[0])) {
-            LogPrint(BCLog::NET, "EdgeTriggeredEvents::RegisterPipe() failed\n");
-        }
+    m_wakeup_pipe = std::make_unique<WakeupPipe>(m_edge_trig_events.get());
+    if (!m_wakeup_pipe->IsValid()) {
+        /* We log the error but do not halt initialization */
+        LogPrintf("Unable to initialize WakeupPipe instance\n");
+        m_wakeup_pipe.reset();
     }
-#endif
+#endif /* USE_WAKEUP_PIPE */
 
     // Send and receive from sockets, accept connections
     threadSocketHandler = std::thread(&util::TraceThread, "net", [this, &mn_sync] { ThreadSocketHandler(mn_sync); });
@@ -3520,21 +3492,12 @@ void CConnman::StopNodes()
     vhListenSocket.clear();
     semOutbound.reset();
     semAddnode.reset();
-
-    if (m_edge_trig_events) {
-#ifdef USE_WAKEUP_PIPE
-        if (!m_edge_trig_events->UnregisterPipe(wakeupPipe[0])) {
-            LogPrintf("EdgeTriggeredEvents::UnregisterPipe() failed\n");
-        }
-#endif
-        m_edge_trig_events.reset();
-    }
-
-#ifdef USE_WAKEUP_PIPE
-    if (wakeupPipe[0] != -1) close(wakeupPipe[0]);
-    if (wakeupPipe[1] != -1) close(wakeupPipe[1]);
-    wakeupPipe[0] = wakeupPipe[1] = -1;
-#endif
+    /**
+     * m_wakeup_pipe must be reset *before* m_edge_trig_events as it may
+     * attempt to call EdgeTriggeredEvents::UnregisterPipe() in its destructor
+     */
+    m_wakeup_pipe.reset();
+    m_edge_trig_events.reset();
 }
 
 void CConnman::DeleteNode(CNode* pnode)
@@ -4034,7 +3997,7 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
         }
 
         // wake up select() call in case there was no pending data before (so it was not selecting this socket for sending)
-        if (!hasPendingData && wakeupSelectNeeded)
+        if (!hasPendingData && (m_wakeup_pipe && m_wakeup_pipe->m_need_wakeup.load()))
             WakeSelect();
     }
 }
