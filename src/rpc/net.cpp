@@ -671,16 +671,16 @@ static RPCHelpMan getnetworkinfo()
         obj.pushKV("connections_mn_out",   (int)node.connman->GetNodeCount(ConnectionDirection::VerifiedOut));
         std::string strSocketEvents;
         switch (node.connman->GetSocketEventsMode()) {
-            case CConnman::SOCKETEVENTS_SELECT:
+            case SocketEventsMode::SELECT:
                 strSocketEvents = "select";
                 break;
-            case CConnman::SOCKETEVENTS_POLL:
+            case SocketEventsMode::POLL:
                 strSocketEvents = "poll";
                 break;
-            case CConnman::SOCKETEVENTS_EPOLL:
+            case SocketEventsMode::EPOLL:
                 strSocketEvents = "epoll";
                 break;
-            case CConnman::SOCKETEVENTS_KQUEUE:
+            case SocketEventsMode::KQUEUE:
                 strSocketEvents = "kqueue";
                 break;
             default:

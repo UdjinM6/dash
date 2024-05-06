@@ -15,10 +15,10 @@
 #include <sys/event.h>
 #endif
 
-EdgeTriggeredEvents::EdgeTriggeredEvents(EdgeEventsMode events_mode)
+EdgeTriggeredEvents::EdgeTriggeredEvents(SocketEventsMode events_mode)
     : m_mode(events_mode)
 {
-    if (m_mode == EdgeEventsMode::EPoll) {
+    if (m_mode == SocketEventsMode::EPOLL) {
 #ifdef USE_EPOLL
         m_fd = epoll_create1(0);
         if (m_fd == -1) {
@@ -30,7 +30,7 @@ EdgeTriggeredEvents::EdgeTriggeredEvents(EdgeEventsMode events_mode)
         LogPrintf("Attempting to initialize EdgeTriggeredEvents for epoll without support compiled in!\n");
         return;
 #endif /* USE_EPOLL */
-    } else if (m_mode == EdgeEventsMode::KQueue) {
+    } else if (m_mode == SocketEventsMode::KQUEUE) {
 #ifdef USE_KQUEUE
         m_fd = kqueue();
         if (m_fd == -1) {
@@ -66,7 +66,7 @@ bool EdgeTriggeredEvents::RegisterEntity(int entity, std::string entity_name) co
 {
     assert(m_valid);
 
-    if (m_mode == EdgeEventsMode::EPoll) {
+    if (m_mode == SocketEventsMode::EPOLL) {
 #ifdef USE_EPOLL
         epoll_event event;
         event.data.fd = entity;
@@ -79,7 +79,7 @@ bool EdgeTriggeredEvents::RegisterEntity(int entity, std::string entity_name) co
 #else
         assert(false);
 #endif /* USE_EPOLL */
-    } else if (m_mode == EdgeEventsMode::KQueue) {
+    } else if (m_mode == SocketEventsMode::KQUEUE) {
 #ifdef USE_KQUEUE
         struct kevent event;
         EV_SET(&event, entity, EVFILT_READ, EV_ADD, 0, 0, nullptr);
@@ -101,7 +101,7 @@ bool EdgeTriggeredEvents::UnregisterEntity(int entity, std::string entity_name) 
 {
     assert(m_valid);
 
-    if (m_mode == EdgeEventsMode::EPoll) {
+    if (m_mode == SocketEventsMode::EPOLL) {
 #ifdef USE_EPOLL
         if (epoll_ctl(m_fd, EPOLL_CTL_DEL, entity, nullptr) != 0) {
             LogPrintf("Failed to remove %s from epoll fd (epoll_ctl returned error %s)\n", entity_name,
@@ -111,7 +111,7 @@ bool EdgeTriggeredEvents::UnregisterEntity(int entity, std::string entity_name) 
 #else
         assert(false);
 #endif /* USE_EPOLL */
-    } else if (m_mode == EdgeEventsMode::KQueue) {
+    } else if (m_mode == SocketEventsMode::KQUEUE) {
 #ifdef USE_KQUEUE
         struct kevent event;
         EV_SET(&event, entity, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
@@ -165,7 +165,7 @@ bool EdgeTriggeredEvents::RegisterEvents(SOCKET socket) const
 {
     assert(m_valid && socket != INVALID_SOCKET);
 
-    if (m_mode == EdgeEventsMode::EPoll) {
+    if (m_mode == SocketEventsMode::EPOLL) {
 #ifdef USE_EPOLL
         epoll_event e;
         // We're using edge-triggered mode, so it's important that we drain sockets even if no signals come in
@@ -180,7 +180,7 @@ bool EdgeTriggeredEvents::RegisterEvents(SOCKET socket) const
 #else
         assert(false);
 #endif /* USE_EPOLL */
-    } else if (m_mode == EdgeEventsMode::KQueue) {
+    } else if (m_mode == SocketEventsMode::KQUEUE) {
 #ifdef USE_KQUEUE
         struct kevent events[2];
         EV_SET(&events[0], socket, EVFILT_READ, EV_ADD, 0, 0, nullptr);
@@ -209,7 +209,7 @@ bool EdgeTriggeredEvents::UnregisterEvents(SOCKET socket) const
         return false;
     }
 
-    if (m_mode == EdgeEventsMode::EPoll) {
+    if (m_mode == SocketEventsMode::EPOLL) {
 #ifdef USE_EPOLL
         if (epoll_ctl(m_fd, EPOLL_CTL_DEL, socket, nullptr) != 0) {
             LogPrintf("Failed to unregister events for socket -- epoll_ctl(%d, %d, %d, ...) returned error: %s\n",
@@ -219,7 +219,7 @@ bool EdgeTriggeredEvents::UnregisterEvents(SOCKET socket) const
 #else
         assert(false);
 #endif /* USE_EPOLL */
-    } else if (m_mode == EdgeEventsMode::KQueue) {
+    } else if (m_mode == SocketEventsMode::KQUEUE) {
 #ifdef USE_KQUEUE
         struct kevent events[2];
         EV_SET(&events[0], socket, EVFILT_READ, EV_DELETE, 0, 0, nullptr);

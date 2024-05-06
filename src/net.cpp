@@ -1782,21 +1782,21 @@ void CConnman::SocketEvents(std::set<SOCKET> &recv_set, std::set<SOCKET> &send_s
 {
     switch (socketEventsMode) {
 #ifdef USE_KQUEUE
-        case SOCKETEVENTS_KQUEUE:
+        case SocketEventsMode::KQUEUE:
             SocketEventsKqueue(recv_set, send_set, error_set, fOnlyPoll);
             break;
 #endif
 #ifdef USE_EPOLL
-        case SOCKETEVENTS_EPOLL:
+        case SocketEventsMode::EPOLL:
             SocketEventsEpoll(recv_set, send_set, error_set, fOnlyPoll);
             break;
 #endif
 #ifdef USE_POLL
-        case SOCKETEVENTS_POLL:
+        case SocketEventsMode::POLL:
             SocketEventsPoll(recv_set, send_set, error_set, fOnlyPoll);
             break;
 #endif
-        case SOCKETEVENTS_SELECT:
+        case SocketEventsMode::SELECT:
             SocketEventsSelect(recv_set, send_set, error_set, fOnlyPoll);
             break;
         default:
@@ -3240,8 +3240,8 @@ bool CConnman::Start(CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_met
     Init(connOptions);
 
     std::optional<std::string> error;
-    if (socketEventsMode == SOCKETEVENTS_EPOLL || socketEventsMode == SOCKETEVENTS_KQUEUE) {
-        m_edge_trig_events = std::make_unique<EdgeTriggeredEvents>(static_cast<EdgeEventsMode>(socketEventsMode));
+    if (socketEventsMode == SocketEventsMode::EPOLL || socketEventsMode == SocketEventsMode::KQUEUE) {
+        m_edge_trig_events = std::make_unique<EdgeTriggeredEvents>(socketEventsMode);
         if (!m_edge_trig_events->IsValid()) {
             LogPrintf("Unable to initialize EdgeTriggeredEvents instance\n");
             m_edge_trig_events.reset();

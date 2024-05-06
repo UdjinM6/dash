@@ -10,12 +10,6 @@
 #include <cstdint>
 #include <assert.h>
 
-/* Should be in sync with SocketEventsMode */
-enum class EdgeEventsMode : uint8_t {
-    EPoll = 2,
-    KQueue = 3
-};
-
 /**
  * A manager for abstracting logic surrounding edge-triggered socket events
  * modes like kqueue and epoll.
@@ -23,7 +17,7 @@ enum class EdgeEventsMode : uint8_t {
 class EdgeTriggeredEvents
 {
 public:
-    explicit EdgeTriggeredEvents(EdgeEventsMode events_mode);
+    explicit EdgeTriggeredEvents(SocketEventsMode events_mode);
     ~EdgeTriggeredEvents();
 
     bool IsValid() const { return m_valid; }
@@ -56,7 +50,7 @@ private:
     /* Instance validity flag set during construction */
     bool m_valid{false};
     /* Flag for storing selected socket events mode */
-    EdgeEventsMode m_mode;
+    SocketEventsMode m_mode;
     /* File descriptor used to interact with events mode */
     int m_fd{-1};
 };
