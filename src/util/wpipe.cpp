@@ -4,6 +4,8 @@
 
 #include <util/wpipe.h>
 
+#ifdef USE_WAKEUP_PIPE
+
 #include <logging.h>
 #include <util/edge.h>
 
@@ -12,7 +14,6 @@ static constexpr int EXPECTED_PIPE_WRITTEN_BYTES = 1;
 WakeupPipe::WakeupPipe(EdgeTriggeredEvents* edge_trig_events)
     : m_edge_trig_events{edge_trig_events}
 {
-#ifdef USE_WAKEUP_PIPE
     if (pipe(m_pipe.data()) != 0) {
         LogPrintf("Unable to initialize WakeupPipe, pipe() for m_pipe failed with error %s\n",
                   NetworkErrorString(WSAGetLastError()));
@@ -32,34 +33,26 @@ WakeupPipe::WakeupPipe(EdgeTriggeredEvents* edge_trig_events)
         return;
     }
     m_valid = true;
-#else
-    LogPrintf("Attempting to initialize WakeupPipe without support compiled in!\n");
-#endif /* USE_WAKEUP_PIPE */
 }
 
 WakeupPipe::~WakeupPipe()
 {
-    if (m_valid) {
-#ifdef USE_WAKEUP_PIPE
-        if (m_edge_trig_events && !m_edge_trig_events->UnregisterPipe(m_pipe[0])) {
-            LogPrintf("Destroying WakeupPipe instance, EdgeTriggeredEvents::UnregisterPipe() failed for m_pipe[0] = %d\n",
-                      m_pipe[0]);
+    if (!m_valid) return;
+
+    if (m_edge_trig_events && !m_edge_trig_events->UnregisterPipe(m_pipe[0])) {
+        LogPrintf("Destroying WakeupPipe instance, EdgeTriggeredEvents::UnregisterPipe() failed for m_pipe[0] = %d\n",
+                  m_pipe[0]);
+    }
+    for (size_t idx = 0; idx < m_pipe.size(); idx++) {
+        if (close(m_pipe[idx]) != 0) {
+            LogPrintf("Destroying WakeupPipe instance, close() failed for m_pipe[%d] = %d with error %s\n",
+                      idx, m_pipe[idx], NetworkErrorString(WSAGetLastError()));
         }
-        for (size_t idx = 0; idx < m_pipe.size(); idx++) {
-            if (close(m_pipe[idx]) != 0) {
-                LogPrintf("Destroying WakeupPipe instance, close() failed for m_pipe[%d] = %d with error %s\n",
-                          idx, m_pipe[idx], NetworkErrorString(WSAGetLastError()));
-            }
-        }
-#else
-        assert(false);
-#endif /* USE_WAKEUP_PIPE */
     }
 }
 
 void WakeupPipe::Drain() const
 {
-#ifdef USE_WAKEUP_PIPE
     assert(m_valid && m_pipe[0] != -1);
 
     int ret{0};
@@ -67,14 +60,10 @@ void WakeupPipe::Drain() const
     do {
         ret = read(m_pipe[0], buf.data(), buf.size());
     } while (ret <= 0);
-#else
-    assert(false);
-#endif /* USE_WAKEUP_PIPE */
 }
 
 void WakeupPipe::Write()
 {
-#ifdef USE_WAKEUP_PIPE
     assert(m_valid && m_pipe[1] != -1);
 
     std::array<uint8_t, EXPECTED_PIPE_WRITTEN_BYTES> buf;
@@ -88,7 +77,6 @@ void WakeupPipe::Write()
     }
 
     m_need_wakeup = false;
-#else
-    assert(false);
-#endif /* USE_WAKEUP_PIPE */
 }
+
+#endif // USE_WAKEUP_PIPE

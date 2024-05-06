@@ -1170,7 +1170,9 @@ public:
     unsigned int GetReceiveFloodSize() const;
 
     void WakeMessageHandler();
+#ifdef USE_WAKEUP_PIPE
     void WakeSelect();
+#endif // USE_WAKEUP_PIPE
 
     /** Attempts to obfuscate tx time through exponentially distributed emitting.
         Works assuming that a single interval is used.
@@ -1417,16 +1419,20 @@ private:
 
     SocketEventsMode socketEventsMode;
     std::unique_ptr<EdgeTriggeredEvents> m_edge_trig_events{nullptr};
+#ifdef USE_WAKEUP_PIPE
     std::unique_ptr<WakeupPipe> m_wakeup_pipe{nullptr};
+#endif // USE_WAKEUP_PIPE
 
     template <typename Callable>
     void ToggleWakeupPipe(Callable&& func)
     {
+#ifdef USE_WAKEUP_PIPE
         if (m_wakeup_pipe) {
             m_wakeup_pipe->Toggle(func);
-        } else {
-            func();
+            return;
         }
+#endif // USE_WAKEUP_PIPE
+        func();
     }
 
     Mutex cs_sendable_receivable_nodes;

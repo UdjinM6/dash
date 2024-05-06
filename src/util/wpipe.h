@@ -5,14 +5,16 @@
 #ifndef BITCOIN_UTIL_WPIPE_H
 #define BITCOIN_UTIL_WPIPE_H
 
+#ifndef WIN32
+#define USE_WAKEUP_PIPE
+#endif
+
+#ifdef USE_WAKEUP_PIPE
+
 #include <atomic>
 #include <array>
 
 #include <assert.h>
-
-#ifndef WIN32
-#define USE_WAKEUP_PIPE
-#endif
 
 class EdgeTriggeredEvents;
 
@@ -57,4 +59,5 @@ private:
     EdgeTriggeredEvents* m_edge_trig_events{nullptr};
 };
 
-#endif /* BITCOIN_UTIL_WPIPE_H */
+#endif // USE_WAKEUP_PIPE
+#endif // BITCOIN_UTIL_WPIPE_H

@@ -120,7 +120,7 @@ static const uint64_t SELECT_TIMEOUT_MILLISECONDS = 50;
 // We are however still somewhat limited in how long we can sleep as there is periodic work (cleanup) to be done in
 // the socket handler thread
 static const uint64_t SELECT_TIMEOUT_MILLISECONDS = 500;
-#endif
+#endif // USE_WAKEUP_PIPE
 
 const std::string NET_MESSAGE_COMMAND_OTHER = "*other*";
 
@@ -1298,7 +1298,9 @@ void CConnman::CreateNodeFromAcceptedSocket(SOCKET hSocket,
                 LogPrint(BCLog::NET, "EdgeTriggeredEvents::RegisterEvents() failed\n");
             }
         }
+#ifdef USE_WAKEUP_PIPE
         WakeSelect();
+#endif // USE_WAKEUP_PIPE
     }
 
     // We received a new connection, harvest entropy from the time (and our peer count)
@@ -1591,7 +1593,7 @@ bool CConnman::GenerateSelectSet(std::set<SOCKET> &recv_set, std::set<SOCKET> &s
     // timing out after 50ms and then trying to send. This is ok as we assume that heavy-load daemons are usually
     // run on Linux and friends.
     recv_set.insert(Assert(m_wakeup_pipe)->m_pipe[0]);
-#endif
+#endif // USE_WAKEUP_PIPE
 
     return !recv_set.empty() || !send_set.empty() || !error_set.empty();
 }
@@ -1834,7 +1836,7 @@ void CConnman::SocketHandler(CMasternodeSync& mn_sync)
     if (recv_set.count(Assert(m_wakeup_pipe)->m_pipe[0])) {
         m_wakeup_pipe->Drain();
     }
-#endif
+#endif // USE_WAKEUP_PIPE
 
     if (interruptNet) return;
 
@@ -2089,12 +2091,12 @@ void CConnman::WakeMessageHandler()
     condMsgProc.notify_one();
 }
 
+#ifdef USE_WAKEUP_PIPE
 void CConnman::WakeSelect()
 {
-#ifdef USE_WAKEUP_PIPE
     Assert(m_wakeup_pipe)->Write();
-#endif
 }
+#endif // USE_WAKEUP_PIPE
 
 void CConnman::ThreadDNSAddressSeed()
 {
@@ -2935,7 +2937,9 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
                 LogPrint(BCLog::NET, "EdgeTriggeredEvents::RegisterEvents() failed\n");
             }
         }
+#ifdef USE_WAKEUP_PIPE
         WakeSelect();
+#endif // USE_WAKEUP_PIPE
     }
 }
 
@@ -3326,7 +3330,7 @@ bool CConnman::Start(CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_met
         LogPrintf("Unable to initialize WakeupPipe instance\n");
         m_wakeup_pipe.reset();
     }
-#endif /* USE_WAKEUP_PIPE */
+#endif // USE_WAKEUP_PIPE
 
     // Send and receive from sockets, accept connections
     threadSocketHandler = std::thread(&util::TraceThread, "net", [this, &mn_sync] { ThreadSocketHandler(mn_sync); });
@@ -3492,11 +3496,13 @@ void CConnman::StopNodes()
     vhListenSocket.clear();
     semOutbound.reset();
     semAddnode.reset();
+#ifdef USE_WAKEUP_PIPE
     /**
      * m_wakeup_pipe must be reset *before* m_edge_trig_events as it may
      * attempt to call EdgeTriggeredEvents::UnregisterPipe() in its destructor
      */
     m_wakeup_pipe.reset();
+#endif // USE_WAKEUP_PIPE
     m_edge_trig_events.reset();
 }
 
@@ -3974,7 +3980,9 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
 
     {
         LOCK(pnode->cs_vSend);
+#ifdef USE_WAKEUP_PIPE
         bool hasPendingData = !pnode->vSendMsg.empty();
+#endif // USE_WAKEUP_PIPE
 
         //log total amount of bytes per message type
         pnode->mapSendBytesPerMsgCmd[msg.m_type] += nTotalSize;
@@ -3996,9 +4004,12 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
             }
         }
 
+#ifdef USE_WAKEUP_PIPE
         // wake up select() call in case there was no pending data before (so it was not selecting this socket for sending)
-        if (!hasPendingData && (m_wakeup_pipe && m_wakeup_pipe->m_need_wakeup.load()))
+        if (!hasPendingData && m_wakeup_pipe && m_wakeup_pipe->m_need_wakeup.load()) {
             WakeSelect();
+        }
+#endif // USE_WAKEUP_PIPE
     }
 }
 
