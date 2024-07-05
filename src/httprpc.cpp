@@ -72,6 +72,18 @@ static std::vector<std::vector<std::string>> g_rpcauth;
 static std::map<std::string, std::set<std::string>> g_rpc_whitelist;
 static bool g_rpc_whitelist_default = false;
 
+static bool whitelisted(JSONRPCRequest jreq)
+{
+    if (g_rpc_whitelist[jreq.authUser].count(jreq.strMethod)) return true;
+
+    // check for composite command after
+    if (!jreq.params.isArray() || jreq.params.empty()) return false;
+    if (!jreq.params[0].isStr()) return false;
+
+    return g_rpc_whitelist[jreq.authUser].count(jreq.strMethod + "_" + jreq.params[0].get_str());
+
+    return false;
+}
 static void JSONErrorReply(HTTPRequest* req, const UniValue& objError, const UniValue& id)
 {
     // Send error reply from json-rpc error object
@@ -195,7 +207,7 @@ static bool HTTPReq_JSONRPC(const CoreContext& context, HTTPRequest* req, bool e
         // singleton request
         } else if (valRequest.isObject()) {
             jreq.parse(valRequest);
-            if (user_has_whitelist && !g_rpc_whitelist[jreq.authUser].count(jreq.strMethod)) {
+            if (user_has_whitelist && !whitelisted(jreq)) {
                 LogPrintf("RPC User %s not allowed to call method %s\n", jreq.authUser, jreq.strMethod);
                 req->WriteReply(HTTP_FORBIDDEN);
                 return false;
@@ -215,7 +227,7 @@ static bool HTTPReq_JSONRPC(const CoreContext& context, HTTPRequest* req, bool e
                         const UniValue& request = valRequest[reqIdx].get_obj();
                         // Parse method
                         std::string strMethod = find_value(request, "method").get_str();
-                        if (!g_rpc_whitelist[jreq.authUser].count(strMethod)) {
+                        if (!whitelisted(jreq)) {
                             LogPrintf("RPC User %s not allowed to call method %s\n", jreq.authUser, strMethod);
                             req->WriteReply(HTTP_FORBIDDEN);
                             return false;
