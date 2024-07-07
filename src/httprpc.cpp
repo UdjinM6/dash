@@ -81,8 +81,6 @@ static bool whitelisted(JSONRPCRequest jreq)
     if (!jreq.params[0].isStr()) return false;
 
     return g_rpc_whitelist[jreq.authUser].count(jreq.strMethod + "_" + jreq.params[0].get_str());
-
-    return false;
 }
 static void JSONErrorReply(HTTPRequest* req, const UniValue& objError, const UniValue& id)
 {
