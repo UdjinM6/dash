@@ -536,8 +536,12 @@ UniValue CRPCTable::execute(const JSONRPCRequest &request) const
 static bool ExecuteCommand(const CRPCCommand& command, const JSONRPCRequest& request, UniValue& result, bool last_handler, const std::multimap<std::string, std::vector<UniValue>>& mapPlatformRestrictions)
 {
     const NodeContext& node = EnsureAnyNodeContext(request.context);
+    // TODO: remove -platform-user completely
+    if (gArgs.IsArgSet("-platform-user") && !gArgs.IsArgSet("-deprecated-platform-user")) {
+        throw JSONRPCError(RPC_PLATFORM_RESTRICTION, "-platform-user is deprecated. Use instead whitelists. If you still need to use -platform-user by any reason, add one more argument -deprecated-platform-user");
+    }
     // Before executing the RPC Command, filter commands from platform rpc user
-    if (node.mn_activeman && request.authUser == gArgs.GetArg("-platform-user", defaultPlatformUser)) {
+    if (node.mn_activeman && gArgs.IsArgSet("-platform-user") && request.authUser == gArgs.GetArg("-platform-user", defaultPlatformUser)) {
         // replace this with structured binding in c++20
         std::string command_name = command.name;
         if (!command.subname.empty()) command_name += " " + command.subname;
