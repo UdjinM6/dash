@@ -307,6 +307,10 @@ void CRPCTable::appendCommand(const std::string& name, const std::string& subnam
     CHECK_NONFATAL(!IsRPCRunning()); // Only add commands before rpc is running
 
     mapCommands[std::make_pair(name, subname)].push_back(pcmd);
+    if (!subname.empty()) {
+        // add a squashed version of a composite command
+        mapCommands[std::make_pair(name + subname, "")].push_back(pcmd);
+    }
 }
 
 bool CRPCTable::removeCommand(const std::string& name, const std::string& subname, const CRPCCommand* pcmd)
@@ -622,7 +626,13 @@ static bool ExecuteCommand(const CRPCCommand& command, const JSONRPCRequest& req
 std::vector<std::pair<std::string, std::string>> CRPCTable::listCommands() const
 {
     std::vector<std::pair<std::string, std::string>> commandList;
-    for (const auto& i : mapCommands) commandList.emplace_back(i.first);
+    for (const auto& i : mapCommands) {
+        if (i.first.first != i.second.front()->name) {
+            // that's a composite command
+            continue;
+        }
+        commandList.emplace_back(i.first);
+    }
     return commandList;
 }
 
