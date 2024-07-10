@@ -92,6 +92,12 @@ def process_mapping(fname):
                     in_rpcs = False
                 elif '{' in line and '"' in line:
                     m = re.search(r'{ *("[^"]*"), *([0-9]+) *, *("[^"]*") *},', line)
+                    # that's a quick fix for composite command
+                    # no proper implementation is needed so far as this linter would be removed soon with bitcoin#20012
+                    if not m:
+                        m = re.search(r'{ *("[^"]*"), *("[^"]*"), *([0-9]+) *, *("[^"]*") *},', line)
+                        if m:
+                            continue
                     assert m, 'No match to table expression: %s' % line
                     name = parse_string(m.group(1))
                     idx = int(m.group(2))

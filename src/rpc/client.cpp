@@ -12,9 +12,15 @@
 class CRPCConvertParam
 {
 public:
-    std::string methodName; //!< method whose params want conversion
-    int paramIdx;           //!< 0-based idx of param to convert
-    std::string paramName;  //!< parameter name
+    std::string methodName;     //!< method whose params want conversion
+    std::string methodSubName;  //!< method subname whose params want conversion
+    int paramIdx;               //!< 0-based idx of param to convert
+    std::string paramName;      //!< parameter name
+
+    CRPCConvertParam(std::string _methodName, int _paramIdx, std::string _paramName) :
+        methodName{_methodName}, methodSubName{""}, paramIdx{_paramIdx}, paramName{_paramName} {}
+    CRPCConvertParam(std::string _methodName, std::string _methodSubName, int _paramIdx, std::string _paramName) :
+        methodName{_methodName}, methodSubName{_methodSubName}, paramIdx{_paramIdx}, paramName{_paramName} {}
 };
 
 // clang-format off
@@ -231,17 +237,29 @@ static const CRPCConvertParam vRPCConvertParams[] =
 class CRPCConvertTable
 {
 private:
-    std::set<std::pair<std::string, int>> members;
-    std::set<std::pair<std::string, std::string>> membersByName;
+    std::set<std::pair<std::pair<std::string, std::string>, int>> members;
+    std::set<std::pair<std::pair<std::string, std::string>, std::string>> membersByName;
 
 public:
     CRPCConvertTable();
 
     bool convert(const std::string& method, int idx) {
-        return (members.count(std::make_pair(method, idx)) > 0);
+        return (members.count(std::make_pair(std::make_pair(method, ""), idx)) > 0);
+    }
+    bool convert(const std::string& method, const std::string& submethod, int idx) {
+        return (members.count(std::make_pair(std::make_pair(method, submethod), idx)) > 0);
     }
     bool convert(const std::string& method, const std::string& name) {
-        return (membersByName.count(std::make_pair(method, name)) > 0);
+        return (membersByName.count(std::make_pair(std::make_pair(method, ""), name)) > 0);
+    }
+    bool convert(const std::string& method, const std::string& submethod, const std::string& name) {
+        return (membersByName.count(std::make_pair(std::make_pair(method, submethod), name)) > 0);
+    }
+    bool isSubCommand(const std::string& method, const std::string& submethod) {
+        for (const auto& [name, _] : members) {
+            if (!name.second.empty() && name == std::make_pair(method, submethod)) return true;
+        }
+        return false;
     }
 };
 
@@ -251,9 +269,9 @@ CRPCConvertTable::CRPCConvertTable()
         (sizeof(vRPCConvertParams) / sizeof(vRPCConvertParams[0]));
 
     for (unsigned int i = 0; i < n_elem; i++) {
-        members.insert(std::make_pair(vRPCConvertParams[i].methodName,
+        members.insert(std::make_pair(std::make_pair(vRPCConvertParams[i].methodName, vRPCConvertParams[i].methodSubName),
                                       vRPCConvertParams[i].paramIdx));
-        membersByName.insert(std::make_pair(vRPCConvertParams[i].methodName,
+        membersByName.insert(std::make_pair(std::make_pair(vRPCConvertParams[i].methodName, vRPCConvertParams[i].methodSubName),
                                             vRPCConvertParams[i].paramName));
     }
 }
@@ -272,14 +290,26 @@ UniValue ParseNonRFCJSONValue(const std::string& strVal)
     return jVal[0];
 }
 
-UniValue RPCConvertValues(const std::string &strMethod, const std::vector<std::string> &strParams)
+UniValue RPCConvertValues(const std::string& strMethod, std::vector<std::string> strParams)
 {
     UniValue params(UniValue::VARR);
+
+    // Check if strParams[0] is a subcommand. If it is, remove it from strParams so that
+    // the indexes of the arguments line up but still push it into params so that squashing
+    // logic down the line still works as expected.
+    std::string strSubCmd{""};
+    if (strParams.size() > 0 && strParams[0] != "") {
+        if (rpcCvtTable.isSubCommand(strMethod, strParams[0])) {
+            strSubCmd = strParams[0];
+            params.push_back(strSubCmd);
+            strParams.erase(strParams.begin());
+        }
+    }
 
     for (unsigned int idx = 0; idx < strParams.size(); idx++) {
         const std::string& strVal = strParams[idx];
 
-        if (!rpcCvtTable.convert(strMethod, idx)) {
+        if (!rpcCvtTable.convert(strMethod, strSubCmd, idx)) {
             // insert string value directly
             params.push_back(strVal);
         } else {

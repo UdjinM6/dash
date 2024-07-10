@@ -179,6 +179,12 @@ public:
     std::vector<std::pair<std::string, std::string>> listCommands() const;
 
     /**
+    * Returns a list of registered subcommands for a command
+    * @returns List of subcommands
+    */
+    std::vector<std::string> listSubCommands(const std::string& command) const;
+
+    /**
      * Appends a CRPCCommand to the dispatch table.
      *
      * Precondition: RPC server is not running

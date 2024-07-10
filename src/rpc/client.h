@@ -9,7 +9,7 @@
 #include <univalue.h>
 
 /** Convert positional arguments to command-specific RPC representation */
-UniValue RPCConvertValues(const std::string& strMethod, const std::vector<std::string>& strParams);
+UniValue RPCConvertValues(const std::string& strMethod, std::vector<std::string> strParams);
 
 /** Convert named arguments to command-specific RPC representation */
 UniValue RPCConvertNamedValues(const std::string& strMethod, const std::vector<std::string>& strParams);

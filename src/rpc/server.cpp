@@ -622,6 +622,17 @@ std::vector<std::pair<std::string, std::string>> CRPCTable::listCommands() const
     return commandList;
 }
 
+std::vector<std::string> CRPCTable::listSubCommands(const std::string& command) const
+{
+    std::vector<std::string> ret;
+    for (const auto& [name, _] : mapCommands) {
+        if (const auto& [cmd, subcmd] = name; cmd == command) {
+            ret.emplace_back(subcmd);
+        }
+    }
+    return ret;
+}
+
 void RPCSetTimerInterfaceIfUnset(RPCTimerInterface *iface)
 {
     if (!timerInterface)
