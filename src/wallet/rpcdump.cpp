@@ -59,7 +59,7 @@ static std::string DecodeDumpString(const std::string &str) {
 
 static const int64_t TIMESTAMP_MIN = 0;
 
-static void RescanWallet(CWallet& wallet, const WalletRescanReserver& reserver, int64_t time_begin = TIMESTAMP_MIN, bool update = true)
+void RescanWallet(CWallet& wallet, const WalletRescanReserver& reserver, int64_t time_begin = TIMESTAMP_MIN, bool update = true)
 {
     int64_t scanned_time = wallet.RescanFromTime(time_begin, reserver, update);
     if (wallet.IsAbortingRescan()) {

@@ -205,6 +205,11 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getspecialtxes", 4, "verbosity" },
     { "disconnectnode", 1, "nodeid" },
     { "upgradewallet", 0, "version" },
+    // Composite commands
+    { "coinjoinsalt", "generate", 0, "overwrite" },
+    { "coinjoinsalt", "generate", 1, "force_rescan" },
+    { "coinjoinsalt", "set", 1, "overwrite" },
+    { "coinjoinsalt", "set", 2, "force_rescan" },
     // Echo with conversion (For testing only)
     { "echojson", 0, "arg0" },
     { "echojson", 1, "arg1" },
