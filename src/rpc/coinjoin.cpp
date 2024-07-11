@@ -118,11 +118,9 @@ static RPCHelpMan coinjoinsalt_generate()
 {
     return RPCHelpMan{"coinjoinsalt generate",
         "\nGenerate new CoinJoin salt and commit to wallet database\n"
-        "Cannot generate new salt if CoinJoin mixing is in process or wallet has private keys disabled.\n"
-        "The presence of a CoinJoin balance will cause the wallet to rescan.\n",
+        "Cannot generate new salt if CoinJoin mixing is in process or wallet has private keys disabled.\n",
         {
             {"overwrite", RPCArg::Type::BOOL, /* default */ "false", "Generate new salt even if there is an existing salt and/or there is CoinJoin balance"},
-            {"force_rescan", RPCArg::Type::BOOL, /* default */ "false", "Force wallet rescan"}
         },
         RPCResult{
             RPCResult::Type::BOOL, "", "Status of CoinJoin salt generation and commitment"
@@ -166,26 +164,12 @@ static RPCHelpMan coinjoinsalt_generate()
                            strprintf("Wallet \"%s\" has CoinJoin balance, cannot continue!", str_wallet));
     }
 
-    const bool rescan{has_balance || (!request.params[1].isNull() ? request.params[1].get_bool() : /* default */ false)};
-    WalletRescanReserver reserver(*wallet);
-    if (rescan) {
-        if (wallet->chain().havePruned()) {
-            throw JSONRPCError(RPC_WALLET_ERROR, "Rescan is disabled when blocks are pruned");
-        }
-
-        if (!reserver.reserve()) {
-            throw JSONRPCError(RPC_WALLET_ERROR, "Wallet is currently rescanning. Abort existing rescan or wait.");
-        }
-    }
-
     if (!wallet->SetCoinJoinSalt(GetRandHash())) {
         throw JSONRPCError(RPC_INVALID_REQUEST,
                            strprintf("Unable to set new CoinJoin salt for wallet \"%s\"!", str_wallet));
     }
 
-    if (rescan) {
-        RescanWallet(*wallet, reserver);
-    }
+    wallet->ClearCoinJoinRoundsCache();
 
     return true;
 },
@@ -234,8 +218,7 @@ static RPCHelpMan coinjoinsalt_set()
         "Will overwrite existing salt. The presence of a CoinJoin balance will cause the wallet to rescan.\n",
         {
             {"salt", RPCArg::Type::STR, RPCArg::Optional::NO, "Desired CoinJoin salt value for the wallet"},
-            {"force_overwrite", RPCArg::Type::BOOL, /* default */ "false", "Overwrite salt even if CoinJoin balance present"},
-            {"force_rescan", RPCArg::Type::BOOL, /* default */ "false", "Force wallet rescan"}
+            {"overwrite", RPCArg::Type::BOOL, /* default */ "false", "Overwrite salt even if CoinJoin balance present"},
         },
         RPCResult{
             RPCResult::Type::BOOL, "", "Status of CoinJoin salt change request"
@@ -279,26 +262,12 @@ static RPCHelpMan coinjoinsalt_set()
                            strprintf("Wallet \"%s\" has CoinJoin balance, cannot continue!", str_wallet));
     }
 
-    const bool rescan{has_balance || (!request.params[2].isNull() ? request.params[2].get_bool() : /* default */ false)};
-    WalletRescanReserver reserver(*wallet);
-    if (rescan) {
-        if (wallet->chain().havePruned()) {
-            throw JSONRPCError(RPC_WALLET_ERROR, "Rescan is disabled when blocks are pruned");
-        }
-
-        if (!reserver.reserve()) {
-            throw JSONRPCError(RPC_WALLET_ERROR, "Wallet is currently rescanning. Abort existing rescan or wait.");
-        }
-    }
-
     if (!wallet->SetCoinJoinSalt(salt)) {
         throw JSONRPCError(RPC_INVALID_REQUEST,
                            strprintf("Unable to set new CoinJoin salt for wallet \"%s\"!", str_wallet));
     }
 
-    if (rescan) {
-        RescanWallet(*wallet, reserver);
-    }
+    wallet->ClearCoinJoinRoundsCache();
 
     return true;
 },
@@ -411,9 +380,9 @@ static const CRPCCommand commands[] =
 #ifdef ENABLE_WALLET
         { "dash",               "coinjoin",                   &coinjoin,               {"command"} },
         { "dash",               "coinjoinsalt",               &coinjoinsalt,           {"command"} },
-        { "dash",               "coinjoinsalt", "generate",   &coinjoinsalt_generate,  {"overwrite", "force_rescan"} },
+        { "dash",               "coinjoinsalt", "generate",   &coinjoinsalt_generate,  {"overwrite"} },
         { "dash",               "coinjoinsalt", "get",        &coinjoinsalt_get,       {} },
-        { "dash",               "coinjoinsalt", "set",        &coinjoinsalt_set,       {"salt", "force_overwrite", "force_rescan"} },
+        { "dash",               "coinjoinsalt", "set",        &coinjoinsalt_set,       {"salt", "overwrite"} },
 #endif // ENABLE_WALLET
 };
 // clang-format on
