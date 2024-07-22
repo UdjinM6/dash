@@ -59,26 +59,27 @@ BlockAssembler MinerTestingSetup::AssemblerForTest(const CChainParams& params)
 constexpr static struct {
     unsigned char extranonce;
     unsigned int nonce;
-} BLOCKINFO[]{{8, 582909131},  {0, 971462344},  {2, 1169481553}, {6, 66147495},  {7, 427785981},  {8, 80538907},
-              {8, 207348013},  {2, 1951240923}, {4, 215054351},  {1, 491520534}, {8, 1282281282}, {4, 639565734},
-              {3, 248274685},  {8, 1160085976}, {6, 396349768},  {5, 393780549}, {5, 1096899528}, {4, 965381630},
-              {0, 728758712},  {5, 318638310},  {3, 164591898},  {2, 274234550}, {2, 254411237},  {7, 561761812},
-              {2, 268342573},  {0, 402816691},  {1, 221006382},  {6, 538872455}, {7, 393315655},  {4, 814555937},
-              {7, 504879194},  {6, 467769648},  {3, 925972193},  {2, 200581872}, {3, 168915404},  {8, 430446262},
-              {5, 773507406},  {3, 1195366164}, {0, 433361157},  {3, 297051771}, {0, 558856551},  {2, 501614039},
-              {3, 528488272},  {2, 473587734},  {8, 230125274},  {2, 494084400}, {4, 357314010},  {8, 60361686},
-              {7, 640624687},  {3, 480441695},  {8, 1424447925}, {4, 752745419}, {1, 288532283},  {6, 669170574},
-              {5, 1900907591}, {3, 555326037},  {3, 1121014051}, {0, 545835650}, {8, 189196651},  {5, 252371575},
-              {0, 199163095},  {6, 558895874},  {6, 1656839784}, {6, 815175452}, {6, 718677851},  {5, 544000334},
-              {0, 340113484},  {6, 850744437},  {4, 496721063},  {8, 524715182}, {6, 574361898},  {6, 1642305743},
-              {6, 355110149},  {5, 1647379658}, {8, 1103005356}, {7, 556460625}, {3, 1139533992}, {5, 304736030},
-              {2, 361539446},  {2, 143720360},  {6, 201939025},  {7, 423141476}, {4, 574633709},  {3, 1412254823},
-              {4, 873254135},  {0, 341817335},  {6, 53501687},   {3, 179755410}, {5, 172209688},  {8, 516810279},
-              {4, 1228391489}, {8, 325372589},  {6, 550367589},  {0, 876291812}, {7, 412454120},  {7, 717202854},
-              {2, 222677843},  {6, 251778867},  {7, 842004420},  {7, 194762829}, {4, 96668841},   {1, 925485796},
-              {0, 792342903},  {6, 678455063},  {6, 773251385},  {5, 186617471}, {6, 883189502},  {7, 396077336},
-              {8, 254702874},  {0, 455592851}};
-constexpr static size_t blockinfo_size = sizeof(blockinfo) / sizeof(blockinfo[0]);
+} BLOCKINFO[]{{0, 1123860}, {0, 1148713}, {0, 2157897}, {0, 6137383}, {0, 1440467}, {0, 1248137},
+              {0, 974559},  {0, 3450180}, {0, 2050647}, {0, 1174391}, {0, 3336468}, {0, 464427},
+              {0, 470596},  {0, 182567},  {0, 2534464}, {0, 1926037}, {0, 3526872}, {0, 2481471},
+              {0, 1294544}, {0, 367787},  {0, 3164800}, {0, 917651},  {0, 654264},  {0, 3621441},
+              {0, 4300293}, {0, 3692002}, {0, 3171815}, {0, 2334617}, {0, 2655536}, {0, 4862462},
+              {0, 3306418}, {0, 720711},  {0, 3443522}, {0, 1435662}, {0, 833747},  {0, 2754854},
+              {0, 1788881}, {0, 1006158}, {0, 3889636}, {0, 1065940}, {0, 2637337}, {0, 1540467},
+              {0, 809898},  {0, 414399},  {0, 5978379}, {0, 2301882}, {0, 3224887}, {0, 2557012},
+              {0, 8076465}, {0, 73633},   {0, 1285282}, {0, 3114919}, {0, 1762402}, {0, 3343293},
+              {0, 3822496}, {0, 2957067}, {0, 1943866}, {0, 5933446}, {0, 886955},  {0, 975375},
+              {0, 1626364}, {0, 4337875}, {0, 522971},  {0, 979749},  {0, 2343272}, {0, 2530995},
+              {0, 1060534}, {0, 2522523}, {0, 1315215}, {0, 1730093}, {0, 2547908}, {0, 2889564},
+              {0, 5456339}, {0, 3881378}, {0, 4533810}, {0, 1700063}, {0, 1086006}, {0, 2797169},
+              {0, 2019861}, {0, 883169},  {0, 1750363}, {0, 1721942}, {0, 5058071}, {0, 3225093},
+              {0, 307451},  {0, 1653602}, {0, 2281488}, {0, 1947311}, {0, 4993782}, {0, 325324},
+              {0, 6304803}, {0, 4880118}, {0, 1401148}, {0, 4640270}, {0, 2548166}, {0, 3369900},
+              {0, 2800169}, {0, 3305191}, {0, 2122926}, {0, 336011},  {0, 1722772}, {0, 1044908},
+              {0, 642154},  {0, 5835730}, {0, 164952},  {0, 1584353}, {0, 666367},  {0, 854797},
+              {0, 2407599}, {0, 3328128}, {0, 245451},  {0, 2154593}, {0, 4043042}, {0, 2939387},
+              {0, 3509685}, {0, 635871},  {0, 2645814}, {0, 1788871}, {0, 2263667}};
+constexpr static size_t blockinfo_size = sizeof(BLOCKINFO) / sizeof(BLOCKINFO[0]);
 
 static CBlockIndex CreateBlockIndex(int nHeight, CBlockIndex* active_chain_tip) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
@@ -232,17 +233,18 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
             pblock->nTime = m_node.chainman->ActiveChain().Tip()->GetMedianTimePast()+1;
             CMutableTransaction txCoinbase(*pblock->vtx[0]);
             txCoinbase.nVersion = 1;
-            txCoinbase.vin[0].scriptSig = CScript() << (m_node.chainman->ActiveChain().Height() + 1) << blockinfo[i].extranonce;;
+            txCoinbase.vin[0].scriptSig = CScript{} << (m_node.chainman->ActiveChain().Height() + 1) << BLOCKINFO[i].extranonce;
+            txCoinbase.vout[0].scriptPubKey = CScript();
             pblock->vtx[0] = MakeTransactionRef(std::move(txCoinbase));
             if (txFirst.size() == 0)
                 baseheight = m_node.chainman->ActiveChain().Height();
             if (txFirst.size() < 4)
                 txFirst.push_back(pblock->vtx[0]);
             pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
-            pblock->nNonce = blockinfo[i].nonce;
+            pblock->nNonce = BLOCKINFO[i].nonce;
 
-            // This will usually succeed in the first round as we take the nonce from blockinfo
-            // It's however useful when adding new blocks with unknown nonces (you should add the found block to blockinfo)
+            // This will usually succeed in the first round as we take the nonce from BLOCKINFO
+            // It's however useful when adding new blocks with unknown nonces (you should add the found block to BLOCKINFO)
             while (!CheckProofOfWork(pblock->GetHash(), pblock->nBits, chainparams.GetConsensus())) {
                 pblock->nNonce++;
             }
@@ -252,7 +254,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
         pblock->hashPrevBlock = pblock->GetHash();
     };
 
-    for ([[maybe_unused]] const auto& _ : blockinfo) {
+    for ([[maybe_unused]] const auto& _ : BLOCKINFO) {
         createAndProcessEmptyBlock();
     }
 
