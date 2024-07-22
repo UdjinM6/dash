@@ -20,11 +20,9 @@ from test_framework.wallet import MiniWallet
 class MempoolSpendCoinbaseTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 1
-        self.setup_clean_chain = True
 
     def run_test(self):
         wallet = MiniWallet(self.nodes[0])
-        wallet.generate(200)
 
         # Invalidate two blocks, so that miniwallet has access to a coin that will mature in the next block
         chain_height = 198
