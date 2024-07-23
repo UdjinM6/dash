@@ -41,7 +41,6 @@ from test_framework.util import (
     assert_equal,
     assert_greater_than,
     assert_greater_than_or_equal,
-    get_bip9_details,
     hex_str_to_bytes,
 )
 
