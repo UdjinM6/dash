@@ -183,4 +183,7 @@ def bulk_transaction(tx, node, target_weight, privkeys, prevtxs=None):
     # Re-sign the transaction
     if privkeys:
         signed = node.signrawtransactionwithkey(tx_heavy.serialize().hex(), privkeys, prevtxs)
+        return tx_from_hex(signed["hex"])
+    # OP_TRUE
+    tx_heavy.vin[0].scriptSig = CScript([CScript([OP_TRUE])])
     return tx_heavy

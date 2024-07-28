@@ -151,8 +151,7 @@ class MempoolPackageLimitsTest(BitcoinTestFramework):
         value = parent_value - Decimal("0.0001")
         rawtx_b = node.createrawtransaction([{"txid": parent_txid, "vout": 1}], {self.address : value})
         tx_child_b = tx_from_hex(rawtx_b) # M2b
-        tx_child_b.wit.vtxinwit = [CTxInWitness()]
-        tx_child_b.wit.vtxinwit[0].scriptWitness.stack = [CScript([OP_TRUE])]
+        tx_child_b.vin[0].scriptSig = CScript([CScript([OP_TRUE])])
         tx_child_b_hex = tx_child_b.serialize().hex()
         node.sendrawtransaction(tx_child_b_hex)
         spk = tx_child_b.vout[0].scriptPubKey.hex()
