@@ -1612,6 +1612,8 @@ void CConnman::CalculateNumConnectionsChangedStats()
     }
 
     // count various node attributes for statsD
+    int fullNodes = 0;
+    int spvNodes = 0;
     int inboundNodes = 0;
     int outboundNodes = 0;
     int ipv4Nodes = 0;
@@ -1637,6 +1639,11 @@ void CConnman::CalculateNumConnectionsChangedStats()
             for (const mapMsgTypeSize::value_type &i : pnode->mapSendBytesPerMsgType)
                 mapSentBytesMsgStats[i.first] += i.second;
         }
+        if (pnode->m_bloom_filter_loaded.load()) {
+            spvNodes++;
+        } else {
+            fullNodes++;
+        }
         if(pnode->IsInboundConn())
             inboundNodes++;
         else
@@ -1656,6 +1663,8 @@ void CConnman::CalculateNumConnectionsChangedStats()
         statsClient.gauge("bandwidth.message." + msg + ".totalBytesSent", mapSentBytesMsgStats[msg], 1.0f);
     }
     statsClient.gauge("peers.totalConnections", nPrevNodeCount, 1.0f);
+    statsClient.gauge("peers.spvNodeConnections", spvNodes, 1.0f);
+    statsClient.gauge("peers.fullNodeConnections", fullNodes, 1.0f);
     statsClient.gauge("peers.inboundConnections", inboundNodes, 1.0f);
     statsClient.gauge("peers.outboundConnections", outboundNodes, 1.0f);
     statsClient.gauge("peers.ipv4Connections", ipv4Nodes, 1.0f);
