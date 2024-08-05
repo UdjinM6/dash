@@ -336,7 +336,7 @@ TestChainSetup::TestChainSetup(int num_blocks, const std::vector<const char*>& e
             /* TestChainDIP3Setup */
             {  431, uint256S("0x49db248651517f3fc3725fbbc7087db90552d487d11e0962b0148fc4788aeb77") },
             /* TestChainBRRBeforeActivationSetup */
-            {  497, uint256S("0x65e0fd5343db2ba853a82071795ef9cdc428322aa5a2edb9454a742c3ab9749c") },
+            {  497, uint256S("0x15445246f9f9fd4fdb1021dd8278ace7246b3e3cb545e1632a277d3a02eb011f") },
             /* TestChainV19BeforeActivationSetup */
             {  894, uint256S("0x03cbf1871d7d915cda10aded00ced45f71a4e2acf6a3c7a77a1ff488267dd1cd") },
             /* TestChainV19Setup */
