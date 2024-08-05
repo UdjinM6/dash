@@ -260,6 +260,12 @@ def get_masternode_payment(nHeight, blockValue, fV20Active):
     nMNPIPeriod = 10
     nReallocActivationHeight = 2500
 
+    if fV20Active:
+        # Once MNRewardReallocated activates, block reward is 80% of block subsidy (+ tx fees) since treasury is 20%
+        # Since the MN reward needs to be equal to 60% of the block subsidy (according to the proposal), MN reward is set to 75% of the block reward.
+        # Previous reallocation periods are dropped.
+        return blockValue * 3 // 4
+
     if nHeight > nMNPIBlock:
         ret += int(blockValue / 20)
     if nHeight > nMNPIBlock+(nMNPIPeriod* 1):
@@ -290,12 +296,6 @@ def get_masternode_payment(nHeight, blockValue, fV20Active):
     if nHeight < nReallocStart:
         # Activated but we have to wait for the next cycle to start realocation, nothing to do
         return ret
-
-    if fV20Active:
-        # Once MNRewardReallocated activates, block reward is 80% of block subsidy (+ tx fees) since treasury is 20%
-        # Since the MN reward needs to be equal to 60% of the block subsidy (according to the proposal), MN reward is set to 75% of the block reward.
-        # Previous reallocation periods are dropped.
-        return blockValue * 3 // 4
 
     # Periods used to reallocate the masternode reward from 50% to 60%
     vecPeriods = [
