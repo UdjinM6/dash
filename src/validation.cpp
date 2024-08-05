@@ -1109,12 +1109,6 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, bool fV20Active)
     const int nMNPIPeriod = Params().GetConsensus().nMasternodePaymentsIncreasePeriod;
     const int nReallocActivationHeight = Params().GetConsensus().BRRHeight;
 
-    if (fV20Active) {
-        // Once MNRewardReallocated activates, block reward is 80% of block subsidy (+ tx fees) since treasury is 20%
-        // Since the MN reward needs to be equal to 60% of the block subsidy (according to the proposal), MN reward is set to 75% of the block reward.
-        // Previous reallocation periods are dropped.
-        return blockValue * 3 / 4;
-    }
                                                                       // mainnet:
     if(nHeight > nMNPIBlock)                  ret += blockValue / 20; // 158000 - 25.0% - 2014-10-24
     if(nHeight > nMNPIBlock+(nMNPIPeriod* 1)) ret += blockValue / 20; // 175280 - 30.0% - 2014-11-25
@@ -1138,6 +1132,13 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, bool fV20Active)
     if (nHeight < nReallocStart) {
         // Activated but we have to wait for the next cycle to start realocation, nothing to do
         return ret;
+    }
+
+    if (fV20Active) {
+        // Once MNRewardReallocated activates, block reward is 80% of block subsidy (+ tx fees) since treasury is 20%
+        // Since the MN reward needs to be equal to 60% of the block subsidy (according to the proposal), MN reward is set to 75% of the block reward.
+        // Previous reallocation periods are dropped.
+        return blockValue * 3 / 4;
     }
 
     // Periods used to reallocate the masternode reward from 50% to 60%
