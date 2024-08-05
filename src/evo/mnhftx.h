@@ -105,7 +105,7 @@ private:
     llmq::CQuorumManager* m_qman{nullptr};
 
     static constexpr size_t MNHFCacheSize = 1000;
-    Mutex cs_cache;
+    RecursiveMutex cs_cache;
     // versionBit <-> height
     unordered_lru_cache<uint256, Signals, StaticSaltedHasher> mnhfCache GUARDED_BY(cs_cache) {MNHFCacheSize};
 
