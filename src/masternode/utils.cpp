@@ -23,9 +23,8 @@ void CMasternodeUtils::DoMaintenance(CConnman& connman, CDeterministicMNManager&
 
     std::vector<CDeterministicMNCPtr> vecDmns; // will be empty when no wallet
 #ifdef ENABLE_WALLET
-    for (auto& pair : cj_ctx.walletman->raw()) {
-        pair.second->GetMixingMasternodesInfo(vecDmns);
-    }
+    cj_ctx.walletman->ForEachCJClientMan(
+        [&vecDmns](const std::unique_ptr<CCoinJoinClientManager>& cj_man) { cj_man->GetMixingMasternodesInfo(vecDmns); });
 #endif // ENABLE_WALLET
 
     // Don't disconnect masternode connections when we have less then the desired amount of outbound nodes
