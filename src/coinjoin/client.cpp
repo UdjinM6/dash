@@ -1895,34 +1895,41 @@ void CCoinJoinClientManager::GetJsonInfo(UniValue& obj) const
 }
 
 void CoinJoinWalletManager::Add(CWallet& wallet) {
-    m_wallet_manager_map.try_emplace(
-        wallet.GetName(),
-        std::make_unique<CCoinJoinClientManager>(wallet, *this, m_dmnman, m_mn_metaman, m_mn_sync, m_queueman, m_is_masternode)
-    );
+    {
+        LOCK(cs_wallet_manager_map);
+        m_wallet_manager_map.try_emplace(
+            wallet.GetName(),
+            std::make_unique<CCoinJoinClientManager>(wallet, *this, m_dmnman, m_mn_metaman, m_mn_sync,
+                                                     m_queueman, m_is_masternode)
+        );
+    }
     g_wallet_init_interface.InitCoinJoinSettings(*this);
 }
 
 void CoinJoinWalletManager::DoMaintenance() {
-    for (auto& [wallet_str, walletman] : m_wallet_manager_map) {
+    for (auto& [wallet_str, walletman] : raw()) {
         walletman->DoMaintenance(m_chainstate, m_connman, m_mempool);
     }
 }
 
 void CoinJoinWalletManager::Remove(const std::string& name) {
-    m_wallet_manager_map.erase(name);
+    {
+        LOCK(cs_wallet_manager_map);
+        m_wallet_manager_map.erase(name);
+    }
     g_wallet_init_interface.InitCoinJoinSettings(*this);
 }
 
 void CoinJoinWalletManager::Flush(const std::string& name)
 {
-    auto clientman = Get(name);
-    assert(clientman != nullptr);
+    auto clientman = Assert(Get(name));
     clientman->ResetPool();
     clientman->StopMixing();
 }
 
 CCoinJoinClientManager* CoinJoinWalletManager::Get(const std::string& name) const
 {
+    LOCK(cs_wallet_manager_map);
     auto it = m_wallet_manager_map.find(name);
     return (it != m_wallet_manager_map.end()) ? it->second.get() : nullptr;
 }
