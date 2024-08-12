@@ -1901,11 +1901,9 @@ void CoinJoinWalletManager::Add(CWallet& wallet)
 {
     {
         LOCK(cs_wallet_manager_map);
-        m_wallet_manager_map.try_emplace(
-            wallet.GetName(),
-            std::make_unique<CCoinJoinClientManager>(wallet, *this, m_dmnman, m_mn_metaman, m_mn_sync,
-                                                     m_queueman, m_is_masternode)
-        );
+        m_wallet_manager_map.try_emplace(wallet.GetName(),
+                                         std::make_unique<CCoinJoinClientManager>(wallet, *this, m_dmnman, m_mn_metaman,
+                                                                                  m_mn_sync, m_queueman, m_is_masternode));
     }
     g_wallet_init_interface.InitCoinJoinSettings(*this);
 }
