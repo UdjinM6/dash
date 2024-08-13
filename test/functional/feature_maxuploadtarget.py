@@ -12,7 +12,7 @@ if uploadtarget has been reached.
 """
 from collections import defaultdict
 
-from test_framework.messages import CInv, MAX_BLOCK_SIZE, MSG_BLOCK, msg_getdata
+from test_framework.messages import CInv, MSG_BLOCK, msg_getdata
 from test_framework.p2p import P2PInterface
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, mine_large_block, set_node_times
@@ -38,7 +38,8 @@ class MaxUploadTest(BitcoinTestFramework):
         self.extra_args = [[
             "-maxuploadtarget=200",
             "-blockmaxsize=999000",
-            "-acceptnonstdtxn=1"
+            "-acceptnonstdtxn=1",
+            "-testactivationheight=dip0001@2000",
         ]]
         self.supports_cli = False
 
@@ -96,7 +97,7 @@ class MaxUploadTest(BitcoinTestFramework):
         getdata_request.inv.append(CInv(MSG_BLOCK, big_old_block))
 
         max_bytes_per_day = 200*1024*1024
-        daily_buffer = 144 * MAX_BLOCK_SIZE
+        daily_buffer = 144 * 1000000
         max_bytes_available = max_bytes_per_day - daily_buffer
         success_count = max_bytes_available // old_block_size
 
