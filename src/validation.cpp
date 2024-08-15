@@ -318,7 +318,7 @@ static bool ContextualCheckTransaction(const CTransaction& tx, TxValidationState
 
     // Size limits
     if (fDIP0001Active_context && ::GetSerializeSize(tx, PROTOCOL_VERSION) > MAX_STANDARD_TX_SIZE)
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "tx-size");
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-oversize");
 
     return true;
 }
