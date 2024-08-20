@@ -2127,7 +2127,10 @@ bool PeerManagerImpl::AlreadyHave(const CInv& inv)
         return m_llmq_ctx->clhandler->AlreadyHave(inv);
     case MSG_ISDLOCK:
         return m_llmq_ctx->isman->AlreadyHave(inv);
+    case MSG_DSQ:
+        return m_cj_ctx->server->HasQueue(inv.hash);
     }
+
 
     // Don't know what it is, just say we already got one
     return true;
@@ -2632,6 +2635,12 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
             llmq::CInstantSendLock o;
             if (m_llmq_ctx->isman->GetInstantSendLockByHash(inv.hash, o)) {
                 m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::ISDLOCK, o));
+                push = true;
+            }
+        }
+        if (!push && inv.type == MSG_DSQ) {
+            if (auto opt_dsq = m_cj_ctx->server->GetQueueFromHash(inv.hash); opt_dsq.has_value()) {
+                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::ISDLOCK, *opt_dsq));
                 push = true;
             }
         }

@@ -47,6 +47,11 @@ PeerMsgRet CCoinJoinClientQueueManager::ProcessDSQueue(const CNode& peer, CDataS
     CCoinJoinQueue dsq;
     vRecv >> dsq;
 
+    {
+        LOCK(cs_main);
+        EraseObjectRequest(peer.GetId(), CInv(MSG_DSQ, dsq.GetHash()));
+    }
+
     if (dsq.masternodeOutpoint.IsNull() && dsq.m_protxHash.IsNull()) {
         return tl::unexpected{100};
     }

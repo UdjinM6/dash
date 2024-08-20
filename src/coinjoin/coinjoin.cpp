@@ -47,6 +47,10 @@ uint256 CCoinJoinQueue::GetSignatureHash() const
 {
     return SerializeHash(*this, SER_GETHASH, PROTOCOL_VERSION);
 }
+uint256 CCoinJoinQueue::GetHash() const
+{
+    return SerializeHash(*this, SER_NETWORK, PROTOCOL_VERSION);
+}
 
 bool CCoinJoinQueue::Sign(const CActiveMasternodeManager& mn_activeman)
 {
