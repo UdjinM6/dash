@@ -2640,7 +2640,7 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
         }
         if (!push && inv.type == MSG_DSQ) {
             if (auto opt_dsq = m_cj_ctx->server->GetQueueFromHash(inv.hash); opt_dsq.has_value()) {
-                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::ISDLOCK, *opt_dsq));
+                m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::DSQUEUE, *opt_dsq));
                 push = true;
             }
         }
