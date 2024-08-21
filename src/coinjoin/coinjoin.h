@@ -351,10 +351,7 @@ public:
     }
     std::optional<CCoinJoinQueue> GetQueueFromHash(const uint256& queueHash) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue) {
         LOCK(cs_vecqueue);
-        for (auto q : vecCoinJoinQueue) {
-            if (q.GetHash() == queueHash) return std::make_optional(q);
-        }
-        return std::nullopt;
+        return ranges::find_if_opt(vecCoinJoinQueue, [&queueHash](const auto& q){ return q.GetHash() == queueHash; });
     }
 
 };
