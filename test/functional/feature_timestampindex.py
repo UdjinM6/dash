@@ -33,11 +33,12 @@ class TimestampIndexTest(BitcoinTestFramework):
         self.sync_all()
 
     def run_test(self):
-        self.log.info("Test that settings can't be changed without -reindex...")
+        self.log.info("Test that settings can be disabled without -reindex...")
         self.stop_node(1)
         self.start_node(1, ["-timestampindex=0"])
         self.connect_nodes(0, 1)
         self.sync_all()
+        self.log.info("Test that settings can't be enabled without -reindex...")
         self.stop_node(1)
         self.nodes[1].assert_start_raises_init_error(["-timestampindex"], "You need to rebuild the database using -reindex to enable -timestampindex", match=ErrorMatch.PARTIAL_REGEX)
         self.start_node(1, ["-timestampindex", "-reindex"])

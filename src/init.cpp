@@ -1934,6 +1934,12 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                     break;
                 }
 
+                chainman.LoadAdditionalIndexes();
+
+                LogPrintf("%s: address index %s\n", __func__, fAddressIndex ? "enabled" : "disabled");
+                LogPrintf("%s: timestamp index %s\n", __func__, fTimestampIndex ? "enabled" : "disabled");
+                LogPrintf("%s: spent index %s\n", __func__, fSpentIndex ? "enabled" : "disabled");
+
                 // Check for changed -prune state.  What we are concerned about is a user who has pruned blocks
                 // in the past, but is now trying to run unpruned.
                 if (chainman.m_blockman.m_have_pruned && !fPruneMode) {
