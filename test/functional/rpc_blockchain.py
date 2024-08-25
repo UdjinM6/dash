@@ -142,17 +142,17 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(res['prune_target_size'], 576716800)
         assert_greater_than(res['size_on_disk'], 0)
         assert_equal(res['softforks'], {
-            'bip34': {'type': 'buried', 'active': False, 'height': 500},
-            'bip66': {'type': 'buried', 'active': False, 'height': 1251},
-            'bip65': {'type': 'buried', 'active': False, 'height': 1351},
-            'bip147': { 'type': 'buried', 'active': False, 'height': 432},
-            'csv': {'type': 'buried', 'active': False, 'height': 432},
-            'dip0001': { 'type': 'buried', 'active': False, 'height': 2000},
+            'bip34': {'type': 'buried', 'active': True, 'height': 1},
+            'bip66': {'type': 'buried', 'active': True, 'height': 1},
+            'bip65': {'type': 'buried', 'active': True, 'height': 1},
+            'bip147': { 'type': 'buried', 'active': True, 'height': 1},
+            'csv': {'type': 'buried', 'active': True, 'height': 1},
+            'dip0001': { 'type': 'buried', 'active': True, 'height': 1},
             'dip0003': { 'type': 'buried', 'active': False, 'height': 432},
-            'dip0008': { 'type': 'buried', 'active': False, 'height': 432},
-            'dip0020': { 'type': 'buried', 'active': False, 'height': 300},
+            'dip0008': { 'type': 'buried', 'active': True, 'height': 1},
+            'dip0020': { 'type': 'buried', 'active': True, 'height': 1},
             'dip0024': { 'type': 'buried', 'active': False, 'height': 900},
-            'realloc': { 'type': 'buried', 'active': False, 'height': 1000},
+            'realloc': { 'type': 'buried', 'active': True, 'height': 1},
             'v19': { 'type': 'buried', 'active': False, 'height': 900},
             'v20': {
                 'type': 'bip9',
