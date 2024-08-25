@@ -9,6 +9,7 @@
 #include <coinjoin/coinjoin.h>
 
 #include <net_types.h>
+#include <util/ranges.h>
 #include <util/translation.h>
 
 #include <atomic>
@@ -98,19 +99,14 @@ public:
     void ForEachCJClientMan(Callable&& func)
     {
         LOCK(cs_wallet_manager_map);
-        for (auto&& [_, clientman] : m_wallet_manager_map) {
-            func(clientman);
-        }
+        ranges::for_each(m_wallet_manager_map, [&](auto& pair) { func(pair.second); });
     };
 
     template <typename Callable>
     bool ForAnyCJClientMan(Callable&& func)
     {
         LOCK(cs_wallet_manager_map);
-        for (auto&& [_, clientman] : m_wallet_manager_map) {
-            if (func(clientman)) return true;
-        }
-        return false;
+        return ranges::any_of(m_wallet_manager_map, [&](auto& pair) { return func(pair.second); });
     };
 
 private:

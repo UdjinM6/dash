@@ -28,6 +28,7 @@ namespace ranges {
     MK_RANGE(any_of)
     MK_RANGE(count_if)
     MK_RANGE(find_if)
+    MK_RANGE(for_each)
 
     template <typename X, typename Z>
     constexpr inline auto find_if_opt(const X& ds, const Z& fn) {
