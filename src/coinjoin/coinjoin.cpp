@@ -76,7 +76,7 @@ bool CCoinJoinQueue::CheckSignature(const CBLSPublicKey& blsPubKey) const
 
 bool CCoinJoinQueue::Relay(CConnman& connman, PeerManager& peerman)
 {
-    CInv inv(MSG_DSQ, GetSignatureHash());
+    CInv inv(MSG_DSQ, GetHash());
     peerman.RelayInv(inv, DSQ_INV_VERSION);
     connman.ForEachNode([&connman, this](CNode* pnode) {
         CNetMsgMaker msgMaker(pnode->GetCommonVersion());
