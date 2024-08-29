@@ -2128,7 +2128,11 @@ bool PeerManagerImpl::AlreadyHave(const CInv& inv)
     case MSG_ISDLOCK:
         return m_llmq_ctx->isman->AlreadyHave(inv);
     case MSG_DSQ:
+#ifdef ENABLE_WALLET
+        return m_cj_ctx->server->HasQueue(inv.hash) || m_cj_ctx->queueman->HasQueue(inv.hash);
+#else
         return m_cj_ctx->server->HasQueue(inv.hash);
+#endif
     }
 
 
@@ -2639,7 +2643,13 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
             }
         }
         if (!push && inv.type == MSG_DSQ) {
-            if (auto opt_dsq = m_cj_ctx->server->GetQueueFromHash(inv.hash); opt_dsq.has_value()) {
+            auto opt_dsq = m_cj_ctx->server->GetQueueFromHash(inv.hash);
+#ifdef ENABLE_WALLET
+            if (!opt_dsq.has_value()) {
+                opt_dsq = m_cj_ctx->queueman->GetQueueFromHash(inv.hash);
+            }
+#endif
+            if (opt_dsq.has_value()) {
                 m_connman.PushMessage(&pfrom, msgMaker.Make(NetMsgType::DSQUEUE, *opt_dsq));
                 push = true;
             }
