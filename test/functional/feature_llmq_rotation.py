@@ -407,13 +407,13 @@ class LLMQQuorumRotationTest(DashTestFramework):
         # NOTE: getblockchaininfo shows softforks locked_in at block (window * 2 - 1)
         # since it's returning whether a softwork is locked_in for the _next_ block.
         # Hence the last block prior to the locked_in state is (expected_locked_in_height - 2).
-        while expected_locked_in_height - height - 2 >= batch_size:
+        while expected_locked_in_height - height - 2 > batch_size:
             self.bump_mocktime(batch_size)
             self.nodes[0].generate(batch_size)
             height += batch_size
             self.sync_blocks()
         blocks_left = expected_locked_in_height - height - 2
-        assert_greater_than(batch_size, blocks_left)
+        assert_greater_than_or_equal(batch_size, blocks_left)
         self.bump_mocktime(blocks_left)
         self.nodes[0].generate(blocks_left)
         self.sync_blocks()

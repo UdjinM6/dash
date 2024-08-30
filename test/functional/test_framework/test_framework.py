@@ -452,7 +452,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             # To ensure that all nodes are out of IBD, the most recent block
             # must have a timestamp not too old (see IsInitialBlockDownload()).
             self.log.debug('Generate a block with current mocktime')
-            self.bump_mocktime(156 * 200)
+            self.bump_mocktime(156 * 200, update_schedulers=False)
             block_hash = self.nodes[0].generate(1)[0]
             block = self.nodes[0].getblock(blockhash=block_hash, verbosity=0)
             for n in self.nodes:
@@ -815,11 +815,16 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         for node in self.nodes:
             node.mocktime = 0
 
-    def bump_mocktime(self, t, update_nodes=True, nodes=None):
+    def bump_mocktime(self, t, update_nodes=True, nodes=None, update_schedulers=True):
         if self.mocktime != 0:
             self.mocktime += t
             if update_nodes:
                 set_node_times(nodes or self.nodes, self.mocktime)
+                if update_schedulers:
+                    nodes_ = nodes or self.nodes
+                    for node in nodes_:
+                        if node.version_is_at_least(180100):
+                            node.mockscheduler(t)
 
     def set_cache_mocktime(self):
         self.mocktime = TIME_GENESIS_BLOCK + (199 * 156)
@@ -915,7 +920,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             gen_addresses = [k.address for k in TestNode.PRIV_KEYS][:3] + [ADDRESS_BCRT1_P2SH_OP_TRUE]
             assert_equal(len(gen_addresses), 4)
             for i in range(8):
-                self.bump_mocktime((25 if i != 7 else 24) * 156)
+                self.bump_mocktime((25 if i != 7 else 24) * 156, update_schedulers=False)
                 cache_node.generatetoaddress(
                     nblocks=25 if i != 7 else 24,
                     address=gen_addresses[i % len(gen_addresses)],
