@@ -343,17 +343,17 @@ public:
     int GetQueueSize() const EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue) { LOCK(cs_vecqueue); return vecCoinJoinQueue.size(); }
     bool GetQueueItemAndTry(CCoinJoinQueue& dsqRet) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
 
-    bool HasQueue(const uint256& queueHash) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue) {
+    bool HasQueue(const uint256& queueHash) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue)
+    {
         LOCK(cs_vecqueue);
-        return std::any_of(vecCoinJoinQueue.begin(), vecCoinJoinQueue.end(), [&queueHash](auto q) {
-            return q.GetHash() == queueHash;
-        });
+        return std::any_of(vecCoinJoinQueue.begin(), vecCoinJoinQueue.end(),
+                           [&queueHash](auto q) { return q.GetHash() == queueHash; });
     }
-    std::optional<CCoinJoinQueue> GetQueueFromHash(const uint256& queueHash) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue) {
+    std::optional<CCoinJoinQueue> GetQueueFromHash(const uint256& queueHash) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue)
+    {
         LOCK(cs_vecqueue);
-        return ranges::find_if_opt(vecCoinJoinQueue, [&queueHash](const auto& q){ return q.GetHash() == queueHash; });
+        return ranges::find_if_opt(vecCoinJoinQueue, [&queueHash](const auto& q) { return q.GetHash() == queueHash; });
     }
-
 };
 
 // Various helpers and dstx manager implementation
