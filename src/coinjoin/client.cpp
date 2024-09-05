@@ -13,6 +13,7 @@
 #include <masternode/sync.h>
 #include <net.h>
 #include <netmessagemaker.h>
+#include <net_processing.h>
 #include <shutdown.h>
 #include <util/check.h>
 #include <util/irange.h>
@@ -49,7 +50,7 @@ PeerMsgRet CCoinJoinClientQueueManager::ProcessDSQueue(const CNode& peer, CDataS
 
     {
         LOCK(cs_main);
-        EraseObjectRequest(peer.GetId(), CInv(MSG_DSQ, dsq.GetHash()));
+        Assert(peerman)->EraseObjectRequest(peer.GetId(), CInv(MSG_DSQ, dsq.GetHash()));
     }
 
     if (dsq.masternodeOutpoint.IsNull() && dsq.m_protxHash.IsNull()) {

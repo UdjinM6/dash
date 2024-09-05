@@ -119,7 +119,7 @@ PeerMsgRet CCoinJoinServer::ProcessDSQUEUE(const CNode& peer, CDataStream& vRecv
 
     {
         LOCK(cs_main);
-        EraseObjectRequest(peer.GetId(), CInv(MSG_DSQ, dsq.GetHash()));
+        Assert(m_peerman)->EraseObjectRequest(peer.GetId(), CInv(MSG_DSQ, dsq.GetHash()));
     }
 
     if (dsq.masternodeOutpoint.IsNull() && dsq.m_protxHash.IsNull()) {
