@@ -1192,13 +1192,8 @@ void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx, const CBlock
         }
     }
 
-    {
-        LOCK(cs_timingsTxSeen);
-        // Only insert the time the first time we see the tx, as we sometimes try to resign
-        if (auto it = timingsTxSeen.find(tx->GetHash()); it == timingsTxSeen.end()) {
-            timingsTxSeen[tx->GetHash()] = GetTimeMillis();
-        }
-    }
+    // Only insert the time the first time we see the tx, as we sometimes try to resign
+    WITH_LOCK(cs_timingsTxSeen, timingsTxSeen.emplace(tx->GetHash(), GetTimeMillis()));
 
     LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, pindexMined=%s\n", __func__,
              tx->GetHash().ToString(), pindexMined ? pindexMined->GetBlockHash().ToString() : "");
@@ -1239,6 +1234,8 @@ void CInstantSendManager::RemoveNonLockedTx(const uint256& txid, bool retryChild
     }
 
     nonLockedTxs.erase(it);
+
+    WITH_LOCK(cs_timingsTxSeen, timingsTxSeen.erase(txid));
 
     LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, retryChildren=%d, retryChildrenCount=%d\n", __func__,
              txid.ToString(), retryChildren, retryChildrenCount);
