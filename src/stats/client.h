@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_STATSD_CLIENT_H
-#define BITCOIN_STATSD_CLIENT_H
+#ifndef BITCOIN_STATS_CLIENT_H
+#define BITCOIN_STATS_CLIENT_H
 
 #include <random.h>
 #include <threadsafety.h>
@@ -24,7 +24,6 @@ static constexpr int DEFAULT_STATSD_PERIOD{60};
 static constexpr int MIN_STATSD_PERIOD{5};
 static constexpr int MAX_STATSD_PERIOD{60 * 60};
 
-namespace statsd {
 class StatsdClient {
 public:
     explicit StatsdClient(const std::string& host, const std::string& nodename, uint16_t port,
@@ -66,8 +65,7 @@ private:
     const std::string m_nodename;
     const std::string m_ns;
 };
-} // namespace statsd
 
-extern std::unique_ptr<statsd::StatsdClient> g_stats_client;
+extern std::unique_ptr<StatsdClient> g_stats_client;
 
-#endif // BITCOIN_STATSD_CLIENT_H
+#endif // BITCOIN_STATS_CLIENT_H
