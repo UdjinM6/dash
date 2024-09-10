@@ -14,7 +14,8 @@
 #include <string>
 #include <memory>
 
-static constexpr bool DEFAULT_STATSD_ENABLE{false};
+class ArgsManager;
+
 static constexpr uint16_t DEFAULT_STATSD_PORT{8125};
 static const std::string DEFAULT_STATSD_HOST{"127.0.0.1"};
 static const std::string DEFAULT_STATSD_HOSTNAME{""};
@@ -30,6 +31,8 @@ static constexpr int DEFAULT_STATSD_BATCH_SIZE{1024};
 static constexpr int MIN_STATSD_PERIOD{5};
 /** Maximum number of seconds between recording periodic stats */
 static constexpr int MAX_STATSD_PERIOD{60 * 60};
+
+std::unique_ptr<StatsdClient> InitStatsClient(const ArgsManager& args);
 
 class StatsdClient {
 public:
@@ -50,6 +53,8 @@ public:
         */
     bool send(std::string key, int64_t value, const std::string& type, float sample_rate);
     bool sendDouble(std::string key, double value, const std::string& type, float sample_rate);
+
+    bool active() const { return m_sender != nullptr; }
 
 private:
     void cleanup(std::string& key);
