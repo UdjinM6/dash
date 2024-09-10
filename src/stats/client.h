@@ -18,7 +18,7 @@ class ArgsManager;
 
 static constexpr uint16_t DEFAULT_STATSD_PORT{8125};
 static const std::string DEFAULT_STATSD_HOST{"127.0.0.1"};
-static const std::string DEFAULT_STATSD_NAMESPACE{""};
+static const std::string DEFAULT_STATSD_PREFIX{""};
 static const std::string DEFAULT_STATSD_SUFFIX{""};
 
 /** Default number of milliseconds between flushing a queue of messages */
@@ -70,7 +70,7 @@ private:
 
     std::unique_ptr<RawSender> m_sender{nullptr};
 
-    const std::string m_ns;
+    const std::string m_prefix{""};
     const std::string m_suffix{""};
 };
 
