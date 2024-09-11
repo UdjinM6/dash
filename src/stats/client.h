@@ -18,8 +18,8 @@ class ArgsManager;
 
 static constexpr uint16_t DEFAULT_STATSD_PORT{8125};
 static const std::string DEFAULT_STATSD_HOST{"127.0.0.1"};
-static const std::string DEFAULT_STATSD_HOSTNAME{""};
 static const std::string DEFAULT_STATSD_NAMESPACE{""};
+static const std::string DEFAULT_STATSD_SUFFIX{""};
 
 /** Default number of milliseconds between flushing a queue of messages */
 static constexpr int DEFAULT_STATSD_DURATION{1000};
@@ -35,7 +35,7 @@ static constexpr int MAX_STATSD_PERIOD{60 * 60};
 class StatsdClient {
 public:
     explicit StatsdClient(const std::string& host, uint16_t port, uint64_t batch_size,
-                          uint64_t interval_ms, const std::string& nodename, const std::string& ns,
+                          uint64_t interval_ms, const std::string& ns, const std::string& suffix,
                           bool enabled);
 
 public:
@@ -70,8 +70,8 @@ private:
 
     std::unique_ptr<RawSender> m_sender{nullptr};
 
-    const std::string m_nodename;
     const std::string m_ns;
+    const std::string m_suffix{""};
 };
 
 std::unique_ptr<StatsdClient> InitStatsClient(const ArgsManager& args);
