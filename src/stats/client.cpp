@@ -59,8 +59,8 @@ bool StatsdClient::ShouldSend(float sample_rate)
     return sample_rate > std::uniform_real_distribution<float>(0.f, 1.f)(insecure_rand);
 }
 
-StatsdClient::StatsdClient(const std::string& host, const std::string& nodename, uint16_t port,
-                           const std::string& ns, bool enabled) :
+StatsdClient::StatsdClient(const std::string& host, uint16_t port, uint64_t interval_ms,
+                           const std::string& nodename, const std::string& ns, bool enabled) :
     m_nodename{nodename},
     m_ns{ns}
 {
@@ -70,7 +70,7 @@ StatsdClient::StatsdClient(const std::string& host, const std::string& nodename,
     }
 
     std::optional<std::string> error;
-    m_sender = std::make_unique<RawSender>(host, port, error);
+    m_sender = std::make_unique<RawSender>(host, port, interval_ms, error);
     if (error.has_value()) {
         LogPrintf("ERROR: %s, cannot initialize StatsdClient.\n", error.value());
         m_sender.reset();
