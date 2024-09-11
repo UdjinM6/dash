@@ -52,7 +52,8 @@ struct RawMessage : public std::vector<uint8_t>
 class RawSender
 {
 public:
-    RawSender(const std::string& host, uint16_t port, uint64_t interval_ms, std::optional<std::string>& error) noexcept;
+    RawSender(const std::string& host, uint16_t port, std::pair<uint64_t, uint8_t> batching_opts,
+              uint64_t interval_ms, std::optional<std::string>& error) noexcept;
     ~RawSender();
 
     RawSender(const RawSender&) = delete;
@@ -75,11 +76,11 @@ private:
     /* Socket address containing host information */
     std::pair<struct sockaddr_storage, socklen_t> m_server{{}, sizeof(struct sockaddr_storage)};
 
-    /* Mutex to protect messages queue */
+    /* Mutex to protect (batches of) messages queue */
     mutable Mutex cs;
     /* Interrupt for queue processing thread */
     CThreadInterrupt m_interrupt;
-    /* Queue of messages to be sent */
+    /* Queue of (batches of) messages to be sent */
     std::deque<RawMessage> m_queue GUARDED_BY(cs);
     /* Thread that processes queue every m_interval_ms */
     std::thread m_thread;
@@ -88,6 +89,8 @@ private:
     const std::string m_host;
     /* Port of server receiving messages */
     const uint16_t m_port;
+    /* Batching parameters */
+    const std::pair</*size=*/uint64_t, /*delimiter=*/uint8_t> m_batching_opts{0, 0};
     /* Time between queue thread runs (expressed in milliseconds) */
     const uint64_t m_interval_ms;
 
