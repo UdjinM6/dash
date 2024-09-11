@@ -32,8 +32,6 @@ static constexpr int MIN_STATSD_PERIOD{5};
 /** Maximum number of seconds between recording periodic stats */
 static constexpr int MAX_STATSD_PERIOD{60 * 60};
 
-std::unique_ptr<StatsdClient> InitStatsClient(const ArgsManager& args);
-
 class StatsdClient {
 public:
     explicit StatsdClient(const std::string& host, uint16_t port, uint64_t batch_size,
@@ -51,14 +49,20 @@ public:
     /* (Low Level Api) manually send a message
         * type = "c", "g" or "ms"
         */
-    bool send(std::string key, int64_t value, const std::string& type, float sample_rate);
-    bool sendDouble(std::string key, double value, const std::string& type, float sample_rate);
+    bool send(const std::string& key, int64_t value, const std::string& type, float sample_rate = 1.f)
+    {
+        return Send(key, value, type, sample_rate);
+    }
+    bool sendDouble(const std::string& key, double value, const std::string& type, float sample_rate = 1.f)
+    {
+        return Send(key, value, type, sample_rate);
+    }
 
     bool active() const { return m_sender != nullptr; }
 
 private:
-    void cleanup(std::string& key);
-    bool ShouldSend(float sample_rate);
+    template <typename T1>
+    bool Send(const std::string& key, T1 value, const std::string& type, float sample_rate);
 
 private:
     mutable Mutex cs;
@@ -69,6 +73,8 @@ private:
     const std::string m_nodename;
     const std::string m_ns;
 };
+
+std::unique_ptr<StatsdClient> InitStatsClient(const ArgsManager& args);
 
 extern std::unique_ptr<StatsdClient> g_stats_client;
 

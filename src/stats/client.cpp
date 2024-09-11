@@ -36,14 +36,20 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stats/client.h>
 
+#include <util/string.h>
 #include <util/system.h>
 
 #include <cmath>
 #include <cstdio>
 #include <random>
 
+namespace {
+/** Threshold below which a value is considered effectively zero */
+static constexpr float EPSILON{0.0001f};
+
 /** Delimiter segmenting two fully formed Statsd messages */
 static constexpr char STATSD_MSG_DELIMITER{'\n'};
+} // anonymous namespace
 
 std::unique_ptr<StatsdClient> g_stats_client;
 
@@ -75,21 +81,6 @@ std::unique_ptr<StatsdClient> InitStatsClient(const ArgsManager& args)
     );
 }
 
-bool StatsdClient::ShouldSend(float sample_rate)
-{
-    sample_rate = std::clamp(sample_rate, 0.f, 1.f);
-
-    constexpr float EPSILON{0.0001f};
-    /* If sample rate is 1, we should always send */
-    if (std::fabs(sample_rate - 1.f) < EPSILON) return true;
-    /* If sample rate is 0, we should never send */
-    if (std::fabs(sample_rate) < EPSILON) return false;
-
-    /* Sample rate is >0 and <1, roll the dice */
-    LOCK(cs);
-    return sample_rate > std::uniform_real_distribution<float>(0.f, 1.f)(insecure_rand);
-}
-
 StatsdClient::StatsdClient(const std::string& host, uint16_t port, uint64_t batch_size,
                            uint64_t interval_ms, const std::string& nodename, const std::string& ns,
                            bool enabled) :
@@ -112,16 +103,6 @@ StatsdClient::StatsdClient(const std::string& host, uint16_t port, uint64_t batc
     }
 
     LogPrintf("StatsdClient initialized to transmit stats to %s:%d\n", host, port);
-}
-
-/* will change the original string */
-void StatsdClient::cleanup(std::string& key)
-{
-    auto pos = key.find_first_of(":|@");
-    while (pos != std::string::npos) {
-        key[pos] = '_';
-        pos = key.find_first_of(":|@");
-    }
 }
 
 bool StatsdClient::dec(const std::string& key, float sample_rate) { return count(key, -1, sample_rate); }
@@ -148,56 +129,32 @@ bool StatsdClient::timing(const std::string& key, int64_t ms, float sample_rate)
     return send(key, ms, "ms", sample_rate);
 }
 
-bool StatsdClient::send(std::string key, int64_t value, const std::string& type, float sample_rate)
+template <typename T1>
+bool StatsdClient::Send(const std::string& key, T1 value, const std::string& type, float sample_rate)
 {
     if (!m_sender) {
         return false;
     }
 
-    if (!ShouldSend(sample_rate)) {
-        // Not our turn to send but report that we have
+    // Determine if we should send the message at all but claim that we did even if we don't
+    sample_rate = std::clamp(sample_rate, 0.f, 1.f);
+    bool always_send = std::fabs(sample_rate - 1.f) < EPSILON;
+    bool never_send  = std::fabs(sample_rate) < EPSILON;
+    if (never_send || (!always_send &&
+        WITH_LOCK(cs, return sample_rate < std::uniform_real_distribution<float>(0.f, 1.f)(insecure_rand)))) {
         return true;
     }
 
     // partition stats by node name if set
     if (!m_nodename.empty()) key = key + "." + m_nodename;
 
-    cleanup(key);
-
-    std::string buf{strprintf("%s%s:%d|%s", m_ns, key, value, type)};
+    // Construct the message and if our message isn't always-send, report the sample rate
+    std::string buf{strprintf("%s%s:%s|%s", m_ns, key, ToString(value), type)};
     if (sample_rate < 1.f) {
         buf += strprintf("|@%.2f", sample_rate);
     }
 
-    if (auto error = m_sender->Send(buf); error.has_value()) {
-        LogPrintf("ERROR: %s.\n", error.value());
-        return false;
-    }
-
-    return true;
-}
-
-bool StatsdClient::sendDouble(std::string key, double value, const std::string& type, float sample_rate)
-{
-    if (!m_sender) {
-        return false;
-    }
-
-    if (!ShouldSend(sample_rate)) {
-        // Not our turn to send but report that we have
-        return true;
-    }
-
-    // partition stats by node name if set
-    if (!m_nodename.empty()) key = key + "." + m_nodename;
-
-    cleanup(key);
-
-    std::string buf{strprintf("%s%s:%f|%s", m_ns, key, value, type)};
-    if (sample_rate < 1.f) {
-        buf += strprintf("|@%.2f", sample_rate);
-    }
-
+    // Send it and report an error if we encounter one
     if (auto error = m_sender->Send(buf); error.has_value()) {
         LogPrintf("ERROR: %s.\n", error.value());
         return false;
