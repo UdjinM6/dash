@@ -51,6 +51,12 @@ static constexpr float EPSILON{0.0001f};
 static constexpr char STATSD_MSG_DELIMITER{'\n'};
 /** Delimiter segmenting namespaces in a Statsd key */
 static constexpr char STATSD_NS_DELIMITER{'.'};
+/** Character used to denote Statsd message type as count */
+static constexpr char STATSD_METRIC_COUNT[]{"c"};
+/** Character used to denote Statsd message type as gauge */
+static constexpr char STATSD_METRIC_GAUGE[]{"g"};
+/** Characters used to denote Statsd message type as timing */
+static constexpr char STATSD_METRIC_TIMING[]{"ms"};
 } // anonymous namespace
 
 std::unique_ptr<StatsdClient> g_stats_client;
@@ -141,50 +147,50 @@ StatsdClient::StatsdClient(const std::string& host, uint16_t port, uint64_t batc
     LogPrintf("StatsdClient initialized to transmit stats to %s:%d\n", host, port);
 }
 
-bool StatsdClient::dec(const std::string& key, float sample_rate) { return count(key, -1, sample_rate); }
+bool StatsdClient::dec(const std::string& key, float frequency) { return count(key, -1, frequency); }
 
-bool StatsdClient::inc(const std::string& key, float sample_rate) { return count(key, 1, sample_rate); }
+bool StatsdClient::inc(const std::string& key, float frequency) { return count(key, 1, frequency); }
 
-bool StatsdClient::count(const std::string& key, int64_t value, float sample_rate)
+bool StatsdClient::count(const std::string& key, int64_t delta, float frequency)
 {
-    return send(key, value, "c", sample_rate);
+    return send(key, delta, STATSD_METRIC_COUNT, frequency);
 }
 
-bool StatsdClient::gauge(const std::string& key, int64_t value, float sample_rate)
+bool StatsdClient::gauge(const std::string& key, int64_t value, float frequency)
 {
-    return send(key, value, "g", sample_rate);
+    return send(key, value, STATSD_METRIC_GAUGE, frequency);
 }
 
-bool StatsdClient::gaugeDouble(const std::string& key, double value, float sample_rate)
+bool StatsdClient::gaugeDouble(const std::string& key, double value, float frequency)
 {
-    return sendDouble(key, value, "g", sample_rate);
+    return send(key, value, STATSD_METRIC_GAUGE, frequency);
 }
 
-bool StatsdClient::timing(const std::string& key, int64_t ms, float sample_rate)
+bool StatsdClient::timing(const std::string& key, uint64_t ms, float frequency)
 {
-    return send(key, ms, "ms", sample_rate);
+    return send(key, ms, STATSD_METRIC_TIMING, frequency);
 }
 
 template <typename T1>
-bool StatsdClient::Send(const std::string& key, T1 value, const std::string& type, float sample_rate)
+bool StatsdClient::send(const std::string& key, T1 value, const std::string& type, float frequency)
 {
     if (!m_sender) {
         return false;
     }
 
     // Determine if we should send the message at all but claim that we did even if we don't
-    sample_rate = std::clamp(sample_rate, 0.f, 1.f);
-    bool always_send = std::fabs(sample_rate - 1.f) < EPSILON;
-    bool never_send  = std::fabs(sample_rate) < EPSILON;
+    frequency = std::clamp(frequency, 0.f, 1.f);
+    bool always_send = std::fabs(frequency - 1.f) < EPSILON;
+    bool never_send  = std::fabs(frequency) < EPSILON;
     if (never_send || (!always_send &&
-        WITH_LOCK(cs, return sample_rate < std::uniform_real_distribution<float>(0.f, 1.f)(insecure_rand)))) {
+        WITH_LOCK(cs, return frequency < std::uniform_real_distribution<float>(0.f, 1.f)(insecure_rand)))) {
         return true;
     }
 
     // Construct the message and if our message isn't always-send, report the sample rate
     std::string buf{strprintf("%s%s%s:%s|%s", m_prefix, key, m_suffix, ToString(value), type)};
-    if (sample_rate < 1.f) {
-        buf += strprintf("|@%.2f", sample_rate);
+    if (frequency < 1.f) {
+        buf += strprintf("|@%.2f", frequency);
     }
 
     // Send it and report an error if we encounter one
@@ -195,3 +201,9 @@ bool StatsdClient::Send(const std::string& key, T1 value, const std::string& typ
 
     return true;
 }
+
+template bool StatsdClient::send(const std::string& key, const double value, const std::string& type, float frequency);
+template bool StatsdClient::send(const std::string& key, const int32_t value, const std::string& type, float frequency);
+template bool StatsdClient::send(const std::string& key, const int64_t value, const std::string& type, float frequency);
+template bool StatsdClient::send(const std::string& key, const uint32_t value, const std::string& type, float frequency);
+template bool StatsdClient::send(const std::string& key, const uint64_t value, const std::string& type, float frequency);
