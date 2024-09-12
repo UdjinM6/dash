@@ -1,4 +1,5 @@
 // Copyright (c) 2014-2017 Statoshi Developers
+// Copyright (c) 2017-2023 Vincent Thiery
 // Copyright (c) 2020-2023 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -7,8 +8,8 @@
 #define BITCOIN_STATS_CLIENT_H
 
 #include <random.h>
-#include <threadsafety.h>
-#include <util/sock.h>
+#include <stats/rawsender.h>
+#include <sync.h>
 
 #include <memory>
 #include <string>
@@ -45,12 +46,6 @@ public:
     bool sendDouble(std::string key, double value, const std::string& type, float sample_rate);
 
 private:
-    /**
-        * (Low Level Api) manually send a message
-        * which might be composed of several lines.
-        */
-    bool send(const std::string& message);
-
     void cleanup(std::string& key);
     bool ShouldSend(float sample_rate);
 
@@ -58,11 +53,8 @@ private:
     mutable Mutex cs;
     mutable FastRandomContext insecure_rand GUARDED_BY(cs);
 
-    std::unique_ptr<Sock> m_sock{nullptr};
-    std::pair<struct sockaddr_storage, socklen_t> m_server{{}, sizeof(struct sockaddr_storage)};
+    std::unique_ptr<RawSender> m_sender{nullptr};
 
-    const uint16_t m_port;
-    const std::string m_host;
     const std::string m_nodename;
     const std::string m_ns;
 };
