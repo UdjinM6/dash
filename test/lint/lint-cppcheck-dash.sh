@@ -35,7 +35,6 @@ IGNORED_WARNINGS=(
     "src/masternode/sync.cpp:.*: warning: Variable 'pnode' can be declared as pointer to const \[constVariableReference\]"
     "src/wallet/bip39.cpp.*: warning: The scope of the variable 'ssCurrentWord' can be reduced. \[variableScope\]"
     "src/.*:.*: warning: Local variable '_' shadows outer function \[shadowFunction\]"
-    "src/stats/rawsender.h:.* Struct 'RawMessage' has a constructor with 1 argument that is not explicit."
 
     "src/stacktraces.cpp:.*: .*: Parameter 'info' can be declared as pointer to const"
     "src/stacktraces.cpp:.*: note: You might need to cast the function pointer here"

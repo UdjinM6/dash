@@ -23,7 +23,7 @@ struct RawMessage : public std::vector<uint8_t>
     using parent_type = std::vector<value_type>;
     using parent_type::parent_type;
 
-    RawMessage(const std::string& data) : parent_type{data.begin(), data.end()} {}
+    explicit RawMessage(const std::string& data) : parent_type{data.begin(), data.end()} {}
 
     parent_type& operator+=(value_type rhs) { return append(rhs); }
     parent_type& operator+=(const parent_type& rhs) { return append(rhs); }

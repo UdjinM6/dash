@@ -164,7 +164,7 @@ bool StatsdClient::send(const std::string& key, T1 value, const std::string& typ
     }
 
     // Send it and report an error if we encounter one
-    if (auto error_opt = m_sender->Send(buf); error_opt.has_value()) {
+    if (auto error_opt = m_sender->Send(static_cast<const RawMessage>(buf)); error_opt.has_value()) {
         LogPrintf("ERROR: %s.\n", error_opt.value());
         return false;
     }
