@@ -14,8 +14,8 @@
 #include <memory>
 #include <string>
 
-/** Default state of Statsd enablement */
-static constexpr bool DEFAULT_STATSD_ENABLE{false};
+class ArgsManager;
+
 /** Default port used to connect to a Statsd server */
 static constexpr uint16_t DEFAULT_STATSD_PORT{8125};
 /** Default host assumed to be running a Statsd server */
@@ -55,6 +55,9 @@ public:
     template <typename T1>
     bool send(const std::string& key, T1 value, const std::string& type, float sample_rate = 1.f);
 
+    /* Check if a StatsdClient instance is ready to send messages */
+    bool active() const { return m_sender != nullptr; }
+
 private:
     /* Mutex to protect PRNG */
     mutable Mutex cs;
@@ -69,6 +72,9 @@ private:
     /* Phrase appended to keys */
     const std::string m_ns;
 };
+
+/** Parses arguments and constructs a StatsdClient instance */
+std::unique_ptr<StatsdClient> InitStatsClient(const ArgsManager& args);
 
 /** Global smart pointer containing StatsdClient instance */
 extern std::unique_ptr<StatsdClient> g_stats_client;
