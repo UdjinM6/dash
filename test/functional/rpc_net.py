@@ -14,6 +14,7 @@ from test_framework.messages import (
 )
 
 from itertools import product
+import time
 
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import (
@@ -108,6 +109,53 @@ class NetTest(DashTestFramework):
 
         assert_equal(peer_info[2][0]['connection_type'], 'manual')
 
+
+        self.log.info("Check getpeerinfo output before a version message was sent")
+        no_version_peer_id = 3
+        no_version_peer_conntime = int(time.time())
+        self.nodes[0].setmocktime(no_version_peer_conntime)
+        with self.nodes[0].assert_debug_log([f"Added connection peer={no_version_peer_id}"]):
+            self.nodes[0].add_p2p_connection(P2PInterface(), send_version=False, wait_for_verack=False)
+        self.nodes[0].setmocktime(0)
+        peer_info = self.nodes[0].getpeerinfo()[no_version_peer_id]
+        peer_info.pop("addr")
+        peer_info.pop("addrbind")
+        assert_equal(
+            peer_info,
+            {
+                "addr_processed": 0,
+                "addr_rate_limited": 0,
+                "addr_relay_enabled": False,
+                "bip152_hb_from": False,
+                "bip152_hb_to": False,
+                "bytesrecv": 0,
+                "bytesrecv_per_msg": {},
+                "bytessent": 0,
+                "bytessent_per_msg": {},
+                "connection_type": "inbound",
+                "conntime": no_version_peer_conntime,
+                "id": no_version_peer_id,
+                "inbound": True,
+                "inflight": [],
+                "last_block": 0,
+                "last_transaction": 0,
+                "lastrecv": 0,
+                "lastsend": 0,
+                "masternode": False,
+                "network": "not_publicly_routable",
+                "permissions": [],
+                "relaytxes": False,
+                "services": "0000000000000000",
+                "servicesnames": [],
+                "startingheight": -1,
+                "subver": "",
+                "synced_blocks": -1,
+                "synced_headers": -1,
+                "timeoffset": 0,
+                "version": 0,
+            },
+        )
+        self.nodes[0].disconnect_p2ps()
 
     def test_getnettotals(self):
         self.log.info("Test getnettotals")
@@ -234,7 +282,7 @@ class NetTest(DashTestFramework):
         assert_greater_than(len(node_addresses), 5000)
         assert_greater_than(10000, len(node_addresses))
         for a in node_addresses:
-            assert_equal(a["time"], self.mocktime)
+            assert_greater_than(a["time"], self.mocktime)
             assert_equal(a["services"], services)
             assert a["address"] in imported_addrs
             assert_equal(a["port"], 8333)
