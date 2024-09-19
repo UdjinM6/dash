@@ -14,7 +14,6 @@ from test_framework.messages import (
 )
 
 from itertools import product
-import time
 
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import (
@@ -112,11 +111,9 @@ class NetTest(DashTestFramework):
 
         self.log.info("Check getpeerinfo output before a version message was sent")
         no_version_peer_id = 3
-        no_version_peer_conntime = int(time.time())
-        self.nodes[0].setmocktime(no_version_peer_conntime)
+        no_version_peer_conntime = self.mocktime
         with self.nodes[0].assert_debug_log([f"Added connection peer={no_version_peer_id}"]):
             self.nodes[0].add_p2p_connection(P2PInterface(), send_version=False, wait_for_verack=False)
-        self.nodes[0].setmocktime(0)
         peer_info = self.nodes[0].getpeerinfo()[no_version_peer_id]
         peer_info.pop("addr")
         peer_info.pop("addrbind")
@@ -282,7 +279,7 @@ class NetTest(DashTestFramework):
         assert_greater_than(len(node_addresses), 5000)
         assert_greater_than(10000, len(node_addresses))
         for a in node_addresses:
-            assert_greater_than(a["time"], self.mocktime)
+            assert_equal(a["time"], self.mocktime)
             assert_equal(a["services"], services)
             assert a["address"] in imported_addrs
             assert_equal(a["port"], 8333)
