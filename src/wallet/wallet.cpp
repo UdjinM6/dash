@@ -3552,9 +3552,7 @@ bool CWallet::CreateTransactionInternal(
     // provided one
     if (coin_control.m_feerate && coin_selection_params.m_effective_feerate > *coin_control.m_feerate) {
         error = strprintf(_("Fee rate (%s) is lower than the minimum fee rate setting (%s)"), coin_control.m_feerate->ToString(FeeEstimateMode::DUFF_B), coin_selection_params.m_effective_feerate.ToString(FeeEstimateMode::DUFF_B));
-        // this feature (bitcoin#18275) is uncompatible with our current CoinJoin implementation
-        // TODO: uncomment it when relevant fixes for CJ is done
-        // return false;
+        return false;
     }
 
     int nBytes{0};
