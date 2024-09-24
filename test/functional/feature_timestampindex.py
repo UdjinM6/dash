@@ -35,7 +35,7 @@ class TimestampIndexTest(BitcoinTestFramework):
     def run_test(self):
         self.log.info("Test that settings can't be changed without -reindex...")
         self.stop_node(1)
-        self.start_node(1, ["-timestampindex=0")
+        self.start_node(1, ["-timestampindex=0"])
         self.connect_nodes(0, 1)
         self.sync_all()
         self.stop_node(1)
