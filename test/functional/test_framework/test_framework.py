@@ -456,7 +456,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             if not self.disable_mocktime:
                 self.log.debug('Generate a block with current mocktime')
                 self.bump_mocktime(156 * 200, update_schedulers=False)
-            block_hash = self.generate(self.nodes[0], 1)[0]
+            block_hash = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
             block = self.nodes[0].getblock(blockhash=block_hash, verbosity=0)
             for n in self.nodes:
                 n.submitblock(block)
@@ -759,20 +759,27 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.connect_nodes(1, 2)
         self.sync_all()
 
-    def generate(self, generator, *args, **kwargs):
+    def no_op(self):
+        pass
+
+    def generate(self, generator, *args, sync_fun=None, **kwargs):
         blocks = generator.generate(*args, invalid_call=False, **kwargs)
+        sync_fun() if sync_fun else self.sync_all()
         return blocks
 
-    def generateblock(self, generator, *args, **kwargs):
+    def generateblock(self, generator, *args, sync_fun=None, **kwargs):
         blocks = generator.generateblock(*args, invalid_call=False, **kwargs)
+        sync_fun() if sync_fun else self.sync_all()
         return blocks
 
-    def generatetoaddress(self, generator, *args, **kwargs):
+    def generatetoaddress(self, generator, *args, sync_fun=None, **kwargs):
         blocks = generator.generatetoaddress(*args, invalid_call=False, **kwargs)
+        sync_fun() if sync_fun else self.sync_all()
         return blocks
 
-    def generatetodescriptor(self, generator, *args, **kwargs):
+    def generatetodescriptor(self, generator, *args, sync_fun=None, **kwargs):
         blocks = generator.generatetodescriptor(*args, invalid_call=False, **kwargs)
+        sync_fun() if sync_fun else self.sync_all()
         return blocks
 
     def sync_blocks(self, nodes=None, wait=1, timeout=60):
@@ -1171,23 +1178,19 @@ class DashTestFramework(BitcoinTestFramework):
             # Hence the last block prior to the activation is (expected_activation_height - 2).
             while expected_activation_height - height - 2 > batch_size:
                 self.bump_mocktime(batch_size)
-                self.generate(self.nodes[0], batch_size)
+                self.generate(self.nodes[0], batch_size, sync_fun=lambda: self.sync_blocks())
                 height += batch_size
-                self.sync_blocks()
             blocks_left = expected_activation_height - height - 2
             assert blocks_left <= batch_size
             self.bump_mocktime(blocks_left)
-            self.generate(self.nodes[0], blocks_left)
-            self.sync_blocks()
+            self.generate(self.nodes[0], blocks_left, sync_fun=lambda: self.sync_blocks())
             assert not softfork_active(self.nodes[0], name)
             self.bump_mocktime(1)
-            self.generate(self.nodes[0], 1)
-            self.sync_blocks()
+            self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks())
         else:
             while not softfork_active(self.nodes[0], name):
                 self.bump_mocktime(batch_size)
-                self.generate(self.nodes[0], batch_size)
-                self.sync_blocks()
+                self.generate(self.nodes[0], batch_size, sync_fun=lambda: self.sync_blocks())
 
         assert softfork_active(self.nodes[0], name)
 
@@ -1290,8 +1293,7 @@ class DashTestFramework(BitcoinTestFramework):
         outputs = {collateral_address: collateral_amount, funds_address: 1}
         collateral_txid = self.nodes[0].sendmany("", outputs)
         self.wait_for_instantlock(collateral_txid, self.nodes[0])
-        tip = self.generate(self.nodes[0], 1)[0]
-        self.sync_all(self.nodes)
+        tip = self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_all(self.nodes))[0]
 
         rawtx = self.nodes[0].getrawtransaction(collateral_txid, 1, tip)
         assert_equal(rawtx['confirmations'], 1)
@@ -1312,8 +1314,7 @@ class DashTestFramework(BitcoinTestFramework):
             protx_result = self.nodes[0].protx("register", collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, reward_address, funds_address, True)
 
         self.wait_for_instantlock(protx_result, self.nodes[0])
-        tip = self.generate(self.nodes[0], 1)[0]
-        self.sync_all(self.nodes)
+        tip = self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_all(self.nodes))[0]
 
         assert_equal(self.nodes[0].getrawtransaction(protx_result, 1, tip)['confirmations'], 1)
         mn_info = MasternodeInfo(protx_result, owner_address, voting_address, reward_address, operatorReward, bls['public'], bls['secret'], collateral_address, collateral_txid, collateral_vout, ipAndPort, evo)
@@ -1335,7 +1336,7 @@ class DashTestFramework(BitcoinTestFramework):
 
         fund_txid = self.nodes[0].sendtoaddress(funds_address, 1)
         self.wait_for_instantlock(fund_txid, self.nodes[0])
-        tip = self.generate(self.nodes[0], 1)[0]
+        tip = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
         assert_equal(self.nodes[0].getrawtransaction(fund_txid, 1, tip)['confirmations'], 1)
         self.sync_all(self.nodes)
 
@@ -1343,7 +1344,7 @@ class DashTestFramework(BitcoinTestFramework):
         try:
             protx_result = self.nodes[0].protx('update_service_evo', evo_info.proTxHash, evo_info.addr, evo_info.keyOperator, platform_node_id, platform_p2p_port, platform_http_port, operator_reward_address, funds_address)
             self.wait_for_instantlock(protx_result, self.nodes[0])
-            tip = self.generate(self.nodes[0], 1)[0]
+            tip = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
             assert_equal(self.nodes[0].getrawtransaction(protx_result, 1, tip)['confirmations'], 1)
             self.sync_all(self.nodes)
             self.log.info("Updated EvoNode %s: platformNodeID=%s, platformP2PPort=%s, platformHTTPPort=%s" % (evo_info.proTxHash, platform_node_id, platform_p2p_port, platform_http_port))
@@ -1495,7 +1496,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("Generating %d coins" % required_balance)
         while self.nodes[0].getbalance() < required_balance:
             self.bump_mocktime(1)
-            self.generate(self.nodes[0], 10)
+            self.generate(self.nodes[0], 10, sync_fun=self.no_op)
 
         # create masternodes
         self.prepare_masternodes()
@@ -1514,8 +1515,6 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.bump_mocktime(1)
         self.generate(self.nodes[0], 1)
-        # sync nodes
-        self.sync_all()
         for i in range(0, num_simple_nodes):
             force_finish_mnsync(self.nodes[i + 1])
 
@@ -1788,8 +1787,7 @@ class DashTestFramework(BitcoinTestFramework):
             if quorum_hash in self.nodes[0].quorum("list")[llmq_type_name]:
                 return True
             self.bump_mocktime(sleep, nodes=nodes)
-            self.generate(self.nodes[0], 1)
-            self.sync_blocks(nodes)
+            self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks(nodes))
             return False
         wait_until_helper(wait_func, timeout=timeout, sleep=sleep)
 
@@ -1800,15 +1798,13 @@ class DashTestFramework(BitcoinTestFramework):
                 if quorum_hash_1 in self.nodes[0].quorum("list")[llmq_type_name]:
                     return True
             self.bump_mocktime(sleep, nodes=nodes)
-            self.generate(self.nodes[0], 1)
-            self.sync_blocks(nodes)
+            self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks(nodes))
             return False
         wait_until_helper(wait_func, timeout=timeout, sleep=sleep)
 
     def move_blocks(self, nodes, num_blocks):
         self.bump_mocktime(1, nodes=nodes)
-        self.generate(self.nodes[0], num_blocks)
-        self.sync_blocks(nodes)
+        self.generate(self.nodes[0], num_blocks, sync_fun=lambda: self.sync_blocks(nodes))
 
     def mine_quorum(self, llmq_type_name="llmq_test", llmq_type=100, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None):
         spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
@@ -1837,7 +1833,7 @@ class DashTestFramework(BitcoinTestFramework):
         skip_count = 24 - (self.nodes[0].getblockcount() % 24)
         if skip_count != 0:
             self.bump_mocktime(1, nodes=nodes)
-            self.generate(self.nodes[0], skip_count)
+            self.generate(self.nodes[0], skip_count, sync_fun=self.no_op)
         self.sync_blocks(nodes)
 
         q = self.nodes[0].getbestblockhash()
@@ -1879,8 +1875,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("Mining final commitment")
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].getblocktemplate() # this calls CreateNewBlock
-        self.generate(self.nodes[0], 1)
-        self.sync_blocks(nodes)
+        self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks(nodes))
 
         self.log.info("Waiting for quorum to appear in the list")
         self.wait_for_quorum_list(q, nodes, llmq_type_name=llmq_type_name)
@@ -1890,9 +1885,7 @@ class DashTestFramework(BitcoinTestFramework):
         quorum_info = self.nodes[0].quorum("info", llmq_type, new_quorum)
 
         # Mine 8 (SIGN_HEIGHT_OFFSET) more blocks to make sure that the new quorum gets eligible for signing sessions
-        self.generate(self.nodes[0], 8)
-
-        self.sync_blocks(nodes)
+        self.generate(self.nodes[0], 8, sync_fun=lambda: self.sync_blocks(nodes))
 
         self.log.info("New quorum: height=%d, quorumHash=%s, quorumIndex=%d, minedBlock=%s" % (quorum_info["height"], new_quorum, quorum_info["quorumIndex"], quorum_info["minedBlock"]))
 
@@ -2000,8 +1993,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("Mining final commitments")
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].getblocktemplate() # this calls CreateNewBlock
-        self.generate(self.nodes[0], 1)
-        self.sync_blocks(nodes)
+        self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks(nodes))
 
         self.log.info("Waiting for quorum(s) to appear in the list")
         self.wait_for_quorums_list(q_0, q_1, nodes, llmq_type_name)
@@ -2009,9 +2001,8 @@ class DashTestFramework(BitcoinTestFramework):
         quorum_info_0 = self.nodes[0].quorum("info", llmq_type, q_0)
         quorum_info_1 = self.nodes[0].quorum("info", llmq_type, q_1)
         # Mine 8 (SIGN_HEIGHT_OFFSET) more blocks to make sure that the new quorum gets eligible for signing sessions
-        self.generate(self.nodes[0], 8)
+        self.generate(self.nodes[0], 8, sync_fun=lambda: self.sync_blocks(nodes))
 
-        self.sync_blocks(nodes)
         self.log.info("New quorum: height=%d, quorumHash=%s, quorumIndex=%d, minedBlock=%s" % (quorum_info_0["height"], q_0, quorum_info_0["quorumIndex"], quorum_info_0["minedBlock"]))
         self.log.info("New quorum: height=%d, quorumHash=%s, quorumIndex=%d, minedBlock=%s" % (quorum_info_1["height"], q_1, quorum_info_1["quorumIndex"], quorum_info_1["minedBlock"]))
 
@@ -2035,7 +2026,7 @@ class DashTestFramework(BitcoinTestFramework):
         skip_count = cycle_length - (cur_block % cycle_length)
         if skip_count != 0:
             self.bump_mocktime(1, nodes=nodes)
-            self.generate(self.nodes[0], skip_count)
+            self.generate(self.nodes[0], skip_count, sync_fun=self.no_op)
         self.sync_blocks(nodes)
         self.log.info('Moved from block %d to %d' % (cur_block, self.nodes[0].getblockcount()))
 
@@ -2097,8 +2088,7 @@ class DashTestFramework(BitcoinTestFramework):
             if recover:
                 if self.mocktime % 2:
                     self.bump_mocktime(self.quorum_data_request_expiration_timeout + 1)
-                    self.generate(self.nodes[0], 1)
-                    self.sync_blocks()
+                    self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks())
                 else:
                     self.bump_mocktime(self.quorum_data_thread_request_timeout_seconds + 1)
 
