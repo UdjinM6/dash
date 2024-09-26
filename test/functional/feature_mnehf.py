@@ -53,7 +53,6 @@ class MnehfTest(DashTestFramework):
             amount -= next
             self.bump_mocktime(next)
             self.generate(self.nodes[1], next)
-            self.sync_all()
 
     def create_mnehf(self, versionBit, pubkey=None):
         # request ID = sha256("mnhf", versionBit)
@@ -157,8 +156,6 @@ class MnehfTest(DashTestFramework):
         self.log.info(f"unknown ehf tx: {ehf_unknown_tx_sent}")
         self.sync_all()
         ehf_blockhash = self.generate(self.nodes[1], 1)[0]
-        self.sync_blocks()
-        self.sync_all()
 
         self.log.info(f"Check MnEhfTx {ehf_tx_sent} was mined in {ehf_blockhash}")
         assert ehf_tx_sent in node.getblock(ehf_blockhash)['tx']
@@ -172,7 +169,6 @@ class MnehfTest(DashTestFramework):
         while (node.getblockcount() + 1) % 12 != 0:
             self.check_fork('defined')
             self.generate(node, 1)
-            self.sync_all()
 
 
         self.restart_all_nodes()
@@ -180,13 +176,11 @@ class MnehfTest(DashTestFramework):
         for _ in range(12):
             self.check_fork('started')
             self.generate(node, 1)
-            self.sync_all()
 
 
         for i in range(12):
             self.check_fork('locked_in')
             self.generate(node, 1)
-            self.sync_all()
             if i == 7:
                 self.restart_all_nodes()
 
@@ -201,13 +195,11 @@ class MnehfTest(DashTestFramework):
         for _ in range(12):
             self.check_fork('defined')
             self.generate(node, 1)
-            self.sync_all()
 
 
         self.log.info("Re-sending MnEHF for new fork")
         tx_sent_2 = self.send_tx(ehf_tx)
         ehf_blockhash_2 = self.generate(node, 1)[0]
-        self.sync_all()
 
         self.log.info(f"Check MnEhfTx again {tx_sent_2} was mined in {ehf_blockhash_2}")
         assert tx_sent_2 in node.getblock(ehf_blockhash_2)['tx']
@@ -253,7 +245,6 @@ class MnehfTest(DashTestFramework):
         self.log.info("Mine one block and ensure EHF tx for the new deployment is mined")
         ehf_tx_sent = self.send_tx(ehf_tx_new_start)
         tip_blockhash = self.generate(node, 1)[0]
-        self.sync_all()
         block = node.getblock(tip_blockhash)
         assert ehf_tx_sent in block['tx']
 

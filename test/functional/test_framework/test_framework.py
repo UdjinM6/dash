@@ -1217,7 +1217,6 @@ class DashTestFramework(BitcoinTestFramework):
             except KeyError:
                 pass
             self.generate(self.nodes[0], 1)
-            self.sync_all()
         self.activate_by_name(name, expected_activation_height)
 
     def activate_mn_rr(self, expected_activation_height=None):
@@ -1418,7 +1417,6 @@ class DashTestFramework(BitcoinTestFramework):
         rawtx = self.nodes[0].signrawtransactionwithwallet(rawtx)
         self.nodes[0].sendrawtransaction(rawtx["hex"])
         self.generate(self.nodes[0], 1)
-        self.sync_all()
         self.mninfo.remove(mn)
 
         self.log.info("Removed masternode %d", idx)
