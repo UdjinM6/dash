@@ -101,7 +101,7 @@ class DIP3Test(BitcoinTestFramework):
                 self.log.info("register %s" % mn.alias)
                 self.register_mn(self.nodes[0], mn)
 
-            self.generate(self.nodes[0], 1)
+            self.generate(self.nodes[0], 1, sync_fun=self.no_op)
 
             if not start:
                 self.start_mn(mn)

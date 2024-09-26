@@ -248,7 +248,7 @@ class LLMQCoinbaseCommitmentsTest(DashTestFramework):
         self.log.info("Wait for dip0008 activation")
         while self.nodes[0].getblockcount() < DIP0008_HEIGHT:
             self.bump_mocktime(10)
-            self.generate(self.nodes[0], 10)
+            self.generate(self.nodes[0], 10, sync_fun=self.no_op)
             if slow_mode:
                 self.sync_blocks()
         self.sync_blocks()
@@ -301,7 +301,7 @@ class LLMQCoinbaseCommitmentsTest(DashTestFramework):
                     break
             if not found_unconfirmed:
                 break
-            self.generate(self.nodes[0], 1)
+            self.generate(self.nodes[0], 1, sync_fun=self.no_op)
         self.sync_blocks()
 
 if __name__ == '__main__':

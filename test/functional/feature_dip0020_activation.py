@@ -47,7 +47,7 @@ class DIP0020ActivationTest(BitcoinTestFramework):
 
         # This tx should be completely valid, should be included in mempool and mined in the next block
         assert txid in set(self.node.getrawmempool())
-        self.generate(self.node, 1)
+        self.generate(self.node, 1, sync_fun=self.no_op)
         assert txid not in set(self.node.getrawmempool())
 
         # Create spending tx
@@ -63,12 +63,12 @@ class DIP0020ActivationTest(BitcoinTestFramework):
         assert_raises_rpc_error(-26, DISABLED_OPCODE_ERROR, self.node.sendrawtransaction, tx0_hex)
 
         # Generate enough blocks to activate DIP0020 opcodes
-        self.generate(self.node, 98)
+        self.generate(self.node, 98, sync_fun=self.no_op)
         assert softfork_active(self.nodes[0], 'dip0020')
 
         # Still need 1 more block for mempool to accept new opcodes
         assert_raises_rpc_error(-26, DISABLED_OPCODE_ERROR, self.node.sendrawtransaction, tx0_hex)
-        self.generate(self.node, 1)
+        self.generate(self.node, 1, sync_fun=self.no_op)
 
         # Should be spendable now
         tx0id = self.node.sendrawtransaction(tx0_hex)
