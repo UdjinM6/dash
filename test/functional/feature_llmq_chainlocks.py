@@ -240,8 +240,7 @@ class LLMQChainLocksTest(DashTestFramework):
 
             self.log.info("Test that new node can mine without Chainlock info")
             tip_0 = self.nodes[0].getblock(self.nodes[0].getbestblockhash(), 2)
-            self.generate(self.nodes[added_idx], 1)
-            self.sync_blocks(self.nodes)
+            self.generate(self.nodes[added_idx], 1, sync_fun=lambda: self.sync_blocks(self.nodes))
             tip_1 = self.nodes[0].getblock(self.nodes[0].getbestblockhash(), 2)
             assert_equal(tip_1['cbTx']['bestCLSignature'], tip_0['cbTx']['bestCLSignature'])
             assert_equal(tip_1['cbTx']['bestCLHeightDiff'], tip_0['cbTx']['bestCLHeightDiff'] + 1)
