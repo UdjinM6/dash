@@ -103,6 +103,7 @@ RUN apt-get update && apt-get install $APT_ARGS \
     gawk \
     g++-arm-linux-gnueabihf \
     g++-mingw-w64-x86-64 \
+    binutils-mingw-w64-x86-64 \
     jq \
     libz-dev \
     libncurses5 \
