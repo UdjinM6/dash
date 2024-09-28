@@ -5,7 +5,11 @@ permissions:
 
 on:
   pull_request_target:
-  push:
+    paths:
+      - 'depends/**'
+      - 'contrib/guix/**'
+      - 'contrib/containers/guix/**'
+  workflow_dispatch:
 
 jobs:
   build-image:
