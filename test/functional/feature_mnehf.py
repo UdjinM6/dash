@@ -206,7 +206,7 @@ class MnehfTest(DashTestFramework):
 
         self.log.info(f"Generate some more block to jump to `started` status")
         for _ in range(12):
-            self.generate(node, 1)
+            self.generate(node, 1, sync_fun=self.no_op)
         self.check_fork('started')
         self.restart_all_nodes()
         self.check_fork('started')

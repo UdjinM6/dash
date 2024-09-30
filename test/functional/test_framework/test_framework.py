@@ -1292,7 +1292,7 @@ class DashTestFramework(BitcoinTestFramework):
         outputs = {collateral_address: collateral_amount, funds_address: 1}
         collateral_txid = self.nodes[0].sendmany("", outputs)
         self.wait_for_instantlock(collateral_txid, self.nodes[0])
-        tip = self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_all(self.nodes))[0]
+        tip = self.generate(self.nodes[0], 1)[0]
 
         rawtx = self.nodes[0].getrawtransaction(collateral_txid, 1, tip)
         assert_equal(rawtx['confirmations'], 1)
@@ -1313,7 +1313,7 @@ class DashTestFramework(BitcoinTestFramework):
             protx_result = self.nodes[0].protx("register", collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, reward_address, funds_address, True)
 
         self.wait_for_instantlock(protx_result, self.nodes[0])
-        tip = self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_all(self.nodes))[0]
+        tip = self.generate(self.nodes[0], 1)[0]
 
         assert_equal(self.nodes[0].getrawtransaction(protx_result, 1, tip)['confirmations'], 1)
         mn_info = MasternodeInfo(protx_result, owner_address, voting_address, reward_address, operatorReward, bls['public'], bls['secret'], collateral_address, collateral_txid, collateral_vout, ipAndPort, evo)
@@ -1335,9 +1335,8 @@ class DashTestFramework(BitcoinTestFramework):
 
         fund_txid = self.nodes[0].sendtoaddress(funds_address, 1)
         self.wait_for_instantlock(fund_txid, self.nodes[0])
-        tip = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
+        tip = self.generate(self.nodes[0], 1)[0]
         assert_equal(self.nodes[0].getrawtransaction(fund_txid, 1, tip)['confirmations'], 1)
-        self.sync_all(self.nodes)
 
         protx_success = False
         try:
@@ -1394,7 +1393,7 @@ class DashTestFramework(BitcoinTestFramework):
         if register_fund:
             protx_result = self.nodes[0].protx('register_fund', address, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
         else:
-            self.generate(self.nodes[0], 1)
+            self.generate(self.nodes[0], 1, sync_fun=self.no_op)
             protx_result = self.nodes[0].protx('register', txid, collateral_vout, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
 
         if submit:
@@ -1403,7 +1402,7 @@ class DashTestFramework(BitcoinTestFramework):
             proTxHash = self.nodes[0].sendrawtransaction(protx_result)
 
         if operatorReward > 0:
-            self.generate(self.nodes[0], 1)
+            self.generate(self.nodes[0], 1, sync_fun=self.no_op)
             operatorPayoutAddress = self.nodes[0].getnewaddress()
             self.nodes[0].protx('update_service', proTxHash, ipAndPort, bls['secret'], operatorPayoutAddress, address)
 
