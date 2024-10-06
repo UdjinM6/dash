@@ -277,8 +277,10 @@ public:
     PeerMsgRet ProcessMessage(CNode& peer, CMasternodeSync& mn_sync, CConnman& connman, PeerManager& peerman,
                               std::string_view msg_type, CDataStream& vRecv);
 
+private:
     void ResetVotedFundingTrigger();
 
+public:
     void DoMaintenance(const CMasternodeSync& mn_sync, CConnman& connman);
 
     const CGovernanceObject* FindConstGovernanceObject(const uint256& nHash) const EXCLUSIVE_LOCKS_REQUIRED(cs);
@@ -376,6 +378,8 @@ public:
                                std::vector<CTxOut>& voutSuperblockRet);
 
 private:
+    void ExecuteBestSuperblock(const CDeterministicMNList& tip_mn_list, int nBlockHeight);
+
     std::optional<const CSuperblock> CreateSuperblockCandidate(int nHeight) const;
     std::optional<const CGovernanceObject> CreateGovernanceTrigger(const std::optional<const CSuperblock>& sb_opt,
                                                                    CMasternodeSync& mn_sync, PeerManager& peerman,
