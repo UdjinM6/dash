@@ -242,7 +242,7 @@ private:
     CNetFulfilledRequestManager& m_netfulfilledman;
     const ChainstateManager& m_chainman;
     const std::unique_ptr<CDeterministicMNManager>& m_dmnman;
-    const std::unique_ptr<CMasternodeSync>& m_mn_sync;
+    CMasternodeSync& m_mn_sync;
 
     int64_t nTimeLastDiff;
     // keep track of current block height
@@ -257,7 +257,7 @@ private:
 public:
     explicit CGovernanceManager(CMasternodeMetaMan& mn_metaman, CNetFulfilledRequestManager& netfulfilledman, const ChainstateManager& chainman,
                                 const std::unique_ptr<CDeterministicMNManager>& dmnman,
-                                const std::unique_ptr<CMasternodeSync>& mn_sync);
+                                CMasternodeSync& mn_sync);
     ~CGovernanceManager();
 
     bool LoadCache(bool load_cache);
