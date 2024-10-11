@@ -131,9 +131,15 @@ bool CAssetUnlockPayload::VerifySig(const llmq::CQuorumManager& qman, const uint
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlock-too-old-quorum");
     }
 
-    if (static_cast<uint32_t>(pindexTip->nHeight) < requestedHeight || pindexTip->nHeight >= getHeightToExpiry()) {
-        LogPrint(BCLog::CREDITPOOL, "Asset unlock tx %d with requested height %d could not be accepted on height: %d\n",
-                index, requestedHeight, pindexTip->nHeight);
+    if (static_cast<uint32_t>(pindexTip->nHeight) < requestedHeight) {
+        LogPrint(BCLog::CREDITPOOL, "Asset unlock tx %d with requested height %d could not be accepted at height: %d\n",
+                 index, requestedHeight, pindexTip->nHeight);
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlock-too-early");
+    }
+
+    if (pindexTip->nHeight >= getHeightToExpiry()) {
+        LogPrint(BCLog::CREDITPOOL, "Asset unlock tx %d with requested height %d could not be accepted at height: %d\n",
+                 index, requestedHeight, pindexTip->nHeight);
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlock-too-late");
     }
 
