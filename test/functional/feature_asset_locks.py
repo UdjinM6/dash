@@ -45,6 +45,7 @@ from test_framework.wallet_util import bytes_to_wif
 llmq_type_test = 106 # LLMQType::LLMQ_TEST_PLATFORM
 tiny_amount = int(Decimal("0.0007") * COIN)
 blocks_in_one_day = 576
+HEIGHT_DIFF_EXPIRING = 24 * 3 # 2 active quorums + 1 inactive, 24 blocks each
 
 class AssetLocksTest(DashTestFramework):
     def set_test_params(self):
@@ -347,7 +348,7 @@ class AssetLocksTest(DashTestFramework):
         asset_unlock_tx_duplicate_index = copy.deepcopy(asset_unlock_tx)
         # modify this tx with duplicated index to make a hash of tx different, otherwise tx would be refused too early
         asset_unlock_tx_duplicate_index.vout[0].nValue += COIN
-        too_late_height = node.getblockcount() + 48
+        too_late_height = node.getblockcount() + HEIGHT_DIFF_EXPIRING
 
         self.check_mempool_result(tx=asset_unlock_tx, result_expected={'allowed': True, 'fees': {'base': Decimal(str(tiny_amount / COIN))}})
         self.check_mempool_result(tx=asset_unlock_tx_too_big_fee,
@@ -595,6 +596,7 @@ class AssetLocksTest(DashTestFramework):
         self.log.info("Trying to withdraw more... expecting to fail")
         index += 1
         asset_unlock_tx = self.create_assetunlock(index, COIN, pubkey)
+        too_late_height = node.getblockcount() + HEIGHT_DIFF_EXPIRING
         self.send_tx(asset_unlock_tx)
         self.generate(node, 1)
 
@@ -604,13 +606,16 @@ class AssetLocksTest(DashTestFramework):
         indexes_statuses_height = self.nodes[0].getassetunlockstatuses(["101", "102", "103"], tip)
         assert_equal([{'index': 101, 'status': 'chainlocked'}, {'index': 102, 'status': 'chainlocked'}, {'index': 103, 'status': 'unknown'}], indexes_statuses_height)
 
-
-        self.log.info("generate many blocks to be sure that mempool is empty after expiring txes...")
-        self.generate_batch(60)
-        self.log.info("Checking that credit pool is not changed...")
-        assert_equal(new_total, self.get_credit_pool_balance())
+        self.log.info("Generate many blocks to be sure that mempool is empty after expiring txes...")
+        self.generate_batch(too_late_height - tip - 1)
+        self.mempool_size = 1
+        self.check_mempool_size()
+        self.generate(node, 1)
+        self.mempool_size = 0
         self.check_mempool_size()
 
+        self.log.info("Checking that credit pool is not changed...")
+        assert_equal(new_total, self.get_credit_pool_balance())
 
     def test_mn_rr(self, node_wallet, node, pubkey):
         self.log.info("Activate mn_rr...")
