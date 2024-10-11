@@ -173,11 +173,7 @@ public:
     }
 
     // used by mempool to know when possible to drop a transaction as expired
-    static constexpr int HEIGHT_DIFF_EXPIRING = 48;
-    int getHeightToExpiry() const
-    {
-        return requestedHeight + HEIGHT_DIFF_EXPIRING;
-    }
+    int getHeightToExpiry() const;
 };
 
 bool CheckAssetLockTx(const CTransaction& tx, TxValidationState& state);

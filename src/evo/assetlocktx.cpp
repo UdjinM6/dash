@@ -147,6 +147,13 @@ bool CAssetUnlockPayload::VerifySig(const llmq::CQuorumManager& qman, const uint
     return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-assetunlock-not-verified");
 }
 
+int CAssetUnlockPayload::getHeightToExpiry() const
+{
+    const auto& llmq_params_opt = Params().GetLLMQ(Params().GetConsensus().llmqTypePlatform);
+    assert(llmq_params_opt.has_value());
+    return requestedHeight + llmq_params_opt->dkgInterval * (llmq_params_opt->signingActiveQuorumCount + 1);
+}
+
 bool CheckAssetUnlockTx(const BlockManager& blockman, const llmq::CQuorumManager& qman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, const std::optional<CRangesSet>& indexes, TxValidationState& state)
 {
     // Some checks depends from blockchain status also, such as `known indexes` and `withdrawal limits`

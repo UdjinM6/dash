@@ -1110,7 +1110,7 @@ void CTxMemPool::removeExpiredAssetUnlock(int nBlockHeight)
     // because removing items by `removeRecursive` changes the mapAssetUnlockExpiry
     std::vector<CTransactionRef> entries;
     for (const auto& item: mapAssetUnlockExpiry) {
-        if (item.second < nBlockHeight) {
+        if (item.second <= nBlockHeight) {
             entries.push_back(get(item.first));
         }
     }
