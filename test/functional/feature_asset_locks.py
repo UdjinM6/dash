@@ -273,7 +273,7 @@ class AssetLocksTest(DashTestFramework):
         self.test_asset_unlocks(node_wallet, node, pubkey)
         self.test_withdrawal_limits(node_wallet, node, pubkey)
         self.test_mn_rr(node_wallet, node, pubkey)
-        self.test_withdrawal_fork(node_wallet, node, pubkey)
+        self.test_withdrawal_fork(node_wallet, pubkey)
 
 
     def test_asset_locks(self, node_wallet, node, pubkey):
@@ -645,32 +645,35 @@ class AssetLocksTest(DashTestFramework):
         self.generate(node, 1)
         assert_equal(locked, self.get_credit_pool_balance())
 
-    def test_withdrawal_fork(self, node_wallet, node, pubkey):
+    def test_withdrawal_fork(self, node_wallet, pubkey):
         self.log.info("Testing asset unlock after 'withdrawal' activation...")
+        assert softfork_active(node_wallet, 'withdrawals')
 
-        assert softfork_active(self.nodes[0], 'withdrawals')
-        self.log.info("Generating several txes by same quorum....")
-
+        self.log.info("Generating new Asset Unlock tx...")
         asset_unlock_tx = self.create_assetunlock(501, COIN, pubkey)
         asset_unlock_tx_payload = CAssetUnlockTx()
         asset_unlock_tx_payload.deserialize(BytesIO(asset_unlock_tx.vExtraPayload))
 
-        self.log.info("Check that new Asset Unlock is valid for current quorum")
+        self.log.info("Check that new Asset Unlock tx is valid for current quorum")
         self.check_mempool_result(tx=asset_unlock_tx, result_expected={'allowed': True, 'fees': {'base': Decimal(str(tiny_amount / COIN))}})
 
-        while asset_unlock_tx_payload.quorumHash in node.quorum('list')['llmq_test_platform']:
-            self.log.info(f"Generate one more quorum until signing quorum becomes not available")
-            self.mine_quorum_2_nodes(llmq_type_name="llmq_test_platform", llmq_type=106)
+        quorumHash_str = format(asset_unlock_tx_payload.quorumHash, '064x')
+        assert quorumHash_str in node_wallet.quorum('list')['llmq_test_platform']
 
+        while quorumHash_str != node_wallet.quorum('list')['llmq_test_platform'][-1]:
+            self.log.info("Generate one more quorum until signing quorum becomes the last one in the list")
+            self.mine_quorum_2_nodes(llmq_type_name="llmq_test_platform", llmq_type=106)
             self.check_mempool_result(tx=asset_unlock_tx, result_expected={'allowed': True, 'fees': {'base': Decimal(str(tiny_amount / COIN))}})
 
-        self.log.info(f"Generate one more quorum after which asset unlock meant to be still valid")
+        self.log.info("Generate one more quorum after which signing quorum is gone but Asset Unlock tx is still valid")
+        assert quorumHash_str in node_wallet.quorum('list')['llmq_test_platform']
         self.mine_quorum_2_nodes(llmq_type_name="llmq_test_platform", llmq_type=106)
+        assert quorumHash_str not in node_wallet.quorum('list')['llmq_test_platform']
         self.check_mempool_result(tx=asset_unlock_tx, result_expected={'allowed': True, 'fees': {'base': Decimal(str(tiny_amount / COIN))}})
-        self.log.info(f"Generate one more quorum after which asset unlock meant to be expired")
+
+        self.log.info("Generate one more quorum after which signing quorum becomes too old")
         self.mine_quorum_2_nodes(llmq_type_name="llmq_test_platform", llmq_type=106)
         self.check_mempool_result(tx=asset_unlock_tx, result_expected={'allowed': False, 'reject-reason': 'bad-assetunlock-too-old-quorum'})
-
 
 
 if __name__ == '__main__':
