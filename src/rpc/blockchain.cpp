@@ -2453,11 +2453,7 @@ static RPCHelpMan getblockstats()
             CAmount txfee = tx_total_in - tx_total_out;
 
             if (tx->nType == TRANSACTION_ASSET_UNLOCK) {
-                if (const auto opt_assetUnlockTx = GetTxPayload<CAssetUnlockPayload>(*tx)) {
-                    txfee = opt_assetUnlockTx->getFee();
-                } else {
-                    txfee = 0;
-                }
+                txfee = CHECK_NONFATAL(GetTxPayload<CAssetUnlockPayload>(*tx))->getFee();
             }
 
             CHECK_NONFATAL(MoneyRange(txfee));

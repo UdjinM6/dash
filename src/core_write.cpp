@@ -330,16 +330,14 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, bool include_add
     } else if (tx.nType == TRANSACTION_ASSET_UNLOCK) {
         if (const auto opt_assetUnlockTx = GetTxPayload<CAssetUnlockPayload>(tx)) {
             entry.pushKV("assetUnlockTx", opt_assetUnlockTx->ToJson());
-            if (calculate_fee) {
-                const CAmount fee = opt_assetUnlockTx->getFee();
-                CHECK_NONFATAL(MoneyRange(fee));
-                entry.pushKV("fee", ValueFromAmount(fee));
-            }
         }
     }
 
-    if (calculate_fee && tx.nType != TRANSACTION_ASSET_UNLOCK) {
-        const CAmount fee = amt_total_in - amt_total_out;
+    if (calculate_fee) {
+        CAmount fee = amt_total_in - amt_total_out;
+        if (tx.nType == TRANSACTION_ASSET_UNLOCK) {
+            fee = CHECK_NONFATAL(GetTxPayload<CAssetUnlockPayload>(tx))->getFee();
+        }
         CHECK_NONFATAL(MoneyRange(fee));
         entry.pushKV("fee", ValueFromAmount(fee));
     }
