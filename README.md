@@ -1,4 +1,4 @@
-Dash Core staging tree
+Dash Core staging tree dummy
 ===========================
 
 |CI|master|develop|
