@@ -175,7 +175,7 @@ bool CGovernanceVote::Sign(const CActiveMasternodeManager& mn_activeman)
     if (!sig.IsValid()) {
         return false;
     }
-    vchSig = sig.ToByteVector(false);
+    vchSig = sig.ToActualByteVector(false);
     return true;
 }
 
