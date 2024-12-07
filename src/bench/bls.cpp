@@ -357,10 +357,52 @@ static void BLS_Verify_BatchedParallel(benchmark::Bench& bench)
     blsWorker.Stop();
 }
 
+static void BLS_ToActualByteVector(benchmark::Bench& bench)
+{
+    CBLSSecretKey secKey;
+    secKey.MakeNewKey();
+    CBLSPublicKey pubKey = secKey.GetPublicKey();
+    uint256 hash = GetRandHash();
+    CBLSSignature sig = secKey.Sign(hash);
+
+    // Benchmark.
+    bench.minEpochIterations(100000).name("ToActualByteVector CBLSSecretKey").run([&] {
+        secKey.ToActualByteVector(false);
+    });
+    bench.minEpochIterations(100000).name("ToActualByteVector CBLSPublicKey").run([&] {
+        pubKey.ToActualByteVector(false);
+    });
+    bench.minEpochIterations(100000).name("ToActualByteVector CBLSSignature").run([&] {
+        sig.ToActualByteVector(false);
+    });
+}
+
+static void BLS_ToBytes(benchmark::Bench& bench)
+{
+    CBLSSecretKey secKey;
+    secKey.MakeNewKey();
+    CBLSPublicKey pubKey = secKey.GetPublicKey();
+    uint256 hash = GetRandHash();
+    CBLSSignature sig = secKey.Sign(hash);
+
+    // Benchmark.
+    bench.minEpochIterations(100000).name("ToBytes CBLSSecretKey").run([&] {
+        secKey.ToBytes(false);
+    });
+    bench.minEpochIterations(100000).name("ToBytes CBLSPublicKey").run([&] {
+        pubKey.ToBytes(false);
+    });
+    bench.minEpochIterations(100000).name("ToBytes CBLSSignature").run([&] {
+        sig.ToBytes(false);
+    });
+}
+
 BENCHMARK(BLS_PubKeyAggregate_Normal)
 BENCHMARK(BLS_SecKeyAggregate_Normal)
 BENCHMARK(BLS_SignatureAggregate_Normal)
 BENCHMARK(BLS_Sign_Normal)
+BENCHMARK(BLS_ToActualByteVector)
+BENCHMARK(BLS_ToBytes)
 BENCHMARK(BLS_Verify_Normal)
 BENCHMARK(BLS_Verify_LargeBlock100)
 BENCHMARK(BLS_Verify_LargeBlock1000)
