@@ -258,7 +258,7 @@ bool CGovernanceObject::Sign(const CActiveMasternodeManager& mn_activeman)
     if (!sig.IsValid()) {
         return false;
     }
-    m_obj.vchSig = sig.ToByteVector(false);
+    m_obj.vchSig = sig.ToActualByteVector(false);
     return true;
 }
 
