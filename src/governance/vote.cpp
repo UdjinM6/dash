@@ -152,15 +152,16 @@ uint256 CGovernanceVote::GetSignatureHash() const
 bool CGovernanceVote::CheckSignature(const CKeyID& keyID) const
 {
     std::string strError;
+    std::vector<unsigned char> vec{m_sig_ECDSA.begin(), m_sig_ECDSA.end()};
 
     // Harden Spork6 so that it is active on testnet and no other networks
     if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-        if (!CHashSigner::VerifyHash(GetSignatureHash(), keyID, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(GetSignatureHash(), keyID, vec, strError)) {
             LogPrint(BCLog::GOBJECT, "CGovernanceVote::IsValid -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
     } else {
-        if (!CMessageSigner::VerifyMessage(keyID, vchSig, GetSignatureString(), strError)) {
+        if (!CMessageSigner::VerifyMessage(keyID, vec, GetSignatureString(), strError)) {
             LogPrint(BCLog::GOBJECT, "CGovernanceVote::IsValid -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
@@ -175,14 +176,15 @@ bool CGovernanceVote::Sign(const CActiveMasternodeManager& mn_activeman)
     if (!sig.IsValid()) {
         return false;
     }
-    vchSig = sig.ToActualByteVector(false);
+    m_sig_BLS = sig.ToBytes(false);
+    is_bls = true;
     return true;
 }
 
 bool CGovernanceVote::CheckSignature(const CBLSPublicKey& pubKey) const
 {
     CBLSSignature sig;
-    sig.SetByteVector(vchSig, false);
+    sig.SetByteVector(m_sig_BLS, false);
     if (!sig.VerifyInsecure(pubKey, GetSignatureHash(), false)) {
         LogPrintf("CGovernanceVote::CheckSignature -- VerifyInsecure() failed\n");
         return false;

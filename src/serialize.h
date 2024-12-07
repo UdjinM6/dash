@@ -797,6 +797,9 @@ template<typename Stream, unsigned int N, typename T> inline void Unserialize(St
 template<typename Stream, typename T, typename A> inline void Serialize(Stream& os, const std::vector<T, A>& v);
 template<typename Stream, typename T, typename A> inline void Unserialize(Stream& is, std::vector<T, A>& v);
 
+/**
+ * array
+ */
 template <typename Stream, typename T, std::size_t N> void Serialize(Stream& os, const std::array<T, N>& a);
 template <typename Stream, typename T, std::size_t N> void Unserialize(Stream& is, std::array<T, N>& a);
 
@@ -1037,6 +1040,8 @@ void Unserialize(Stream& is, std::vector<T, A>& v)
 template <typename Stream, typename T, std::size_t N>
 void Serialize(Stream& os, const std::array<T, N>& a)
 {
+    // NOTE: each class that replaced vector with array must call
+    // WriteCompactSize() to remain backwards compatible
     if constexpr (std::is_same_v<T, unsigned char>) {
         // Directly write the byte data without writing the size
         if (!a.empty()) {
@@ -1060,6 +1065,8 @@ void Serialize(Stream& os, const std::array<T, N>& a)
 template <typename Stream, typename T, std::size_t N>
 void Unserialize(Stream& is, std::array<T, N>& a)
 {
+    // NOTE: each class that replaced vector with array must call
+    // ReadCompactSize() to remain backwards compatible
     if constexpr (std::is_same_v<T, unsigned char>) {
         // Directly read the byte data without reading the size
         if (N > 0) {

@@ -184,7 +184,7 @@ public:
     uint256 m_protxHash;
     int64_t nTime{0};
     bool fReady{false}; //ready for submit
-    std::array<unsigned char, BLS_CURVE_SIG_SIZE> vchSig;
+    std::array<unsigned char, BLS_CURVE_SIG_SIZE> m_sig_BLS{};
     // memory only
     bool fTried{false};
 
@@ -199,11 +199,30 @@ public:
     {
     }
 
-    SERIALIZE_METHODS(CCoinJoinQueue, obj)
+    template <typename Stream, typename Operation>
+    inline void SerializationOpBase(Stream& s, Operation ser_action)
     {
-        READWRITE(obj.nDenom, obj.m_protxHash, obj.nTime, obj.fReady);
+        READWRITE(nDenom, m_protxHash, nTime, fReady);
+    }
+
+    template <typename Stream>
+    void Serialize(Stream& s) const
+    {
+        const_cast<CCoinJoinQueue*>(this)->SerializationOpBase(s, CSerActionSerialize());
+
         if (!(s.GetType() & SER_GETHASH)) {
-            READWRITE(obj.vchSig);
+            WriteCompactSize(s, BLS_CURVE_SIG_SIZE);
+            ::Serialize(s, m_sig_BLS);
+        }
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
+        SerializationOpBase(s, CSerActionUnserialize());
+
+        if (ReadCompactSize(s) == BLS_CURVE_SIG_SIZE) {
+            ::Unserialize(s, m_sig_BLS);
         }
     }
 
@@ -244,7 +263,7 @@ public:
     CTransactionRef tx;
     COutPoint masternodeOutpoint;
     uint256 m_protxHash;
-    std::array<unsigned char, BLS_CURVE_SIG_SIZE> vchSig;
+    std::array<unsigned char, BLS_CURVE_SIG_SIZE> m_sig_BLS{};
     int64_t sigTime{0};
     CCoinJoinBroadcastTx() :
         tx(MakeTransactionRef(CMutableTransaction{}))
@@ -259,14 +278,24 @@ public:
     {
     }
 
-    SERIALIZE_METHODS(CCoinJoinBroadcastTx, obj)
+    template <typename Stream>
+    void Serialize(Stream& s) const
     {
-        READWRITE(obj.tx, obj.m_protxHash);
-
+        ::SerializeMany(s, tx, m_protxHash);
         if (!(s.GetType() & SER_GETHASH)) {
-            READWRITE(obj.vchSig);
+            WriteCompactSize(s, BLS_CURVE_SIG_SIZE);
+            ::Serialize(s, m_sig_BLS);
         }
-        READWRITE(obj.sigTime);
+        ::Serialize(s, sigTime);
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
+        ::UnserializeMany(s, tx, m_protxHash);
+        if (ReadCompactSize(s) == BLS_CURVE_SIG_SIZE) {
+            ::UnserializeMany(s, m_sig_BLS, sigTime);
+        }
     }
 
     friend bool operator==(const CCoinJoinBroadcastTx& a, const CCoinJoinBroadcastTx& b)

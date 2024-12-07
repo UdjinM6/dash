@@ -5,7 +5,9 @@
 #ifndef BITCOIN_GOVERNANCE_VOTE_H
 #define BITCOIN_GOVERNANCE_VOTE_H
 
+#include <bls/bls.h>
 #include <primitives/transaction.h>
+#include <pubkey.h>
 #include <uint256.h>
 
 class CActiveMasternodeManager;
@@ -69,10 +71,13 @@ private:
     vote_outcome_enum_t nVoteOutcome{VOTE_OUTCOME_NONE};
     vote_signal_enum_t nVoteSignal{VOTE_SIGNAL_NONE};
     int64_t nTime{0};
-    std::vector<unsigned char> vchSig;
 
     /** Memory only. */
+    bool is_bls{false};
+    std::array<unsigned char, BLS_CURVE_SIG_SIZE> m_sig_BLS{};
+    std::array<unsigned char, CPubKey::COMPACT_SIGNATURE_SIZE> m_sig_ECDSA{};
     const uint256 hash{0};
+
     void UpdateHash() const;
 
 public:
@@ -93,9 +98,16 @@ public:
         UpdateHash();
     }
 
-    void SetSignature(const std::vector<unsigned char>& vchSigIn) { vchSig = vchSigIn; }
+    void SetSignature(const std::vector<unsigned char>& vchSigIn)
+    {
+        if (vchSigIn.size() == BLS_CURVE_SIG_SIZE) {
+            std::copy(vchSigIn.begin(), vchSigIn.end(), m_sig_BLS.begin());
+            is_bls = true;
+        } else if (vchSigIn.size() == CPubKey::COMPACT_SIGNATURE_SIZE) {
+            std::copy(vchSigIn.begin(), vchSigIn.end(), m_sig_ECDSA.begin());
+        }
+    }
 
-    bool Sign(const CKey& key, const CKeyID& keyID);
     bool CheckSignature(const CKeyID& keyID) const;
     bool Sign(const CActiveMasternodeManager& mn_activeman);
     bool CheckSignature(const CBLSPublicKey& pubKey) const;
@@ -116,13 +128,41 @@ public:
 
     std::string ToString(const CDeterministicMNList& tip_mn_list) const;
 
-    SERIALIZE_METHODS(CGovernanceVote, obj)
+    template <typename Stream, typename Operation>
+    inline void SerializationOpBase(Stream& s, Operation ser_action)
     {
-        READWRITE(obj.masternodeOutpoint, obj.nParentHash, obj.nVoteOutcome, obj.nVoteSignal, obj.nTime);
+        READWRITE(masternodeOutpoint, nParentHash, nVoteOutcome, nVoteSignal, nTime);
+    }
+
+    template <typename Stream>
+    void Serialize(Stream& s) const
+    {
+        const_cast<CGovernanceVote*>(this)->SerializationOpBase(s, CSerActionSerialize());
+
         if (!(s.GetType() & SER_GETHASH)) {
-            READWRITE(obj.vchSig);
+            if (is_bls) {
+                WriteCompactSize(s, BLS_CURVE_SIG_SIZE);
+                ::Serialize(s, m_sig_BLS);
+            } else {
+                WriteCompactSize(s, CPubKey::COMPACT_SIGNATURE_SIZE);
+                ::Serialize(s, m_sig_ECDSA);
+            }
         }
-        SER_READ(obj, obj.UpdateHash());
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
+        SerializationOpBase(s, CSerActionUnserialize());
+
+        size_t size = ReadCompactSize(s);
+        if (size == BLS_CURVE_SIG_SIZE) {
+            ::Unserialize(s, m_sig_BLS);
+            is_bls = true;
+        } else if (size == CPubKey::COMPACT_SIGNATURE_SIZE) {
+            ::Unserialize(s, m_sig_ECDSA);
+        }
+        UpdateHash();
     }
 };
 

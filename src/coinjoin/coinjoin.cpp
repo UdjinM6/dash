@@ -55,14 +55,14 @@ bool CCoinJoinQueue::Sign(const CActiveMasternodeManager& mn_activeman)
     if (!sig.IsValid()) {
         return false;
     }
-    vchSig = sig.ToBytes(false);
+    m_sig_BLS = sig.ToBytes(false);
 
     return true;
 }
 
 bool CCoinJoinQueue::CheckSignature(const CBLSPublicKey& blsPubKey) const
 {
-    if (!CBLSSignature(Span{vchSig}).VerifyInsecure(blsPubKey, GetSignatureHash(), false)) {
+    if (!CBLSSignature(Span{m_sig_BLS}).VerifyInsecure(blsPubKey, GetSignatureHash(), false)) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinQueue::CheckSignature -- VerifyInsecure() failed\n");
         return false;
     }
@@ -94,14 +94,14 @@ bool CCoinJoinBroadcastTx::Sign(const CActiveMasternodeManager& mn_activeman)
     if (!sig.IsValid()) {
         return false;
     }
-    vchSig = sig.ToBytes(false);
+    m_sig_BLS = sig.ToBytes(false);
 
     return true;
 }
 
 bool CCoinJoinBroadcastTx::CheckSignature(const CBLSPublicKey& blsPubKey) const
 {
-    if (!CBLSSignature(Span{vchSig}).VerifyInsecure(blsPubKey, GetSignatureHash(), false)) {
+    if (!CBLSSignature(Span{m_sig_BLS}).VerifyInsecure(blsPubKey, GetSignatureHash(), false)) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinBroadcastTx::CheckSignature -- VerifyInsecure() failed\n");
         return false;
     }
