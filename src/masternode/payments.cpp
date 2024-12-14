@@ -123,11 +123,18 @@ CAmount PlatformShare(const CAmount reward)
 
     for (const auto& txout : voutMasternodePayments) {
         bool found = ranges::any_of(txNew.vout, [&txout](const auto& txout2) {return txout == txout2;});
+
+        if (found && !LogAcceptDebug(BCLog::MNPAYMENTS)) continue;
+
+        std::string dest_str;
+        if (CTxDestination dest; ExtractDestination(txout.scriptPubKey, dest)) {
+            dest_str = EncodeDestination(dest);
+        }
+
+        LogPrintf("CMNPaymentsProcessor::%s -- %s expected payee %s:%d in block at height %s\n", __func__,
+                  found ? "found" : "ERROR! Failed to find", dest_str, txout.nValue, nBlockHeight);
+
         if (!found) {
-            CTxDestination dest;
-            if (!ExtractDestination(txout.scriptPubKey, dest))
-                assert(false);
-            LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Failed to find expected payee %s in block at height %s\n", __func__, EncodeDestination(dest), nBlockHeight);
             return false;
         }
     }
