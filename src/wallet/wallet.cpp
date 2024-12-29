@@ -3864,6 +3864,7 @@ bool CWallet::CreateTransactionInternal(
         txNew.vin.clear();
         std::vector<CInputCoin> selected_coins(setCoins.begin(), setCoins.end());
         if (sort_bip69) { std::sort(selected_coins.begin(), selected_coins.end(), CompareInputCoinBIP69()); }
+        else { Shuffle(selected_coins.begin(), selected_coins.end(), FastRandomContext()); }
 
         // Note how the sequence number is set to non-maxint so that
         // the nLockTime set above actually works.
