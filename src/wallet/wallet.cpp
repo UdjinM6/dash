@@ -3801,19 +3801,17 @@ bool CWallet::CreateTransactionInternal(
             }
         }
 
-        // Shuffle selected coins and fill in final vin
+        // Fill in final vin and shuffle/sort it
         txNew.vin.clear();
-        std::vector<CInputCoin> selected_coins(setCoins.begin(), setCoins.end());
-        if (sort_bip69) { std::sort(selected_coins.begin(), selected_coins.end(), CompareInputCoinBIP69()); }
-        else { Shuffle(selected_coins.begin(), selected_coins.end(), FastRandomContext()); }
 
         // Note how the sequence number is set to non-maxint so that
         // the nLockTime set above actually works.
         const uint32_t nSequence = CTxIn::SEQUENCE_FINAL - 1;
-        for (const auto& coin : selected_coins) {
+        for (const auto& coin : setCoins) {
             txNew.vin.push_back(CTxIn(coin.outpoint, CScript(), nSequence));
         }
         if (sort_bip69) { std::sort(txNew.vin.begin(), txNew.vin.end(), CompareInputBIP69()); }
+        else { Shuffle(txNew.vin.begin(), txNew.vin.end(), FastRandomContext()); }
 
         if (sign && !SignTransaction(txNew)) {
             error = _("Signing transaction failed");
