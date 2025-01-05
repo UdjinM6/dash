@@ -520,8 +520,16 @@ public:
     // annotation "EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet)". The
     // annotation "NO_THREAD_SAFETY_ANALYSIS" was temporarily added to avoid
     // having to resolve the issue of member access into incomplete type CWallet.
-    CAmount GetAnonymizedCredit(const CCoinControl* coinControl = nullptr) const NO_THREAD_SAFETY_ANALYSIS;
-    CAmount GetDenominatedCredit(bool unconfirmed, bool fUseCache=true) const NO_THREAD_SAFETY_ANALYSIS;
+
+    struct BalanceAnonymized
+    {
+        CAmount m_denom_credit{0};
+        bool is_unconfirmed{false};
+    };
+
+    CAmount GetAnonymizedCredit() const NO_THREAD_SAFETY_ANALYSIS;
+    CAmount GetAnonymizedCredit(const CCoinControl& coinControl) const NO_THREAD_SAFETY_ANALYSIS;
+    BalanceAnonymized GetDenominatedCredit() const NO_THREAD_SAFETY_ANALYSIS;
 
     /** Get the marginal bytes if spending the specified output from this transaction */
     int GetSpendSize(unsigned int out, bool use_max_sig = false) const
@@ -1136,7 +1144,8 @@ public:
         CAmount m_denominated_trusted{0};
         CAmount m_denominated_untrusted_pending{0};
     };
-    Balance GetBalance(const int min_depth = 0, const bool avoid_reuse = true, const bool fAddLocked = false, const CCoinControl* coinControl = nullptr) const;
+    Balance GetBalance(const int min_depth = 0, const bool avoid_reuse = true, const bool fAddLocked = false) const;
+    CAmount GetBalanceAnonymized(const CCoinControl& coinControl) const;
 
     CAmount GetAnonymizableBalance(bool fSkipDenominated = false, bool fSkipUnconfirmed = true) const;
     float GetAverageAnonymizedRounds() const;
