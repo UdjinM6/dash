@@ -523,13 +523,13 @@ public:
 
     struct BalanceAnonymized
     {
+        CAmount m_anonymized{0};
         CAmount m_denom_credit{0};
         bool is_unconfirmed{false};
     };
 
-    CAmount GetAnonymizedCredit() const NO_THREAD_SAFETY_ANALYSIS;
     CAmount GetAnonymizedCredit(const CCoinControl& coinControl) const NO_THREAD_SAFETY_ANALYSIS;
-    BalanceAnonymized GetDenominatedCredit() const NO_THREAD_SAFETY_ANALYSIS;
+    BalanceAnonymized GetAnonymizedBalance() const NO_THREAD_SAFETY_ANALYSIS;
 
     /** Get the marginal bytes if spending the specified output from this transaction */
     int GetSpendSize(unsigned int out, bool use_max_sig = false) const
