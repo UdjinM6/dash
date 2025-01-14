@@ -1980,10 +1980,10 @@ if test "x$enable_wallet" != "xno"; then
     echo "  with bdb            = $use_bdb"
 fi
 if test x$bitcoin_enable_qt != xno; then
-    echo "    with qr           = $use_qr"
+    echo "  with qr           = $use_qr"
 fi
 echo "  with zmq            = $use_zmq"
-if test x$enable_fuzz == xno; then
+if test x$enable_fuzz = xno; then
     echo "  with test           = $use_tests"
 else
     echo "  with test           = not building test_dash because fuzzing is enabled"
