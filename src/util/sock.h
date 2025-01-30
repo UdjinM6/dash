@@ -259,7 +259,7 @@ protected:
      */
     SOCKET m_socket;
 
-public:
+private:
     /**
      * Close `m_socket` if it is not `INVALID_SOCKET`.
      */
