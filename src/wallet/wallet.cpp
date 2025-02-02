@@ -2298,40 +2298,6 @@ CAmount CWalletTx::GetImmatureWatchOnlyCredit(const bool fUseCache) const
     return 0;
 }
 
-CAmount CWalletTx::GetAnonymizedCredit(const CCoinControl& coinControl) const
-{
-    if (!pwallet)
-        return 0;
-
-    AssertLockHeld(pwallet->cs_wallet);
-
-    // Exclude coinbase and conflicted txes
-    if (IsCoinBase() || GetDepthInMainChain() < 0)
-        return 0;
-
-    CAmount nCredit = 0;
-    uint256 hashTx = GetHash();
-    for (unsigned int i = 0; i < tx->vout.size(); i++)
-    {
-        const CTxOut &txout = tx->vout[i];
-        const COutPoint outpoint = COutPoint(hashTx, i);
-
-        if (coinControl.HasSelected() && !coinControl.IsSelected(outpoint)) {
-            continue;
-        }
-
-        if (pwallet->IsSpent(hashTx, i) || !CoinJoin::IsDenominatedAmount(txout.nValue)) continue;
-
-        if (pwallet->IsFullyMixed(outpoint)) {
-            nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE);
-            if (!MoneyRange(nCredit))
-                throw std::runtime_error(std::string(__func__) + ": value out of range");
-        }
-    }
-
-    return nCredit;
-}
-
 CWalletTx::BalanceAnonymized CWalletTx::GetAnonymizedBalance() const
 {
     CWalletTx::BalanceAnonymized ret{0, false};
@@ -2528,18 +2494,6 @@ std::unordered_set<const CWalletTx*, WalletTxHasher> CWallet::GetSpendableTXs() 
         }
     }
     return ret;
-}
-
-CAmount CWallet::GetBalanceAnonymized(const CCoinControl& coinControl) const
-{
-    if (!CCoinJoinClientOptions::IsEnabled()) return 0;
-
-    CAmount anonymized_amount{0};
-    LOCK(cs_wallet);
-    for (auto pcoin : GetSpendableTXs()) {
-        anonymized_amount += pcoin->GetAnonymizedCredit(coinControl);
-    }
-    return anonymized_amount;
 }
 
 CWallet::Balance CWallet::GetBalance(const int min_depth, const bool avoid_reuse, const bool fAddLocked) const

@@ -528,7 +528,6 @@ public:
         bool is_unconfirmed{false};
     };
 
-    CAmount GetAnonymizedCredit(const CCoinControl& coinControl) const NO_THREAD_SAFETY_ANALYSIS;
     BalanceAnonymized GetAnonymizedBalance() const NO_THREAD_SAFETY_ANALYSIS;
 
     /** Get the marginal bytes if spending the specified output from this transaction */
@@ -1145,7 +1144,6 @@ public:
         CAmount m_denominated_untrusted_pending{0};
     };
     Balance GetBalance(const int min_depth = 0, const bool avoid_reuse = true, const bool fAddLocked = false) const;
-    CAmount GetBalanceAnonymized(const CCoinControl& coinControl) const;
 
     CAmount GetAnonymizableBalance(bool fSkipDenominated = false, bool fSkipUnconfirmed = true) const;
     float GetAverageAnonymizedRounds() const;
