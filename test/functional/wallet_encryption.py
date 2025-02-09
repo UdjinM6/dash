@@ -79,14 +79,12 @@ class WalletEncryptionTest(BitcoinTestFramework):
         self.nodes[0].setmocktime(now)
         expected_time = now + MAX_VALUE - 600
         self.nodes[0].walletpassphrase(passphrase2, MAX_VALUE - 600)
-        self.bump_mocktime(1)
         actual_time = self.nodes[0].getwalletinfo()['unlocked_until']
         assert_equal(actual_time, expected_time)
 
         self.log.info('Check a timeout greater than the limit')
-        expected_time = self.mocktime + MAX_VALUE
+        expected_time = now + MAX_VALUE
         self.nodes[0].walletpassphrase(passphrase2, MAX_VALUE + 1000)
-        self.bump_mocktime(1)
         actual_time = self.nodes[0].getwalletinfo()['unlocked_until']
         assert_equal(actual_time, expected_time)
 
