@@ -15,6 +15,9 @@ on:
       key:
         description: "Key needed for restoring depends cache"
         value: ${{ jobs.build-depends.outputs.key }}
+      container-path:
+        description: "Path to built container at registry"
+        value: ${{ inputs.container-path }}
 
 jobs:
   build-depends:
