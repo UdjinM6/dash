@@ -2,8 +2,6 @@ FROM ubuntu:noble
 LABEL maintainer="Dash Developers <dev@dash.org>"
 LABEL description="Dockerised DashCore"
 
-ARG USER_ID
-ARG GROUP_ID
 ARG TAG
 ARG GITHUB_REPOSITORY
 
