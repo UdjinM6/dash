@@ -46,8 +46,6 @@ private:
     uint64_t internalId{std::numeric_limits<uint64_t>::max()};
 
 public:
-    static constexpr uint16_t MN_OLD_FORMAT = 0;
-    static constexpr uint16_t MN_TYPE_FORMAT = 1;
     static constexpr uint16_t MN_VERSION_FORMAT = 2;
     static constexpr uint16_t MN_CURRENT_FORMAT = MN_VERSION_FORMAT;
 
@@ -75,16 +73,15 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, const uint8_t format_version)
     {
+        // We no longer support EvoDB formats below MN_VERSION_FORMAT
+        if (format_version < MN_VERSION_FORMAT) {
+            throw std::ios_base::failure("EvoDb too old, run Dash Core with -reindex to rebuild");
+        }
         READWRITE(proTxHash);
         READWRITE(VARINT(internalId));
         READWRITE(collateralOutpoint);
         READWRITE(nOperatorReward);
-        // We no longer support migration from MN_OLD_FORMAT or MN_TYPE_FORMAT
-        if (format_version >= MN_VERSION_FORMAT) {
-            READWRITE(pdmnState);            
-        } else {
-            throw std::ios_base::failure("EvoDb too old, run Dash Core with -reindex to rebuild");
-        }
+        READWRITE(pdmnState);
         // We can't know if we are serialising for the Disk or for the Network here (s.GetType() is not accessible)
         // Therefore if s.GetVersion() == CLIENT_VERSION -> Then we know we are serialising for the Disk
         // Otherwise, we can safely check with protocol versioning logic so we won't break old clients
