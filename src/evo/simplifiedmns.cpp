@@ -353,6 +353,14 @@ bool BuildSimplifiedMNListDiff(CDeterministicMNManager& dmnman, const Chainstate
         return false;
     }
 
+    // There's no Deterministic MN Lists before DIP0003 activation
+    if (!DeploymentActiveAt(*blockIndex, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003)) {
+        errorRet = strprintf("block %s (%d) is below DIP0003 activation height (%d)", blockHash.ToString(),
+                             blockIndex->nHeight,
+                             Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003));
+        return false;
+    }
+
     if (!chainman.ActiveChain().Contains(baseBlockIndex) || !chainman.ActiveChain().Contains(blockIndex)) {
         errorRet = strprintf("block %s and %s are not in the same chain", baseBlockHash.ToString(), blockHash.ToString());
         return false;
