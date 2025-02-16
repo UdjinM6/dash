@@ -389,7 +389,6 @@ class LLMQQuorumRotationTest(DashTestFramework):
         if skip_count != 0:
             self.bump_mocktime(1)
             self.generate(self.nodes[0], skip_count, sync_fun=lambda: self.sync_blocks(nodes))
-        self.sync_blocks(nodes)
         self.log.info('Moved from block %d to %d' % (cur_block, self.nodes[0].getblockcount()))
 
 
