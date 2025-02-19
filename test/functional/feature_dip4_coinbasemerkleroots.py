@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2015-2024 The Dash Core developers
+# Copyright (c) 2015-2025 The Dash Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -314,7 +314,7 @@ class LLMQCoinbaseCommitmentsTest(DashTestFramework):
             if not found_unconfirmed:
                 break
             self.generate(self.nodes[0], 1, sync_fun=self.no_op)
-        self.sync_blocks()
+        self.sync_all()
 
 if __name__ == '__main__':
     LLMQCoinbaseCommitmentsTest().main()
