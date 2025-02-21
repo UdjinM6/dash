@@ -1,5 +1,5 @@
 Dash Core staging tree
-===========================
+======================
 
 |CI|master|develop|
 |-|-|-|
