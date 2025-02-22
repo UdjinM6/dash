@@ -85,8 +85,8 @@ static RPCHelpMan coinjoin_reset()
 
     ValidateCoinJoinArguments();
 
-    auto cj_clientman = CHECK_NONFATAL(node.coinjoin_loader)->walletman().Get(wallet->GetName());
-    CHECK_NONFATAL(cj_clientman)->ResetPool();
+    auto cj_clientman = CHECK_NONFATAL(node.coinjoin_loader)->GetClient(wallet->GetName());
+    CHECK_NONFATAL(cj_clientman)->resetPool();
 
     return "Mixing was reset";
 },
@@ -125,8 +125,8 @@ static RPCHelpMan coinjoin_start()
             throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please unlock wallet for mixing with walletpassphrase first.");
     }
 
-    auto cj_clientman = CHECK_NONFATAL(CHECK_NONFATAL(node.coinjoin_loader)->walletman().Get(wallet->GetName()));
-    if (!cj_clientman->StartMixing()) {
+    auto cj_clientman = CHECK_NONFATAL(CHECK_NONFATAL(node.coinjoin_loader)->GetClient(wallet->GetName()));
+    if (!cj_clientman->startMixing()) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Mixing has been started already.");
     }
 
@@ -161,13 +161,13 @@ static RPCHelpMan coinjoin_status()
 
     ValidateCoinJoinArguments();
 
-    auto cj_clientman = CHECK_NONFATAL(node.coinjoin_loader)->walletman().Get(wallet->GetName());
-    if (!CHECK_NONFATAL(cj_clientman)->IsMixing()) {
+    auto cj_clientman = CHECK_NONFATAL(node.coinjoin_loader)->GetClient(wallet->GetName());
+    if (!CHECK_NONFATAL(cj_clientman)->isMixing()) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "No ongoing mix session");
     }
 
     UniValue ret(UniValue::VARR);
-    for (auto str_status : cj_clientman->GetStatuses()) {
+    for (auto str_status : cj_clientman->getSessionStatuses()) {
         ret.push_back(str_status);
     }
     return ret;
@@ -201,13 +201,13 @@ static RPCHelpMan coinjoin_stop()
     ValidateCoinJoinArguments();
 
     CHECK_NONFATAL(node.coinjoin_loader);
-    auto cj_clientman = node.coinjoin_loader->walletman().Get(wallet->GetName());
+    auto cj_clientman = node.coinjoin_loader->GetClient(wallet->GetName());
 
     CHECK_NONFATAL(cj_clientman);
-    if (!cj_clientman->IsMixing()) {
+    if (!cj_clientman->isMixing()) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "No mix session to stop");
     }
-    cj_clientman->StopMixing();
+    cj_clientman->stopMixing();
 
     return "Mixing was stopped";
 },
@@ -271,8 +271,8 @@ static RPCHelpMan coinjoinsalt_generate()
 
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     if (node.coinjoin_loader != nullptr) {
-        auto cj_clientman = node.coinjoin_loader->walletman().Get(wallet->GetName());
-        if (cj_clientman != nullptr && cj_clientman->IsMixing()) {
+        auto cj_clientman = node.coinjoin_loader->GetClient(wallet->GetName());
+        if (cj_clientman != nullptr && cj_clientman->isMixing()) {
             throw JSONRPCError(RPC_WALLET_ERROR,
                                strprintf("Wallet \"%s\" is currently mixing, cannot change salt!", str_wallet));
         }
@@ -373,8 +373,8 @@ static RPCHelpMan coinjoinsalt_set()
 
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     if (node.coinjoin_loader != nullptr) {
-        auto cj_clientman = node.coinjoin_loader->walletman().Get(wallet->GetName());
-        if (cj_clientman != nullptr && cj_clientman->IsMixing()) {
+        auto cj_clientman = node.coinjoin_loader->GetClient(wallet->GetName());
+        if (cj_clientman != nullptr && cj_clientman->isMixing()) {
             throw JSONRPCError(RPC_WALLET_ERROR,
                                strprintf("Wallet \"%s\" is currently mixing, cannot change salt!", str_wallet));
         }
@@ -468,8 +468,8 @@ static RPCHelpMan getcoinjoininfo()
         return obj;
     }
 
-    auto* manager = CHECK_NONFATAL(node.coinjoin_loader->walletman().Get(wallet->GetName()));
-    manager->GetJsonInfo(obj);
+    auto cj_clientman = CHECK_NONFATAL(node.coinjoin_loader)->GetClient(wallet->GetName());
+    CHECK_NONFATAL(cj_clientman)->getJsonInfo(obj);
 
     std::string warning_msg{""};
     if (wallet->IsLegacy()) {
