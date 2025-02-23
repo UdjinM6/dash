@@ -12,7 +12,7 @@
 namespace interfaces {
 std::unique_ptr<Node> Init::makeNode() { return {}; }
 std::unique_ptr<Chain> Init::makeChain() { return {}; }
-std::unique_ptr<CoinJoin::Loader> Init::makeCoinJoinLoader() { return {}; };
+std::unique_ptr<CoinJoin::Loader> Init::makeCoinJoinLoader() { return {}; }
 std::unique_ptr<WalletLoader> Init::makeWalletLoader(Chain& chain, CoinJoin::Loader& coinjoin_loader) { return {}; }
 std::unique_ptr<Echo> Init::makeEcho() { return {}; }
 Ipc* Init::ipc() { return nullptr; }

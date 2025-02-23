@@ -209,14 +209,21 @@ void WalletInit::InitCoinJoinSettings(interfaces::CoinJoin::Loader& coinjoin_loa
     const auto& wallets{wallet_loader.getWallets()};
     CCoinJoinClientOptions::SetEnabled(!wallets.empty() ? gArgs.GetBoolArg("-enablecoinjoin", true) : false);
     if (!CCoinJoinClientOptions::IsEnabled()) {
+        LogPrintf("CoinJoin: disabled\n");
         return;
     }
     bool fAutoStart = gArgs.GetBoolArg("-coinjoinautostart", DEFAULT_COINJOIN_AUTOSTART);
     for (auto& wallet : wallets) {
         auto manager = Assert(coinjoin_loader.GetClient(wallet->getWalletName()));
+        if (!manager) {
+            LogPrintf("CoinJoin: failed to initialize client for wallet %s\n", wallet->getWalletName());
+            continue;
+        }
         if (wallet->isLocked(/*fForMixing=*/false)) {
+            LogPrintf("CoinJoin: stopping mixing for locked wallet %s\n", wallet->getWalletName());
             manager->stopMixing();
         } else if (fAutoStart) {
+            LogPrintf("CoinJoin: starting mixing for wallet %s\n", wallet->getWalletName());
             manager->startMixing();
         }
     }
