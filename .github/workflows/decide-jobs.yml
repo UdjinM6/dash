@@ -1,8 +1,9 @@
 name: Decide jobs
 
-env:
-  # Allowlist of targets to build, drop targets you don't want to build
-  BUILD_TARGETS: ^(arm-linux|linux64|linux64_fuzz|linux64_multiprocess|linux64_nowallet|linux64_sqlite|linux64_tsan|linux64_ubsan|mac|win64)$
+# ^(arm-linux|linux64|linux64_fuzz|linux64_multiprocess|linux64_nowallet|linux64_sqlite|linux64_tsan|linux64_ubsan|mac|win64)$
+# Set BUILD_TARGETS variable in GitHub Settings using the template above excluding the build targets you don't need.
+# For example, the old FAST_MODE would be ^(arm-linux|linux64)$.
+# If BUILD_TARGETS is not set or it's an empty string then no filtering is applied.
 
 on:
   workflow_call:
@@ -62,7 +63,7 @@ jobs:
           )
           for job in "${JOBS[@]}"
           do
-            if [[ ${job} =~ ${BUILD_TARGETS} ]]; then
+            if [[ -z "${{ vars.BUILD_TARGETS }}" || ${job} =~ ${{ vars.BUILD_TARGETS }} ]]; then
               echo "run-${job}=true" >> "${GITHUB_OUTPUT}"
             else
               echo "run-${job}=false" >> "${GITHUB_OUTPUT}"
