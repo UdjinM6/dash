@@ -1,9 +1,18 @@
 name: Decide jobs
 
-# ^(arm-linux|linux64|linux64_fuzz|linux64_multiprocess|linux64_nowallet|linux64_sqlite|linux64_tsan|linux64_ubsan|mac|win64)$
-# Set BUILD_TARGETS variable in GitHub Settings using the template above excluding the build targets you don't need.
-# For example, the old FAST_MODE would be ^(arm-linux|linux64)$.
-# If BUILD_TARGETS is not set or it's an empty string then no filtering is applied.
+# Set BUILD_TARGETS either here or as an environment variable in repository settings
+# using the template given below, omitting the build targets you don't need. If BUILD_TARGETS
+# is not set or empty, no filtering is applied and all targets will be built.
+#
+# For example, the old FAST_MODE would be
+#   BUILD_TARGETS: ^(arm-linux|linux64)$
+#
+# A template for all currently supported targets is
+#   BUILD_TARGETS: ^(arm-linux|linux64|linux64_fuzz|linux64_multiprocess|linux64_nowallet|linux64_sqlite|linux64_tsan|linux64_ubsan|mac|win64)$
+
+env:
+  BUILD_TARGETS: ${{ vars.BUILD_TARGETS }}
+
 
 on:
   workflow_call:
@@ -63,7 +72,7 @@ jobs:
           )
           for job in "${JOBS[@]}"
           do
-            if [[ -z "${{ vars.BUILD_TARGETS }}" || ${job} =~ ${{ vars.BUILD_TARGETS }} ]]; then
+            if [[ -z "${BUILD_TARGETS}" || ${job} =~ ${BUILD_TARGETS} ]]; then
               echo "run-${job}=true" >> "${GITHUB_OUTPUT}"
             else
               echo "run-${job}=false" >> "${GITHUB_OUTPUT}"
