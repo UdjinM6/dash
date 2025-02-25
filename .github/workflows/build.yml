@@ -14,7 +14,7 @@ env:
 jobs:
   decider:
     name: Decide jobs
-    uses: ./.github/workflows/decide-jobs.yml
+    uses: ./.github/workflows/build-decider.yml
 
   container:
     name: Build container
