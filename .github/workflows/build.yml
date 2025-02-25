@@ -19,7 +19,6 @@ jobs:
   container:
     name: Build container
     uses: ./.github/workflows/build-container.yml
-    needs: [decider]
 
   depends-arm-linux:
     name: arm-linux-gnueabihf
