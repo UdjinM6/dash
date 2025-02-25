@@ -1,0 +1,71 @@
+name: Decide jobs
+
+env:
+  # Allowlist of targets to build, drop targets you don't want to build
+  BUILD_TARGETS: ^(arm-linux|linux64|linux64_fuzz|linux64_multiprocess|linux64_nowallet|linux64_sqlite|linux64_tsan|linux64_ubsan|mac|win64)$
+
+on:
+  workflow_call:
+    outputs:
+      run-arm-linux:
+        value: ${{ jobs.decide-jobs.outputs.run-arm-linux }}
+      run-linux64:
+        value: ${{ jobs.decide-jobs.outputs.run-linux64 }}
+      run-linux64_fuzz:
+        value: ${{ jobs.decide-jobs.outputs.run-linux64_fuzz }}
+      run-linux64_multiprocess:
+        value: ${{ jobs.decide-jobs.outputs.run-linux64_multiprocess }}
+      run-linux64_nowallet:
+        value: ${{ jobs.decide-jobs.outputs.run-linux64_nowallet }}
+      run-linux64_sqlite:
+        value: ${{ jobs.decide-jobs.outputs.run-linux64_sqlite }}
+      run-linux64_tsan:
+        value: ${{ jobs.decide-jobs.outputs.run-linux64_tsan }}
+      run-linux64_ubsan:
+        value: ${{ jobs.decide-jobs.outputs.run-linux64_ubsan }}
+      run-mac:
+        value: ${{ jobs.decide-jobs.outputs.run-mac }}
+      run-win64:
+        value: ${{ jobs.decide-jobs.outputs.run-win64 }}
+
+jobs:
+  decide-jobs:
+    name: Decide jobs
+    runs-on: ubuntu-24.04
+    outputs:
+      run-arm-linux: ${{ steps.script.outputs.run-arm-linux }}
+      run-linux64:  ${{ steps.script.outputs.run-linux64 }}
+      run-linux64_fuzz: ${{ steps.script.outputs.run-linux64_fuzz }}
+      run-linux64_multiprocess: ${{ steps.script.outputs.run-linux64_multiprocess }}
+      run-linux64_nowallet: ${{ steps.script.outputs.run-linux64_nowallet }}
+      run-linux64_sqlite: ${{ steps.script.outputs.run-linux64_sqlite }}
+      run-linux64_tsan: ${{ steps.script.outputs.run-linux64_tsan }}
+      run-linux64_ubsan: ${{ steps.script.outputs.run-linux64_ubsan }}
+      run-mac: ${{ steps.script.outputs.run-mac }}
+      run-win64: ${{ steps.script.outputs.run-win64 }}
+    steps:
+      - name: Decide jobs
+        id: script
+        run: |
+          set -eo pipefail
+          JOBS=(
+            "arm-linux"
+            "linux64"
+            "linux64_fuzz"
+            "linux64_multiprocess"
+            "linux64_nowallet"
+            "linux64_sqlite"
+            "linux64_tsan"
+            "linux64_ubsan"
+            "mac"
+            "win64"
+          )
+          for job in "${JOBS[@]}"
+          do
+            if [[ ${job} =~ ${BUILD_TARGETS} ]]; then
+              echo "run-${job}=true" >> "${GITHUB_OUTPUT}"
+            else
+              echo "run-${job}=false" >> "${GITHUB_OUTPUT}"
+            fi
+          done
+        shell: bash
