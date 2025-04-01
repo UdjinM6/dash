@@ -460,12 +460,12 @@ if test "x$enable_werror" = "xyes"; then
   dnl -Wstringop-overread is broken in GCC 11.
   AC_COMPILE_IFELSE(
     [AC_LANG_PROGRAM([[]],
-         [[#if __GNUC__ == 11
-           #error -Wstringop-overread is broken in GCC 11
+         [[#if defined(__GNUC__)
+           #error -Wstringop-overflow and -Wstringop-overread are broken in GCC
            #endif
           ]])],
     [],
-    [ERROR_CXXFLAGS="$ERROR_CXXFLAGS -Wno-stringop-overread"])
+    [ERROR_CXXFLAGS="$ERROR_CXXFLAGS -Wno-stringop-overflow -Wno-stringop-overread"])
 fi
 
 if test "x$CXXFLAGS_overridden" = "xno"; then
