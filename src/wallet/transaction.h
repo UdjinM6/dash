@@ -77,9 +77,6 @@ private:
      */
     static constexpr const uint256& ABANDON_HASH = uint256::ONE;
 
-    mutable bool fIsChainlocked{false};
-    mutable bool fIsInstantSendLocked{false};
-
 public:
     /**
      * Key/value map with information about the transaction.
@@ -307,10 +304,22 @@ public:
 
     int64_t GetTxTime() const;
 
-    bool CanBeResent() const;
+    // TODO: Remove "NO_THREAD_SAFETY_ANALYSIS" and replace it with the correct
+    // annotation "EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet)". The annotation
+    // "NO_THREAD_SAFETY_ANALYSIS" was temporarily added to avoid having to
+    // resolve the issue of member access into incomplete type CWallet. Note
+    // that we still have the runtime check "AssertLockHeld(pwallet->cs_wallet)"
+    // in place.
+    bool CanBeResent() const NO_THREAD_SAFETY_ANALYSIS;
 
     /** Pass this transaction to node for mempool insertion and relay to peers if flag set to true */
-    bool SubmitMemoryPoolAndRelay(bilingual_str& err_string, bool relay);
+    // TODO: Remove "NO_THREAD_SAFETY_ANALYSIS" and replace it with the correct
+    // annotation "EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet)". The annotation
+    // "NO_THREAD_SAFETY_ANALYSIS" was temporarily added to avoid having to
+    // resolve the issue of member access into incomplete type CWallet. Note
+    // that we still have the runtime check "AssertLockHeld(pwallet->cs_wallet)"
+    // in place.
+    bool SubmitMemoryPoolAndRelay(bilingual_str& err_string, bool relay) NO_THREAD_SAFETY_ANALYSIS;
 
     // TODO: Remove "NO_THREAD_SAFETY_ANALYSIS" and replace it with the correct
     // annotation "EXCLUSIVE_LOCKS_REQUIRED(pwallet->cs_wallet)". The annotation
@@ -334,8 +343,6 @@ public:
     // in place.
     int GetDepthInMainChain() const NO_THREAD_SAFETY_ANALYSIS;
     bool IsInMainChain() const { return GetDepthInMainChain() > 0; }
-    bool IsLockedByInstantSend() const;
-    bool IsChainLocked() const NO_THREAD_SAFETY_ANALYSIS;
 
     /**
      * @return number of blocks to maturity for this transaction:

@@ -1130,7 +1130,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
     auto it = mapWallet.find(hashTx);
     assert(it != mapWallet.end());
     const CWalletTx& origtx = it->second;
-    if (origtx.GetDepthInMainChain() != 0 || origtx.InMempool() || origtx.IsLockedByInstantSend()) {
+    if (origtx.GetDepthInMainChain() != 0 || origtx.InMempool() || IsTxLockedByInstantSend(origtx)) {
         return false;
     }
 
@@ -1788,7 +1788,7 @@ void CWallet::ReacceptWalletTransactions()
 
         int nDepth = wtx.GetDepthInMainChain();
 
-        if (!wtx.IsCoinBase() && (nDepth == 0 && !wtx.IsLockedByInstantSend() && !wtx.isAbandoned())) {
+        if (!wtx.IsCoinBase() && (nDepth == 0 && !IsTxLockedByInstantSend(wtx) && !wtx.isAbandoned())) {
             mapSorted.insert(std::make_pair(wtx.nOrderPos, &wtx));
         }
     }
@@ -1803,6 +1803,7 @@ void CWallet::ReacceptWalletTransactions()
 
 bool CWalletTx::CanBeResent() const
 {
+    AssertLockHeld(pwallet->cs_wallet);
     return
         // Can't relay if wallet is not broadcasting
         pwallet->GetBroadcastTransactions() &&
@@ -1814,11 +1815,12 @@ bool CWalletTx::CanBeResent() const
         // Don't try to submit conflicted or confirmed transactions.
         GetDepthInMainChain() == 0 &&
         // Don't try to submit transactions locked via InstantSend.
-        !IsLockedByInstantSend();
+        !pwallet->IsTxLockedByInstantSend(*this);
 }
 
 bool CWalletTx::SubmitMemoryPoolAndRelay(bilingual_str& err_string, bool relay)
 {
+    AssertLockHeld(pwallet->cs_wallet);
     if (!CanBeResent()) return false;
 
     // Submit transaction to mempool for relay
@@ -3459,28 +3461,21 @@ int CWalletTx::GetDepthInMainChain() const
     return (pwallet->GetLastBlockHeight() - m_confirm.block_height + 1) * (isConflicted() ? -1 : 1);
 }
 
-bool CWalletTx::IsLockedByInstantSend() const
+bool CWallet::IsTxLockedByInstantSend(const CWalletTx& wtx) const
 {
-    if (fIsChainlocked) {
-        fIsInstantSendLocked = false;
-    } else if (!fIsInstantSendLocked) {
-        fIsInstantSendLocked = pwallet->chain().isInstantSendLockedTx(GetHash());
-    }
-    return fIsInstantSendLocked;
+    AssertLockHeld(cs_wallet);
+    if (IsTxChainLocked(wtx)) return false;
+    return chain().isInstantSendLockedTx(wtx.GetHash());
 }
 
-bool CWalletTx::IsChainLocked() const
+bool CWallet::IsTxChainLocked(const CWalletTx& wtx) const
 {
-    if (!fIsChainlocked) {
-        assert(pwallet != nullptr);
-        AssertLockHeld(pwallet->cs_wallet);
-        bool active;
-        int height;
-        if (pwallet->chain().findBlock(m_confirm.hashBlock, FoundBlock().inActiveChain(active).height(height)) && active) {
-            fIsChainlocked = pwallet->chain().hasChainLock(height, m_confirm.hashBlock);
-        }
+    AssertLockHeld(cs_wallet);
+    bool active; int height;
+    if (chain().findBlock(wtx.m_confirm.hashBlock, FoundBlock().inActiveChain(active).height(height)) && active) {
+        return chain().hasChainLock(height, wtx.m_confirm.hashBlock);
     }
-    return fIsChainlocked;
+    return false;
 }
 
 int CWalletTx::GetBlocksToMaturity() const
