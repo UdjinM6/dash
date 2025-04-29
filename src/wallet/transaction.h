@@ -112,6 +112,8 @@ public:
     mutable bool m_is_cache_empty{true};
     mutable bool fChangeCached;
     mutable bool fInMempool;
+    mutable bool fIsChainlocked;
+    mutable bool fIsInstantSendLocked;
     mutable CAmount nChangeCached;
 
     CWalletTx(CTransactionRef arg)
@@ -130,6 +132,8 @@ public:
         fFromMe = false;
         fChangeCached = false;
         fInMempool = false;
+        fIsChainlocked = false;
+        fIsInstantSendLocked = false;
         nChangeCached = 0;
         nOrderPos = -1;
         m_confirm = Confirmation{};

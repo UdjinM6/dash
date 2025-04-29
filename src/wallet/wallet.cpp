@@ -3444,18 +3444,24 @@ int CWallet::GetTxDepthInMainChain(const CWalletTx& wtx) const
 bool CWallet::IsTxLockedByInstantSend(const CWalletTx& wtx) const
 {
     AssertLockHeld(cs_wallet);
-    if (IsTxChainLocked(wtx)) return false;
-    return chain().isInstantSendLockedTx(wtx.GetHash());
+    if (wtx.fIsChainlocked) {
+        wtx.fIsInstantSendLocked = false;
+    } else if (!wtx.fIsInstantSendLocked) {
+        wtx.fIsInstantSendLocked = chain().isInstantSendLockedTx(wtx.GetHash());
+    }
+    return wtx.fIsInstantSendLocked;
 }
 
 bool CWallet::IsTxChainLocked(const CWalletTx& wtx) const
 {
     AssertLockHeld(cs_wallet);
-    bool active; int height;
-    if (chain().findBlock(wtx.m_confirm.hashBlock, FoundBlock().inActiveChain(active).height(height)) && active) {
-        return chain().hasChainLock(height, wtx.m_confirm.hashBlock);
+    if (!wtx.fIsChainlocked) {
+        bool active; int height;
+        if (chain().findBlock(wtx.m_confirm.hashBlock, FoundBlock().inActiveChain(active).height(height)) && active) {
+            wtx.fIsChainlocked = chain().hasChainLock(height, wtx.m_confirm.hashBlock);
+        }
     }
-    return false;
+    return wtx.fIsChainlocked;
 }
 
 int CWallet::GetTxBlocksToMaturity(const CWalletTx& wtx) const
