@@ -608,8 +608,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].nStartTime = 1751328000;    // July 1, 2025
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].nWindowSize = 120;
-        consensus.vDeployments[Consensus::DEPLOYMENT_V23].nThresholdStart = 80;       // 80% of 100
-        consensus.vDeployments[Consensus::DEPLOYMENT_V23].nThresholdMin = 60;         // 60% of 100
+        consensus.vDeployments[Consensus::DEPLOYMENT_V23].nThresholdStart = 96;       // 80% of 120
+        consensus.vDeployments[Consensus::DEPLOYMENT_V23].nThresholdMin = 72;         // 60% of 120
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].nFalloffCoeff = 5;          // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].useEHF = true;
 
@@ -853,8 +853,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].nWindowSize = 350;
-        consensus.vDeployments[Consensus::DEPLOYMENT_V23].nThresholdStart = 200 / 5 * 4;     // 80% of window size
-        consensus.vDeployments[Consensus::DEPLOYMENT_V23].nThresholdMin = 200 / 5 * 3;       // 60% of window size
+        consensus.vDeployments[Consensus::DEPLOYMENT_V23].nThresholdStart = 350 / 5 * 4;     // 80% of window size
+        consensus.vDeployments[Consensus::DEPLOYMENT_V23].nThresholdMin = 350 / 5 * 3;       // 60% of window size
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].nFalloffCoeff = 5;                 // this corresponds to 10 periods
         consensus.vDeployments[Consensus::DEPLOYMENT_V23].useEHF = true;
 
