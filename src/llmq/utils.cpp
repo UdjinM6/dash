@@ -129,7 +129,7 @@ static std::vector<std::pair<arith_uint256, CDeterministicMNCPtr>> CalculateScor
     std::vector<std::pair<arith_uint256, CDeterministicMNCPtr>> scores;
     scores.reserve(dmns.size());
 
-    for (auto& dmn : dmns) {
+    for (const auto& dmn : dmns) {
         if (dmn->pdmnState->IsBanned()) continue;
         if (dmn->pdmnState->confirmedHash.IsNull()) {
             // we only take confirmed MNs into account to avoid hash grinding on the ProRegTxHash to sneak MNs into a
@@ -188,13 +188,13 @@ static std::vector<CDeterministicMNCPtr> CalculateQuorum(List&& mn_list, const u
               });
 
     // take top maxSize entries and return it
-    if (maxSize && scores.size() > maxSize) {
+    if (maxSize > 0 && scores.size() > maxSize) {
         scores.resize(maxSize);
     }
 
     std::vector<CDeterministicMNCPtr> result;
     result.reserve(scores.size());
-    for (auto& score : scores) {
+    for (const auto& score : scores) {
         result.emplace_back(std::move(score.second));
     }
     return result;
