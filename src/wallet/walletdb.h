@@ -54,7 +54,9 @@ enum class DBErrors
     NONCRITICAL_ERROR,
     TOO_NEW,
     LOAD_FAIL,
-    NEED_REWRITE
+    NEED_REWRITE,
+    NEED_RESCAN,
+    UNKNOWN_DESCRIPTOR
 };
 
 namespace DBKeys {
