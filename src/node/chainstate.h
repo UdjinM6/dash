@@ -5,11 +5,14 @@
 #ifndef BITCOIN_NODE_CHAINSTATE_H
 #define BITCOIN_NODE_CHAINSTATE_H
 
+#include <util/translation.h>
+
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 
 class CActiveMasternodeManager;
 class CChainstateHelper;

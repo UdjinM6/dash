@@ -8,6 +8,8 @@
 #include <consensus/params.h>
 #include <deploymentstatus.h>
 #include <node/blockstorage.h>
+#include <tinyformat.h>
+#include <util/translation.h>
 #include <validation.h>
 
 #include <evo/chainhelper.h>
