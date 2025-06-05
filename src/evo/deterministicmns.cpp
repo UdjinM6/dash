@@ -835,6 +835,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, gsl::no
             }
 
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
+            newState->nVersion = opt_proTx->nVersion;
             newState->netInfo = opt_proTx->netInfo;
             newState->scriptOperatorPayout = opt_proTx->scriptOperatorPayout;
             if (opt_proTx->nType == MnType::Evo) {
@@ -876,6 +877,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, gsl::no
                 newState->BanIfNotBanned(nHeight);
                 // we update pubKeyOperator here, make sure state version matches
                 newState->nVersion = opt_proTx->nVersion;
+                newState->netInfo = NetInfoInterface::MakeNetInfo(newState->nVersion);
                 newState->pubKeyOperator = opt_proTx->pubKeyOperator;
             }
             newState->keyIDVoting = opt_proTx->keyIDVoting;
