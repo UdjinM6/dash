@@ -1438,6 +1438,11 @@ bool CheckProUpServTx(CDeterministicMNManager& dmnman, const CTransaction& tx, g
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-downgrade");
     }
 
+    // Nodes using the legacy scheme must first upgrade to the basic scheme before upgrading further
+    if (is_v23_active && dmn->pdmnState->nVersion == ProTxVersion::LegacyBLS && opt_ptx->nVersion > ProTxVersion::BasicBLS) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-upgrade");
+    }
+
     // don't allow updating to addresses already used by other MNs
     for (const NetInfoEntry& entry : opt_ptx->netInfo->GetEntries()) {
         if (const auto& service_opt{entry.GetAddrPort()}; service_opt.has_value()) {
@@ -1507,6 +1512,11 @@ bool CheckProUpRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gs
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-downgrade");
     }
 
+    // Nodes using the legacy scheme must first upgrade to the basic scheme before upgrading further
+    if (is_v23_active && dmn->pdmnState->nVersion == ProTxVersion::LegacyBLS && opt_ptx->nVersion > ProTxVersion::BasicBLS) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-upgrade");
+    }
+
     // don't allow reuse of payee key for other keys (don't allow people to put the payee key onto an online server)
     if (payoutDest == CTxDestination(PKHash(dmn->pdmnState->keyIDOwner)) || payoutDest == CTxDestination(PKHash(opt_ptx->keyIDVoting))) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-reuse");
@@ -1571,6 +1581,11 @@ bool CheckProUpRevTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gs
     // Don't allow legacy scheme versioned transactions after upgrading to basic scheme
     if (is_v23_active && dmn->pdmnState->nVersion >= ProTxVersion::BasicBLS && opt_ptx->nVersion == ProTxVersion::LegacyBLS) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-downgrade");
+    }
+
+    // Nodes using the legacy scheme must first upgrade to the basic scheme before upgrading further
+    if (is_v23_active && dmn->pdmnState->nVersion == ProTxVersion::LegacyBLS && opt_ptx->nVersion > ProTxVersion::BasicBLS) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-upgrade");
     }
 
     if (!CheckInputsHash(tx, *opt_ptx, state)) {
