@@ -1512,6 +1512,11 @@ bool CheckProUpRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gs
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-downgrade");
     }
 
+    // Don't allow downgrading from ExtAddr version here, must use ProUpRegTx transactions for this
+    if (is_v23_active && dmn->pdmnState->nVersion >= ProTxVersion::ExtAddr && opt_ptx->nVersion < ProTxVersion::ExtAddr) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-downgrade");
+    }
+
     // Nodes using the legacy scheme must first upgrade to the basic scheme before upgrading further
     if (is_v23_active && dmn->pdmnState->nVersion == ProTxVersion::LegacyBLS && opt_ptx->nVersion > ProTxVersion::BasicBLS) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-version-upgrade");
