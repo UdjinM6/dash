@@ -53,7 +53,6 @@
 #include <evo/chainhelper.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
-#include <evo/mnhftx.h>
 #include <evo/specialtx.h>
 #include <evo/specialtxman.h>
 #include <llmq/chainlocks.h>
@@ -117,6 +116,9 @@ int64_t nMaxTipAge = DEFAULT_MAX_TIP_AGE;
 
 uint256 hashAssumeValid;
 arith_uint256 nMinimumChainWork;
+
+// Forward declaration to break dependency over node/transaction.h
+std::pair<CTransactionRef, uint256> GetTransactionBlock(const uint256& hash, const CTxMemPool* const mempool);
 
 const CBlockIndex* CChainState::FindForkInGlobalIndex(const CBlockLocator& locator) const
 {

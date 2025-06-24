@@ -13,7 +13,6 @@
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <dbwrapper.h>
-#include <evo/chainhelper.h>
 #include <index/txindex.h>
 #include <masternode/sync.h>
 #include <net_processing.h>
@@ -27,6 +26,9 @@
 #include <validation.h>
 
 #include <cxxtimer.hpp>
+
+// Forward declaration to break dependency over node/transaction.h
+std::pair<CTransactionRef, uint256> GetTransactionBlock(const uint256& hash, const CTxMemPool* const mempool);
 
 namespace llmq
 {
