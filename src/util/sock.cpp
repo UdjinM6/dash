@@ -148,6 +148,15 @@ bool Sock::IsSelectable() const
 bool Sock::Wait(std::chrono::milliseconds timeout, Event requested, Event* occurred) const
 {
 #ifdef USE_POLL
+    return WaitPoll(timeout, requested, occurred);
+#else
+    return WaitSelect(timeout, requested, occurred);
+#endif /* USE_POLL */
+}
+
+#ifdef USE_POLL
+bool Sock::WaitPoll(std::chrono::milliseconds timeout, Event requested, Event* occurred) const
+{
     pollfd fd;
     fd.fd = m_socket;
     fd.events = 0;
@@ -176,7 +185,11 @@ bool Sock::Wait(std::chrono::milliseconds timeout, Event requested, Event* occur
     }
 
     return true;
-#else
+}
+#endif /* USE_POLL */
+
+bool Sock::WaitSelect(std::chrono::milliseconds timeout, Event requested, Event* occurred) const
+{
     if (!IsSelectable()) {
         return false;
     }
@@ -218,7 +231,6 @@ bool Sock::Wait(std::chrono::milliseconds timeout, Event requested, Event* occur
     }
 
     return true;
-#endif /* USE_POLL */
 }
 
 void Sock::SendComplete(const std::string& data,
