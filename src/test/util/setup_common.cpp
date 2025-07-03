@@ -190,6 +190,16 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
                                                /*deterministic=*/false,
                                                m_node.args->GetIntArg("-checkaddrman", 0));
     m_node.connman = std::make_unique<CConnman>(0x1337, 0x1337, *m_node.addrman, *m_node.netgroupman); // Deterministic randomness for tests.
+    {
+        std::string sem_str = m_args.GetArg("-socketevents", DEFAULT_SOCKETEVENTS);
+        const auto sem = SEMFromString(sem_str);
+        if (sem == SocketEventsMode::Unknown) {
+            throw std::runtime_error(
+                strprintf("Invalid -socketevents ('%s') specified. Only these modes are supported: %s",
+                          sem_str, GetSupportedSocketEventsStr()));
+        }
+        ::g_socket_events_mode = sem;
+    }
 
     fCheckBlockIndex = true;
     m_node.evodb = std::make_unique<CEvoDB>(1 << 20, true, true);
@@ -209,6 +219,7 @@ BasicTestingSetup::~BasicTestingSetup()
     m_node.cpoolman.reset();
     m_node.mnhf_manager.reset();
     m_node.evodb.reset();
+    ::g_socket_events_mode = SocketEventsMode::Unknown;
     m_node.connman.reset();
     m_node.addrman.reset();
     m_node.netgroupman.reset();
