@@ -896,7 +896,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         for node in self.nodes:
             node.mocktime = self.mocktime
 
-    def wait_until(self, test_function, timeout=60, lock=None, sleep=0.05, do_assert=True):
+    def wait_until(self, test_function, timeout=60, lock=None, sleep=0.2, do_assert=True):
         return wait_until_helper(test_function, timeout=timeout, lock=lock, timeout_factor=self.options.timeout_factor, sleep=sleep, do_assert=do_assert)
 
     # Private helper methods. These should not be accessed by the subclass test scripts.
@@ -2089,14 +2089,14 @@ class DashTestFramework(BitcoinTestFramework):
         def wait_func():
             return quorum_hash in self.nodes[0].quorum('list')[llmq_type_name]
         self.log.info(f"quorums: {self.nodes[0].quorum('list')}")
-        self.wait_until(wait_func, timeout=timeout, sleep=0.05)
+        self.wait_until(wait_func, timeout=timeout)
 
     def wait_for_quorums_list(self, quorum_hash_0, quorum_hash_1, nodes, llmq_type_name="llmq_test",  timeout=15):
         def wait_func():
             quorums = self.nodes[0].quorum("list")[llmq_type_name]
             return quorum_hash_0 in quorums and quorum_hash_1 in quorums
         self.log.info(f"h({self.nodes[0].getblockcount()}) quorums: {self.nodes[0].quorum('list')}")
-        self.wait_until(wait_func, timeout=timeout, sleep=0.05)
+        self.wait_until(wait_func, timeout=timeout)
 
     def move_blocks(self, nodes, num_blocks):
         self.bump_mocktime(1, nodes=nodes)
