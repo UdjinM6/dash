@@ -159,24 +159,23 @@ MessageProcessingResult CChainLocksHandler::ProcessNewChainLock(const NodeId fro
         LOCK(cs);
         bestChainLockHash = hash;
         bestChainLock = clsig;
-    }
 
-    if (pindex) {
-        LOCK(cs);
-        if (pindex->nHeight != clsig.getHeight()) {
-            // Should not happen, same as the conflict check from above.
-            LogPrintf("CChainLocksHandler::%s -- height of CLSIG (%s) does not match the specified block's height (%d)\n",
-                      __func__, clsig.ToString(), pindex->nHeight);
-            // Note: not relaying clsig here
-            return {};
+        if (pindex) {
+            if (pindex->nHeight != clsig.getHeight()) {
+                // Should not happen, same as the conflict check from above.
+                LogPrintf("CChainLocksHandler::%s -- height of CLSIG (%s) does not match the specified block's height (%d)\n",
+                          __func__, clsig.ToString(), pindex->nHeight);
+                // Note: not relaying clsig here
+                return {};
+            }
+            bestChainLockWithKnownBlock = bestChainLock;
+            bestChainLockBlockIndex = pindex;
+        } else {
+            // We don't know the block/header for this CLSIG yet, so bail out for now and when the
+            // block/header later comes in, we will enforce the correct chain. We still relay further.
+            return clsig_inv;
         }
-        bestChainLockWithKnownBlock = bestChainLock;
-        bestChainLockBlockIndex = pindex;
-    } else {
-        // We don't know the block/header for this CLSIG yet, so bail out for now and when the
-        // block/header later comes in, we will enforce the correct chain. We still relay further.
-        return clsig_inv;
-    }
+    } // cs
 
     scheduler->scheduleFromNow(
         [&]() {
