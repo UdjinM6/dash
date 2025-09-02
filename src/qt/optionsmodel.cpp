@@ -551,6 +551,9 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             QFont::Weight weight;
             GUIUtil::weightFromArg(settings.value("fontWeightNormal").toInt(), weight);
             int nIndex = GUIUtil::supportedWeightToIndex(weight);
+            if (nIndex == -1) {
+                nIndex = GUIUtil::supportedWeightToIndex(GUIUtil::getSupportedFontWeightNormalDefault());
+            }
             assert(nIndex != -1);
             return nIndex;
         }
@@ -558,6 +561,9 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             QFont::Weight weight;
             GUIUtil::weightFromArg(settings.value("fontWeightBold").toInt(), weight);
             int nIndex = GUIUtil::supportedWeightToIndex(weight);
+            if (nIndex == -1) {
+                nIndex = GUIUtil::supportedWeightToIndex(GUIUtil::getSupportedFontWeightBoldDefault());
+            }
             assert(nIndex != -1);
             return nIndex;
         }
