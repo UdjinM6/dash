@@ -27,8 +27,6 @@
 #include <util/time.h>
 #include <validation.h>
 
-int nSubmittedFinalBudget;
-
 const std::string GovernanceStore::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-16";
 
 namespace {
@@ -596,15 +594,6 @@ CGovernanceObject* CGovernanceManager::FindGovernanceObjectByDataHash(const uint
     return nullptr;
 }
 
-void CGovernanceManager::DeleteGovernanceObject(const uint256& nHash)
-{
-    LOCK(cs);
-
-    if (mapObjects.count(nHash)) {
-        mapObjects.erase(nHash);
-    }
-}
-
 std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& nParentHash, const COutPoint& mnCollateralOutpointFilter) const
 {
     LOCK(cs);
@@ -659,17 +648,6 @@ void CGovernanceManager::GetAllNewerThan(std::vector<CGovernanceObject>& objs, i
         objs.push_back(objPair.second);
     }
 }
-
-//
-// Sort by votes, if there's a tie sort by their feeHash TX
-//
-struct sortProposalsByVotes {
-    bool operator()(const std::pair<CGovernanceObject*, int>& left, const std::pair<CGovernanceObject*, int>& right) const
-    {
-        if (left.second != right.second) return (left.second > right.second);
-        return (UintToArith256(left.first->GetCollateralHash()) > UintToArith256(right.first->GetCollateralHash()));
-    }
-};
 
 bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
 {
