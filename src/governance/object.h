@@ -90,7 +90,7 @@ public: // Types
 
 public:
     /// critical section to protect the inner data structures
-    mutable RecursiveMutex cs;
+    mutable Mutex cs;
 
 private:
     Governance::Object m_obj;
