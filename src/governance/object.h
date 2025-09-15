@@ -97,7 +97,6 @@ private:
     /// time this object was marked for deletion
     int64_t nDeletionTime{0};
 
-
     /// is valid by blockchain
     bool fCachedLocalValidity{false};
     std::string strLocalValidityError;
@@ -133,99 +132,45 @@ private:
 
 public:
     CGovernanceObject();
-
     CGovernanceObject(const uint256& nHashParentIn, int nRevisionIn, int64_t nTime, const uint256& nCollateralHashIn, const std::string& strDataHexIn);
-
     CGovernanceObject(const CGovernanceObject& other);
 
-    // Public Getter methods
+    // Getters
+    bool IsSetCachedFunding() const { return fCachedFunding; }
+    bool IsSetCachedValid() const { return fCachedValid; }
+    bool IsSetCachedDelete() const { return fCachedDelete; }
+    bool IsSetCachedEndorsed() const { return fCachedEndorsed; }
+    bool IsSetDirtyCache() const { return fDirtyCache; }
+    bool IsSetExpired() const { return fExpired; }
+    GovernanceObject GetObjectType() const { return m_obj.type; }
+    int64_t GetCreationTime() const { return m_obj.time; }
+    int64_t GetDeletionTime() const { return nDeletionTime; }
 
-    const Governance::Object& Object() const
-    {
-        return m_obj;
-    }
+    const CGovernanceObjectVoteFile& GetVoteFile() const { return fileVotes; }
+    const COutPoint& GetMasternodeOutpoint() const { return m_obj.masternodeOutpoint; }
+    const Governance::Object& Object() const { return m_obj; }
+    const uint256& GetCollateralHash() const { return m_obj.collateralHash; }
 
-    int64_t GetCreationTime() const
-    {
-        return m_obj.time;
-    }
-
-    int64_t GetDeletionTime() const
-    {
-        return nDeletionTime;
-    }
-
-    GovernanceObject GetObjectType() const
-    {
-        return m_obj.type;
-    }
-
-    const uint256& GetCollateralHash() const
-    {
-        return m_obj.collateralHash;
-    }
-
-    const COutPoint& GetMasternodeOutpoint() const
-    {
-        return m_obj.masternodeOutpoint;
-    }
-
-    bool IsSetCachedFunding() const
-    {
-        return fCachedFunding;
-    }
-
-    bool IsSetCachedValid() const
-    {
-        return fCachedValid;
-    }
-
-    bool IsSetCachedDelete() const
-    {
-        return fCachedDelete;
-    }
-
-    bool IsSetCachedEndorsed() const
-    {
-        return fCachedEndorsed;
-    }
-
-    bool IsSetDirtyCache() const
-    {
-        return fDirtyCache;
-    }
-
-    bool IsSetExpired() const
-    {
-        return fExpired;
-    }
-
-    void SetExpired()
-    {
-        fExpired = true;
-    }
-
-    const CGovernanceObjectVoteFile& GetVoteFile() const
-    {
-        return fileVotes;
-    }
-
-    // Signature related functions
-
+    // Setters
+    void SetExpired() { fExpired = true; }
     void SetMasternodeOutpoint(const COutPoint& outpoint);
     void SetSignature(Span<const uint8_t> sig);
-    bool CheckSignature(const CBLSPublicKey& pubKey) const;
 
+    // Signature related functions
+    bool CheckSignature(const CBLSPublicKey& pubKey) const;
     uint256 GetSignatureHash() const;
 
     // CORE OBJECT FUNCTIONS
 
-    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool fCheckCollateral) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool fCheckCollateral) const
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations, bool fCheckCollateral) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool IsValidLocally(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations, bool fCheckCollateral) const
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /// Check the collateral transaction for the budget proposal/finalized budget
-    bool IsCollateralValid(const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations) const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool IsCollateralValid(const ChainstateManager& chainman, std::string& strError, bool& fMissingConfirmations) const
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     void UpdateLocalValidity(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
@@ -296,6 +241,5 @@ public:
     // Returns deleted vote hashes.
     std::set<uint256> RemoveInvalidVotes(const CDeterministicMNList& tip_mn_list, const COutPoint& mnOutpoint);
 };
-
 
 #endif // BITCOIN_GOVERNANCE_OBJECT_H
