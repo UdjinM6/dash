@@ -300,7 +300,6 @@ public:
                                                          CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_relay);
 
     const CGovernanceObject* FindConstGovernanceObject(const uint256& nHash) const EXCLUSIVE_LOCKS_REQUIRED(cs);
-    CGovernanceObject* FindGovernanceObject(const uint256& nHash) override EXCLUSIVE_LOCKS_REQUIRED(!cs);
     CGovernanceObject* FindGovernanceObjectByDataHash(const uint256& nDataHash) override EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     // These commands are only used in RPC
@@ -322,18 +321,19 @@ public:
 
     int GetCachedBlockHeight() const override { return nCachedBlockHeight; }
 
-    // Accessors for thread-safe access to maps
+    // Thread-safe accessors
+    bool GetBestSuperblock(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& pSuperblockRet,
+                           int nBlockHeight) override EXCLUSIVE_LOCKS_REQUIRED(!cs);
     bool HaveObjectForHash(const uint256& nHash) const;
-
     bool HaveVoteForHash(const uint256& nHash) const;
-
-    int GetVoteCount() const;
-
     bool SerializeObjectForHash(const uint256& nHash, CDataStream& ss) const;
-
     bool SerializeVoteForHash(const uint256& nHash, CDataStream& ss) const;
-
+    CGovernanceObject* FindGovernanceObject(const uint256& nHash) override EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    int GetVoteCount() const;
     void AddPostponedObject(const CGovernanceObject& govobj);
+
+    // Thread-safe accessors for trigger management
+    std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggers() const override EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     void MasternodeRateUpdate(const CGovernanceObject& govobj);
 
@@ -363,7 +363,6 @@ public:
      *   - Track governance objects which are triggers
      *   - After triggers are activated and executed, they can be removed
     */
-    std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggers() const override EXCLUSIVE_LOCKS_REQUIRED(!cs);
     bool AddNewTrigger(uint256 nHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void CleanAndRemoveTriggers() EXCLUSIVE_LOCKS_REQUIRED(cs);
 
@@ -387,18 +386,15 @@ public:
     bool IsValidSuperblock(const CChain& active_chain, const CDeterministicMNList& tip_mn_list,
                            const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
 
-    bool GetBestSuperblock(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& pSuperblockRet,
-                           int nBlockHeight) override EXCLUSIVE_LOCKS_REQUIRED(!cs);
-
     std::vector<std::shared_ptr<const CGovernanceObject>> GetApprovedProposals(const CDeterministicMNList& tip_mn_list) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
 private:
-    //! Internal functions that require locks to be held
-    CGovernanceObject* FindGovernanceObjectInternal(const uint256& nHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggersInternal() const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    // Internal counterparts to "Thread-safe accessors"
     bool GetBestSuperblockInternal(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& pSuperblockRet,
                                    int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    CGovernanceObject* FindGovernanceObjectInternal(const uint256& nHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggersInternal() const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     void ExecuteBestSuperblock(const CDeterministicMNList& tip_mn_list, int nBlockHeight);
 
