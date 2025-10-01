@@ -440,13 +440,12 @@ bool SendCoinsDialog::send(const QList<SendCoinsRecipient>& recipients, QString&
         }
     }
 
-    // Show some additioinal information
-    question_string.append("<hr />");
-    // append transaction size
-    question_string.append(tr("Transaction size: %1").arg(QString::number((double)m_current_transaction->getTransactionSize() / 1000)) + " kB");
-    question_string.append("<br />");
+    // Show some additioinal information in Details
+    formatted.append(QString("%1: %2").arg(tr("Transaction size"))
+        .arg(QString::number((double)m_current_transaction->getTransactionSize() / 1000)) + " kB");
     CFeeRate feeRate(txFee, m_current_transaction->getTransactionSize());
-    question_string.append(tr("Fee rate: %1").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), feeRate.GetFeePerK())) + "/kB");
+    formatted.append(QString("%1: %2").arg(tr("Fee rate"))
+        .arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), feeRate.GetFeePerK())) + "/kB");
 
     // add total amount in all subdivision units
     question_string.append("<hr />");
@@ -463,10 +462,8 @@ bool SendCoinsDialog::send(const QList<SendCoinsRecipient>& recipients, QString&
     question_string.append(QString("<br /><span style='font-size:10pt; font-weight:normal;'>(=%1)</span>")
         .arg(alternativeUnits.join(" " + tr("or") + " ")));
 
-    if (formatted.size() > 1) {
-        informative_text = tr("To review recipient list click \"Show Details…\"");
-        detailed_text = formatted.join("\n\n");
-    }
+    informative_text = tr("To review full recipient list and additional transaction details click \"Show Details…\"");
+    detailed_text = formatted.join("\n\n");
 
     return true;
 }
