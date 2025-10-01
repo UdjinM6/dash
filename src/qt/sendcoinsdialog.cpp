@@ -425,15 +425,14 @@ bool SendCoinsDialog::send(const QList<SendCoinsRecipient>& recipients, QString&
             question_string.append("<a style='" + GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_COMMAND) + "' href=\"https://docs.dash.org/en/stable/wallets/dashcore/coinjoin-instantsend.html#inputs\">");
             question_string.append(tr("Click to learn more"));
             question_string.append("</a>");
-            question_string.append("</span> ");
+            question_string.append("</span>");
         }
         question_string.append("<hr />");
     }
 
     CAmount txFee = m_current_transaction->getTransactionFee();
 
-    if(txFee > 0)
-    {
+    if (txFee > 0) {
         // append fee string if a fee is required
         question_string.append(QString("<b>%1</b>: <span style='%2'>%3</span>").arg(tr("Transaction fee"))
             .arg(GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_ERROR))
