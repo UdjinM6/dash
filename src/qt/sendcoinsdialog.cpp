@@ -406,6 +406,24 @@ bool SendCoinsDialog::send(const QList<SendCoinsRecipient>& recipients, QString&
         question_string.append("</span>");
     }
 
+    if (m_coin_control->IsUsingCoinJoin()) {
+        // append number of inputs
+        question_string.append("<hr />");
+        int nInputs = m_current_transaction->getWtx()->vin.size();
+        question_string.append(tr("This transaction will consume %n input(s)", "", nInputs));
+
+        // warn about potential privacy issues when spending too many inputs at once
+        if (nInputs >= 10 && m_coin_control->IsUsingCoinJoin()) {
+            question_string.append("<br />");
+            question_string.append("<span style='" + GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_WARNING) + "'>");
+            question_string.append(tr("Warning: Using %1 with %2 or more inputs can harm your privacy and is not recommended").arg(strCoinJoinName).arg(10));
+            question_string.append("<a style='" + GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_COMMAND) + "' href=\"https://docs.dash.org/en/stable/wallets/dashcore/coinjoin-instantsend.html#inputs\">");
+            question_string.append(tr("Click to learn more"));
+            question_string.append("</a>");
+            question_string.append("</span> ");
+        }
+    }
+
     CAmount txFee = m_current_transaction->getTransactionFee();
 
     if(txFee > 0)
@@ -429,24 +447,6 @@ bool SendCoinsDialog::send(const QList<SendCoinsRecipient>& recipients, QString&
     question_string.append("<br />");
     CFeeRate feeRate(txFee, m_current_transaction->getTransactionSize());
     question_string.append(tr("Fee rate: %1").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), feeRate.GetFeePerK())) + "/kB");
-
-    if (m_coin_control->IsUsingCoinJoin()) {
-        // append number of inputs
-        question_string.append("<hr />");
-        int nInputs = m_current_transaction->getWtx()->vin.size();
-        question_string.append(tr("This transaction will consume %n input(s)", "", nInputs));
-
-        // warn about potential privacy issues when spending too many inputs at once
-        if (nInputs >= 10 && m_coin_control->IsUsingCoinJoin()) {
-            question_string.append("<br />");
-            question_string.append("<span style='" + GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_WARNING) + "'>");
-            question_string.append(tr("Warning: Using %1 with %2 or more inputs can harm your privacy and is not recommended").arg(strCoinJoinName).arg(10));
-            question_string.append("<a style='" + GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_COMMAND) + "' href=\"https://docs.dash.org/en/stable/wallets/dashcore/coinjoin-instantsend.html#inputs\">");
-            question_string.append(tr("Click to learn more"));
-            question_string.append("</a>");
-            question_string.append("</span> ");
-        }
-    }
 
     // add total amount in all subdivision units
     question_string.append("<hr />");
