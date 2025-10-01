@@ -409,9 +409,10 @@ bool SendCoinsDialog::send(const QList<SendCoinsRecipient>& recipients, QString&
         question_string.append("</span>");
     }
 
+    question_string.append("<hr />");
+
     if (m_coin_control->IsUsingCoinJoin()) {
         // append number of inputs
-        question_string.append("<hr />");
         int nInputs = m_current_transaction->getWtx()->vin.size();
         question_string.append(tr("This transaction will consume %n input(s)", "", nInputs));
 
@@ -420,11 +421,13 @@ bool SendCoinsDialog::send(const QList<SendCoinsRecipient>& recipients, QString&
             question_string.append("<br />");
             question_string.append("<span style='font-size:10pt;" + GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_WARNING) + "'>");
             question_string.append(tr("Warning: Using %1 with %2 or more inputs can harm your privacy and is not recommended").arg(strCoinJoinName).arg(10));
+            question_string.append("<br />");
             question_string.append("<a style='" + GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_COMMAND) + "' href=\"https://docs.dash.org/en/stable/wallets/dashcore/coinjoin-instantsend.html#inputs\">");
             question_string.append(tr("Click to learn more"));
             question_string.append("</a>");
             question_string.append("</span> ");
         }
+        question_string.append("<hr />");
     }
 
     CAmount txFee = m_current_transaction->getTransactionFee();
@@ -432,7 +435,6 @@ bool SendCoinsDialog::send(const QList<SendCoinsRecipient>& recipients, QString&
     if(txFee > 0)
     {
         // append fee string if a fee is required
-        question_string.append("<hr /><b>");
         question_string.append(QString("<b>%1</b>: <span style='%2'>%3</span>").arg(tr("Transaction fee"))
             .arg(GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_ERROR))
             .arg(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), txFee)));
@@ -441,6 +443,7 @@ bool SendCoinsDialog::send(const QList<SendCoinsRecipient>& recipients, QString&
             question_string.append(QString("<br /><span style='font-size:10pt; font-weight:normal;'>%1</span>")
                 .arg(tr("(%1 transactions have higher fees usually due to no change output being allowed)").arg(strCoinJoinName)));
         }
+        question_string.append("<hr />");
     }
 
     // Show some additioinal information in Details
@@ -451,7 +454,6 @@ bool SendCoinsDialog::send(const QList<SendCoinsRecipient>& recipients, QString&
         .arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), feeRate.GetFeePerK())) + "/kB");
 
     // add total amount in all subdivision units
-    question_string.append("<hr />");
     CAmount totalAmount = m_current_transaction->getTotalTransactionAmount() + txFee;
     QStringList alternativeUnits;
     for (const BitcoinUnit u : BitcoinUnits::availableUnits()) {
@@ -464,6 +466,7 @@ bool SendCoinsDialog::send(const QList<SendCoinsRecipient>& recipients, QString&
         .arg(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), totalAmount)));
     question_string.append(QString("<br /><span style='font-size:10pt; font-weight:normal;'>(=%1)</span>")
         .arg(alternativeUnits.join(" " + tr("or") + " ")));
+    question_string.append("<br />");
 
     // Close the global span we opened at the very beginning
     question_string.append("</span>");
