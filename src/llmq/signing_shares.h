@@ -493,7 +493,7 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(cs);
     void SignPendingSigShares(const CConnman& connman, PeerManager& peerman)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
-    void WorkThreadMain(CConnman& connman, PeerManager& peerman);
+    void WorkThreadMain(CConnman& connman, PeerManager& peerman) EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns);
     void NotifyWorker();
 };
 } // namespace llmq
