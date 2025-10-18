@@ -355,7 +355,7 @@ public:
     CSigShare sigShare;
     CQuorumCPtr quorum;
 
-    std::chrono::steady_clock::time_point nextAttemptTime{};
+    NodeClock::time_point nextAttemptTime{};
     int attempt{0};
 };
 

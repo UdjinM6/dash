@@ -1029,7 +1029,7 @@ void CSigSharesManager::CollectSigSharesToSendConcentrated(std::unordered_map<No
         proTxToNode.try_emplace(verifiedProRegTxHash, pnode);
     }
 
-    auto curTime = std::chrono::steady_clock::now();
+    auto curTime = NodeClock::now();
 
     for (auto& [_, signedSession] : signedSessions) {
         if (!IsAllMembersConnectedEnabled(signedSession.quorum->params.type, m_sporkman)) {
@@ -1527,14 +1527,9 @@ void CSigSharesManager::WorkThreadMain(CConnman& connman, PeerManager& peerman)
             }
         }
         {
-            // Consider next recovery attempt times for signed sessions to avoid polling
             LOCK(cs);
-            auto now_steady = std::chrono::steady_clock::now();
-            for (const auto& [_, s] : signedSessions) {
-                if (s.nextAttemptTime > now_steady) {
-                    if (s.nextAttemptTime < next_deadline) next_deadline = s.nextAttemptTime;
-                }
-            }
+            next_deadline = std::chrono::steady_clock::now() +
+                            (signedSessions.empty() ? std::chrono::seconds(5) : std::chrono::milliseconds(100));
         }
 
         // Wait event-driven until notified or deadline reached, or interrupted
@@ -1577,7 +1572,7 @@ void CSigSharesManager::SignPendingSigShares(const CConnman& connman, PeerManage
                 auto& session = signedSessions[sigShare.GetSignHash()];
                 session.sigShare = sigShare;
                 session.quorum = pQuorum;
-                session.nextAttemptTime = std::chrono::steady_clock::time_point{};
+                session.nextAttemptTime = NodeClock::time_point{};
                 session.attempt = 0;
             }
         }
