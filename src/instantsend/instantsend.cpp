@@ -226,7 +226,7 @@ instantsend::PendingState CInstantSendManager::ProcessPendingInstantSendLocks()
                 filteredPend.push_back(std::move(p));
             }
         }
-        
+
         // Now check against the previous active set and perform banning if this fails
         ProcessPendingInstantSendLocks(llmq_params, dkgInterval, /*ban=*/true, filteredPend, ret.m_peer_activity);
     }
