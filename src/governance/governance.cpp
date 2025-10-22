@@ -204,7 +204,13 @@ bool CGovernanceManager::SerializeVoteForHash(const uint256& nHash, CDataStream&
 void CGovernanceManager::AddPostponedObject(const CGovernanceObject& govobj)
 {
     LOCK(cs);
-    mapPostponedObjects.emplace(govobj.GetHash(), govobj);
+    AddPostponedObjectInternal(govobj);
+}
+
+void CGovernanceManager::AddPostponedObjectInternal(const CGovernanceObject& govobj)
+{
+    AssertLockHeld(cs);
+    mapPostponedObjects.insert(std::make_pair(govobj.GetHash(), govobj));
 }
 
 MessageProcessingResult CGovernanceManager::ProcessMessage(CNode& peer, CConnman& connman, std::string_view msg_type,
@@ -290,7 +296,7 @@ MessageProcessingResult CGovernanceManager::ProcessMessage(CNode& peer, CConnman
 
         if (!fIsValid) {
             if (fMissingConfirmations) {
-                AddPostponedObject(govobj);
+                AddPostponedObjectInternal(govobj);
                 LogPrintf("MNGOVERNANCEOBJECT -- Not enough fee confirmations for: %s, strError = %s\n", strHash, strError);
             } else {
                 LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECT -- Governance object is invalid - %s\n", strError);
