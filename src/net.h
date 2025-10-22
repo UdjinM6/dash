@@ -1637,7 +1637,7 @@ private:
      * @param[in] events_per_sock Sockets that are ready for IO.
      */
     void SocketHandlerConnected(const Sock::EventsPerSock& events_per_sock)
-        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_total_bytes_sent_mutex, !mutexMsgProc, !cs_sendable_receivable_nodes, !cs_mapSocketToNode, !cs_sendable_receivable_nodes);
+        EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_total_bytes_sent_mutex, !mutexMsgProc, !cs_sendable_receivable_nodes, !cs_mapSocketToNode);
 
     /**
      * Accept incoming connections, one from each read-ready listening socket.

@@ -419,7 +419,7 @@ CNode* CConnman::FindNodeLockedMutable(NodeId id, bool fExcludeDisconnecting)
 bool CConnman::AlreadyConnectedToAddress(const CAddress& addr) const
 {
     READ_LOCK(m_nodes_mutex);
-    return FindNodeLocked(addr.ToStringAddrPort()) != nullptr;
+    return FindNodeLocked(static_cast<CService>(addr)) != nullptr;
 }
 
 bool CConnman::CheckIncomingNonce(uint64_t nonce) const
