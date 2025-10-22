@@ -535,13 +535,12 @@ int CGovernanceObject::CountMatchingVotes(const CDeterministicMNList& tip_mn_lis
     LOCK(cs);
 
     int nCount = 0;
-    for (const auto& votepair : mapCurrentMNVotes) {
-        const vote_rec_t& recVote = votepair.second;
+    for (const auto& [outpoint, recVote] : mapCurrentMNVotes) {
         auto it2 = recVote.mapInstances.find(eVoteSignalIn);
         if (it2 != recVote.mapInstances.end() && it2->second.eOutcome == eVoteOutcomeIn) {
             // 4x times weight vote for EvoNode owners.
             // No need to check if v19 is active since no EvoNode are allowed to register before v19s
-            auto dmn = tip_mn_list.GetMNByCollateral(votepair.first);
+            auto dmn = tip_mn_list.GetMNByCollateral(outpoint);
             if (dmn != nullptr) nCount += GetMnType(dmn->nType).voting_weight;
         }
     }
