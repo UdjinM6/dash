@@ -171,7 +171,6 @@ protected:
         bool fStatusOK;
     };
 
-    using object_ref_cm_t = CacheMap<uint256, CGovernanceObject*>;
     using txout_m_t = std::map<COutPoint, last_object_rec>;
     using vote_cmm_t = CacheMultiMap<uint256, vote_time_pair_t>;
 
@@ -189,13 +188,12 @@ protected:
     // mapErasedGovernanceObjects contains key-value pairs, where
     //   key   - governance object's hash
     //   value - expiration time for deleted objects
-    std::map<uint256, int64_t> mapErasedGovernanceObjects;
-    object_ref_cm_t cmapVoteToObject;
-    CacheMap<uint256, CGovernanceVote> cmapInvalidVotes;
-    vote_cmm_t cmmapOrphanVotes;
-    txout_m_t mapLastMasternodeObject;
+    std::map<uint256, int64_t> mapErasedGovernanceObjects GUARDED_BY(cs);
+    CacheMap<uint256, CGovernanceVote> cmapInvalidVotes GUARDED_BY(cs);
+    vote_cmm_t cmmapOrphanVotes GUARDED_BY(cs);
+    txout_m_t mapLastMasternodeObject GUARDED_BY(cs);
     // used to check for changed voting keys
-    std::shared_ptr<CDeterministicMNList> lastMNListForVotingKeys;
+    std::shared_ptr<CDeterministicMNList> lastMNListForVotingKeys GUARDED_BY(cs);
 
 public:
     GovernanceStore();
@@ -248,6 +246,7 @@ class CGovernanceManager : public GovernanceStore, public GovernanceSignerParent
 
 private:
     using db_type = CFlatDB<GovernanceStore>;
+    using object_ref_cm_t = CacheMap<uint256, CGovernanceObject*>;
 
 private:
     const std::unique_ptr<db_type> m_db;
@@ -262,6 +261,7 @@ private:
     int64_t nTimeLastDiff;
     // keep track of current block height
     int nCachedBlockHeight;
+    object_ref_cm_t cmapVoteToObject;
     std::map<uint256, CGovernanceObject> mapPostponedObjects;
     std::set<uint256> setAdditionalRelayObjects;
     std::map<uint256, std::chrono::seconds> m_requested_hash_time;
@@ -311,9 +311,11 @@ public:
     void AddGovernanceObject(CGovernanceObject& govobj, const CNode* pfrom = nullptr) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_relay);
 
+    void Clear();
     void CheckAndRemove();
 
     UniValue ToJson() const;
+    std::string ToString() const;
 
     void UpdatedBlockTip(const CBlockIndex* pindex) EXCLUSIVE_LOCKS_REQUIRED(!cs_relay);
     int64_t GetLastDiffTime() const { return nTimeLastDiff; }
