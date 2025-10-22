@@ -414,7 +414,6 @@ static UniValue VoteWithMasternodes(const JSONRPCRequest& request, const CWallet
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     CHECK_NONFATAL(node.govman);
     {
-        LOCK(node.govman->cs);
         const CGovernanceObject *pGovObj = node.govman->FindConstGovernanceObject(hash);
         if (!pGovObj) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Governance object not found");
@@ -604,7 +603,7 @@ static UniValue ListObjects(CGovernanceManager& govman, const CDeterministicMNLi
         g_txindex->BlockUntilSyncedToCurrentChain();
     }
 
-    LOCK2(cs_main, govman.cs);
+    LOCK(cs_main);
 
     std::vector<CGovernanceObject> objs;
     govman.GetAllNewerThan(objs, nStartTime);
@@ -729,7 +728,7 @@ static RPCHelpMan gobject_get()
     const ChainstateManager& chainman = EnsureChainman(node);
 
     CHECK_NONFATAL(node.govman);
-    LOCK2(cs_main, node.govman->cs);
+    LOCK(cs_main);
     const CGovernanceObject* pGovObj = node.govman->FindConstGovernanceObject(hash);
 
     if (pGovObj == nullptr) {
@@ -828,7 +827,6 @@ static RPCHelpMan gobject_getcurrentvotes()
     const NodeContext& node = EnsureAnyNodeContext(request.context);
 
     CHECK_NONFATAL(node.govman);
-    LOCK(node.govman->cs);
     const CGovernanceObject* pGovObj = node.govman->FindConstGovernanceObject(hash);
 
     if (pGovObj == nullptr) {
@@ -924,7 +922,6 @@ static RPCHelpMan voteraw()
     const NodeContext& node = EnsureAnyNodeContext(request.context);
     CHECK_NONFATAL(node.govman);
     GovernanceObject govObjType = [&]() {
-        LOCK(node.govman->cs);
         const CGovernanceObject *pGovObj = node.govman->FindConstGovernanceObject(hashGovObj);
         if (!pGovObj) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Governance object not found");
