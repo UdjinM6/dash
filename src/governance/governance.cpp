@@ -188,7 +188,7 @@ bool CGovernanceManager::HaveVoteForHash(const uint256& nHash) const
     LOCK(cs_store);
 
     CGovernanceObject* pGovobj = nullptr;
-    return cmapVoteToObject.Get(nHash, pGovobj) && pGovobj->GetVoteFile().HasVote(nHash);
+    return cmapVoteToObject.Get(nHash, pGovobj) && WITH_LOCK(pGovobj->cs, return pGovobj->GetVoteFile().HasVote(nHash));
 }
 
 int CGovernanceManager::GetVoteCount() const
@@ -202,7 +202,7 @@ bool CGovernanceManager::SerializeVoteForHash(const uint256& nHash, CDataStream&
     LOCK(cs_store);
 
     CGovernanceObject* pGovobj = nullptr;
-    return cmapVoteToObject.Get(nHash, pGovobj) && pGovobj->GetVoteFile().SerializeVoteToStream(nHash, ss);
+    return cmapVoteToObject.Get(nHash, pGovobj) && WITH_LOCK(pGovobj->cs, return pGovobj->GetVoteFile().SerializeVoteToStream(nHash, ss));
 }
 
 void CGovernanceManager::AddPostponedObject(const CGovernanceObject& govobj)
@@ -745,10 +745,12 @@ MessageProcessingResult CGovernanceManager::SyncSingleObjVotes(CNode& peer, cons
         return {};
     }
 
-    const auto& fileVotes = govobj.GetVoteFile();
+    MessageProcessingResult ret{};
     const auto tip_mn_list = Assert(m_dmnman)->GetListAtChainTip();
 
-    MessageProcessingResult ret{};
+    {
+    LOCK(govobj.cs);
+    const auto& fileVotes = govobj.GetVoteFile();
     for (const auto& vote : fileVotes.GetVotes()) {
         uint256 nVoteHash = vote.GetHash();
 
@@ -758,6 +760,7 @@ MessageProcessingResult CGovernanceManager::SyncSingleObjVotes(CNode& peer, cons
             continue;
         }
         ret.m_inventory.emplace_back(MSG_GOVERNANCE_OBJECT_VOTE, nVoteHash);
+    }
     }
 
     CNetMsgMaker msgMaker(peer.GetCommonVersion());
@@ -1065,7 +1068,7 @@ void CGovernanceManager::RequestGovernanceObject(CNode* pfrom, const uint256& nH
 
         if (pObj) {
             filter = CBloomFilter(Params().GetConsensus().nGovernanceFilterElements, GOVERNANCE_FILTER_FP_RATE, GetRand<int>(/*nMax=*/999999), BLOOM_UPDATE_ALL);
-            std::vector<CGovernanceVote> vecVotes = pObj->GetVoteFile().GetVotes();
+            std::vector<CGovernanceVote> vecVotes = WITH_LOCK(pObj->cs, return pObj->GetVoteFile().GetVotes());
             nVoteCount = vecVotes.size();
             for (const auto& vote : vecVotes) {
                 filter.insert(vote.GetHash());
@@ -1223,7 +1226,7 @@ void CGovernanceManager::RebuildIndexes()
     cmapVoteToObject.Clear();
     for (auto& objPair : mapObjects) {
         CGovernanceObject& govobj = objPair.second;
-        std::vector<CGovernanceVote> vecVotes = govobj.GetVoteFile().GetVotes();
+        std::vector<CGovernanceVote> vecVotes = WITH_LOCK(govobj.cs, return govobj.GetVoteFile().GetVotes());
         for (const auto& vecVote : vecVotes) {
             cmapVoteToObject.Insert(vecVote.GetHash(), &govobj);
         }
