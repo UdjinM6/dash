@@ -88,14 +88,15 @@ class CGovernanceObject
 public: // Types
     using vote_m_t = std::map<COutPoint, vote_rec_t>;
 
-private:
+public:
     /// critical section to protect the inner data structures
     mutable RecursiveMutex cs;
 
+private:
     Governance::Object m_obj;
 
     /// time this object was marked for deletion
-    int64_t nDeletionTime{0};
+    int64_t nDeletionTime GUARDED_BY(cs){0};
 
     /// is valid by blockchain
     bool fCachedLocalValidity{false};
@@ -121,14 +122,14 @@ private:
     bool fDirtyCache{true};
 
     /// Object is no longer of interest
-    bool fExpired{false};
+    bool fExpired GUARDED_BY(cs){false};
 
     /// Failed to parse object data
     bool fUnparsable{false};
 
-    vote_m_t mapCurrentMNVotes;
+    vote_m_t mapCurrentMNVotes GUARDED_BY(cs);
 
-    CGovernanceObjectVoteFile fileVotes;
+    CGovernanceObjectVoteFile fileVotes GUARDED_BY(cs);
 
 public:
     CGovernanceObject();
@@ -141,18 +142,31 @@ public:
     bool IsSetCachedDelete() const { return fCachedDelete; }
     bool IsSetCachedEndorsed() const { return fCachedEndorsed; }
     bool IsSetDirtyCache() const { return fDirtyCache; }
-    bool IsSetExpired() const { return fExpired; }
+    bool IsSetExpired() const EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        return WITH_LOCK(cs, return fExpired);
+    }
     GovernanceObject GetObjectType() const { return m_obj.type; }
     int64_t GetCreationTime() const { return m_obj.time; }
-    int64_t GetDeletionTime() const { return nDeletionTime; }
+    int64_t GetDeletionTime() const EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        return WITH_LOCK(cs, return nDeletionTime);
+    }
 
-    const CGovernanceObjectVoteFile& GetVoteFile() const { return fileVotes; }
+    const CGovernanceObjectVoteFile& GetVoteFile() const EXCLUSIVE_LOCKS_REQUIRED(cs)
+    {
+        AssertLockHeld(cs);
+        return fileVotes;
+    }
     const COutPoint& GetMasternodeOutpoint() const { return m_obj.masternodeOutpoint; }
     const Governance::Object& Object() const { return m_obj; }
     const uint256& GetCollateralHash() const { return m_obj.collateralHash; }
 
     // Setters
-    void SetExpired() { fExpired = true; }
+    void SetExpired() EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        WITH_LOCK(cs, fExpired = true);
+    }
     void SetMasternodeOutpoint(const COutPoint& outpoint);
     void SetSignature(Span<const uint8_t> sig);
 
@@ -177,9 +191,10 @@ public:
 
     void UpdateSentinelVariables(const CDeterministicMNList& tip_mn_list);
 
-    void PrepareDeletion(int64_t nDeletionTime_)
+    void PrepareDeletion(int64_t nDeletionTime_) EXCLUSIVE_LOCKS_REQUIRED(!cs)
     {
         fCachedDelete = true;
+        LOCK(cs);
         if (nDeletionTime == 0) {
             nDeletionTime = nDeletionTime_;
         }
@@ -211,15 +226,27 @@ public:
 
     // SERIALIZER
 
-    SERIALIZE_METHODS(CGovernanceObject, obj)
+    template<typename Stream>
+    void Serialize(Stream& s) const EXCLUSIVE_LOCKS_REQUIRED(!cs)
     {
         // SERIALIZE DATA FOR SAVING/LOADING OR NETWORK FUNCTIONS
-        READWRITE(obj.m_obj);
+        s << m_obj;
         if (s.GetType() & SER_DISK) {
             // Only include these for the disk file format
-            READWRITE(obj.nDeletionTime, obj.fExpired, obj.mapCurrentMNVotes, obj.fileVotes);
+            LOCK(cs);
+            s << nDeletionTime << fExpired << mapCurrentMNVotes << fileVotes;
         }
+    }
 
+    template<typename Stream>
+    void Unserialize(Stream& s) EXCLUSIVE_LOCKS_REQUIRED(!cs)
+    {
+        s >> m_obj;
+        if (s.GetType() & SER_DISK) {
+            // Only include these for the disk file format
+            LOCK(cs);
+            s >> nDeletionTime >> fExpired >> mapCurrentMNVotes >> fileVotes;
+        }
         // AFTER DESERIALIZATION OCCURS, CACHED VARIABLES MUST BE CALCULATED MANUALLY
     }
 
