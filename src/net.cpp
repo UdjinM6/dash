@@ -1936,7 +1936,7 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
         NetPermissions::AddFlag(permission_flags, NetPermissionFlags::NoBan);
     }
 
-        
+
     {
         READ_LOCK(m_nodes_mutex);
         for (const CNode* pnode : m_nodes) {
@@ -2405,7 +2405,7 @@ void CConnman::SocketHandler(CMasternodeSync& mn_sync)
     bool only_poll = [this]() {
         // Check if we have work to do and thus should avoid waiting for events
         READ_LOCK(m_nodes_mutex); // We acquire this to avoid the pointers stored in mapSendableNodes and mapReceivableNodes being invalidated by ThreadSocketHandler
-        LOCK(cs_sendable_receivable_nodes); 
+        LOCK(cs_sendable_receivable_nodes);
         if (!mapReceivableNodes.empty()) {
             return true;
         }
@@ -4816,8 +4816,6 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
         }
     }
 }
-
- 
 
 bool CConnman::ForNode(const CService& addr, std::function<bool(const CNode* pnode)> cond, std::function<bool(CNode* pnode)> func)
 {
