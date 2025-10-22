@@ -178,11 +178,10 @@ protected:
     static constexpr int MAX_CACHE_SIZE = 1000000;
     static const std::string SERIALIZATION_VERSION_STRING;
 
-public:
+protected:
     // critical section to protect the inner data structures
     mutable RecursiveMutex cs;
 
-protected:
     // keep track of the scanning errors
     std::map<uint256, CGovernanceObject> mapObjects GUARDED_BY(cs);
     // mapErasedGovernanceObjects contains key-value pairs, where
@@ -300,7 +299,6 @@ public:
     [[nodiscard]] MessageProcessingResult ProcessMessage(CNode& peer, CConnman& connman, std::string_view msg_type,
                                                          CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_relay);
 
-    const CGovernanceObject* FindConstGovernanceObject(const uint256& nHash) const EXCLUSIVE_LOCKS_REQUIRED(cs);
     CGovernanceObject* FindGovernanceObjectByDataHash(const uint256& nDataHash) override EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     // These commands are only used in RPC
@@ -340,6 +338,8 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void AddPostponedObject(const CGovernanceObject& govobj)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
+
+    const CGovernanceObject* FindConstGovernanceObject(const uint256& nHash) const EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     // Thread-safe accessors for trigger management
     std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggers() const override
@@ -410,6 +410,8 @@ private:
         EXCLUSIVE_LOCKS_REQUIRED(cs);
     std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggersInternal() const
         EXCLUSIVE_LOCKS_REQUIRED(cs);
+
+    const CGovernanceObject* InternalFindConstGovernanceObject(const uint256& nHash) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     void ExecuteBestSuperblock(const CDeterministicMNList& tip_mn_list, int nBlockHeight);
 

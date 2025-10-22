@@ -570,6 +570,12 @@ void CGovernanceManager::CheckAndRemove()
 
 const CGovernanceObject* CGovernanceManager::FindConstGovernanceObject(const uint256& nHash) const
 {
+    LOCK(cs);
+    return InternalFindConstGovernanceObject(nHash);
+}
+
+const CGovernanceObject* CGovernanceManager::InternalFindConstGovernanceObject(const uint256& nHash) const
+{
     AssertLockHeld(cs);
 
     auto it = mapObjects.find(nHash);
@@ -1040,7 +1046,7 @@ void CGovernanceManager::RequestGovernanceObject(CNode* pfrom, const uint256& nH
     size_t nVoteCount = 0;
     if (fUseFilter) {
         LOCK(cs);
-        const CGovernanceObject* pObj = FindConstGovernanceObject(nHash);
+        const CGovernanceObject* pObj = InternalFindConstGovernanceObject(nHash);
 
         if (pObj) {
             filter = CBloomFilter(Params().GetConsensus().nGovernanceFilterElements, GOVERNANCE_FILTER_FP_RATE, GetRand<int>(/*nMax=*/999999), BLOOM_UPDATE_ALL);
@@ -1563,7 +1569,7 @@ std::vector<CSuperblock_sptr> CGovernanceManager::GetActiveTriggersInternal() co
 
     // LOOK AT THESE OBJECTS AND COMPILE A VALID LIST OF TRIGGERS
     for (const auto& pair : mapTrigger) {
-        const CGovernanceObject* pObj = FindConstGovernanceObject(pair.first);
+        const CGovernanceObject* pObj = InternalFindConstGovernanceObject(pair.first);
         if (pObj) {
             vecResults.push_back(pair.second);
         }
