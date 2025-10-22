@@ -554,26 +554,31 @@ int CGovernanceObject::CountMatchingVotes(const CDeterministicMNList& tip_mn_lis
 
 int CGovernanceObject::GetAbsoluteYesCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const
 {
+    AssertLockNotHeld(cs);
     return GetYesCount(tip_mn_list, eVoteSignalIn) - GetNoCount(tip_mn_list, eVoteSignalIn);
 }
 
 int CGovernanceObject::GetAbsoluteNoCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const
 {
+    AssertLockNotHeld(cs);
     return GetNoCount(tip_mn_list, eVoteSignalIn) - GetYesCount(tip_mn_list, eVoteSignalIn);
 }
 
 int CGovernanceObject::GetYesCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const
 {
+    AssertLockNotHeld(cs);
     return CountMatchingVotes(tip_mn_list, eVoteSignalIn, VOTE_OUTCOME_YES);
 }
 
 int CGovernanceObject::GetNoCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const
 {
+    AssertLockNotHeld(cs);
     return CountMatchingVotes(tip_mn_list, eVoteSignalIn, VOTE_OUTCOME_NO);
 }
 
 int CGovernanceObject::GetAbstainCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const
 {
+    AssertLockNotHeld(cs);
     return CountMatchingVotes(tip_mn_list, eVoteSignalIn, VOTE_OUTCOME_ABSTAIN);
 }
 
@@ -591,6 +596,8 @@ bool CGovernanceObject::GetCurrentMNVotes(const COutPoint& mnCollateralOutpoint,
 
 void CGovernanceObject::UpdateSentinelVariables(const CDeterministicMNList& tip_mn_list)
 {
+    AssertLockNotHeld(cs);
+
     // CALCULATE MINIMUM SUPPORT LEVELS REQUIRED
 
     int nWeightedMnCount = (int)tip_mn_list.GetValidWeightedMNsCount();

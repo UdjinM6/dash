@@ -189,7 +189,8 @@ public:
     void UpdateLocalValidity(const CDeterministicMNList& tip_mn_list, const ChainstateManager& chainman)
         EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-    void UpdateSentinelVariables(const CDeterministicMNList& tip_mn_list);
+    void UpdateSentinelVariables(const CDeterministicMNList& tip_mn_list)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     void PrepareDeletion(int64_t nDeletionTime_) EXCLUSIVE_LOCKS_REQUIRED(!cs)
     {
@@ -209,15 +210,22 @@ public:
 
     // GET VOTE COUNT FOR SIGNAL
 
-    int CountMatchingVotes(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn, vote_outcome_enum_t eVoteOutcomeIn) const;
+    int CountMatchingVotes(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn, vote_outcome_enum_t eVoteOutcomeIn) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
-    int GetAbsoluteYesCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const;
-    int GetAbsoluteNoCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const;
-    int GetYesCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const;
-    int GetNoCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const;
-    int GetAbstainCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const;
+    int GetAbsoluteYesCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    int GetAbsoluteNoCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    int GetYesCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    int GetNoCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    int GetAbstainCount(const CDeterministicMNList& tip_mn_list, vote_signal_enum_t eVoteSignalIn) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
-    bool GetCurrentMNVotes(const COutPoint& mnCollateralOutpoint, vote_rec_t& voteRecord) const;
+    bool GetCurrentMNVotes(const COutPoint& mnCollateralOutpoint, vote_rec_t& voteRecord) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     // FUNCTIONS FOR DEALING WITH DATA STRING
 
@@ -257,16 +265,19 @@ public:
     void GetData(UniValue& objResult) const;
 
     bool ProcessVote(CMasternodeMetaMan& mn_metaman, CGovernanceManager& govman, const CDeterministicMNList& tip_mn_list,
-                     const CGovernanceVote& vote, CGovernanceException& exception);
+                     const CGovernanceVote& vote, CGovernanceException& exception)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     /// Called when MN's which have voted on this object have been removed
-    void ClearMasternodeVotes(const CDeterministicMNList& tip_mn_list);
+    void ClearMasternodeVotes(const CDeterministicMNList& tip_mn_list)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     // Revalidate all votes from this MN and delete them if validation fails.
     // This is the case for DIP3 MNs that changed voting or operator keys and
     // also for MNs that were removed from the list completely.
     // Returns deleted vote hashes.
-    std::set<uint256> RemoveInvalidVotes(const CDeterministicMNList& tip_mn_list, const COutPoint& mnOutpoint);
+    std::set<uint256> RemoveInvalidVotes(const CDeterministicMNList& tip_mn_list, const COutPoint& mnOutpoint)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
 };
 
 #endif // BITCOIN_GOVERNANCE_OBJECT_H
