@@ -323,17 +323,26 @@ public:
 
     // Thread-safe accessors
     bool GetBestSuperblock(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& pSuperblockRet,
-                           int nBlockHeight) override EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    bool HaveObjectForHash(const uint256& nHash) const;
-    bool HaveVoteForHash(const uint256& nHash) const;
-    bool SerializeObjectForHash(const uint256& nHash, CDataStream& ss) const;
-    bool SerializeVoteForHash(const uint256& nHash, CDataStream& ss) const;
-    CGovernanceObject* FindGovernanceObject(const uint256& nHash) override EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    int GetVoteCount() const;
-    void AddPostponedObject(const CGovernanceObject& govobj);
+                           int nBlockHeight) override
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    bool HaveObjectForHash(const uint256& nHash) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    bool HaveVoteForHash(const uint256& nHash) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    bool SerializeObjectForHash(const uint256& nHash, CDataStream& ss) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    bool SerializeVoteForHash(const uint256& nHash, CDataStream& ss) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    CGovernanceObject* FindGovernanceObject(const uint256& nHash) override
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    int GetVoteCount() const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    void AddPostponedObject(const CGovernanceObject& govobj)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     // Thread-safe accessors for trigger management
-    std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggers() const override EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggers() const override
+        EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     void MasternodeRateUpdate(const CGovernanceObject& govobj);
 
@@ -391,10 +400,15 @@ public:
 
 private:
     // Internal counterparts to "Thread-safe accessors"
+    void AddPostponedObjectInternal(const CGovernanceObject& govobj)
+        EXCLUSIVE_LOCKS_REQUIRED(cs);
     bool GetBestSuperblockInternal(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& pSuperblockRet,
-                                   int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    CGovernanceObject* FindGovernanceObjectInternal(const uint256& nHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggersInternal() const EXCLUSIVE_LOCKS_REQUIRED(cs);
+                                   int nBlockHeight)
+        EXCLUSIVE_LOCKS_REQUIRED(cs);
+    CGovernanceObject* FindGovernanceObjectInternal(const uint256& nHash)
+        EXCLUSIVE_LOCKS_REQUIRED(cs);
+    std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggersInternal() const
+        EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     void ExecuteBestSuperblock(const CDeterministicMNList& tip_mn_list, int nBlockHeight);
 
