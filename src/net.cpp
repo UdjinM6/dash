@@ -493,7 +493,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
                 }
                 // It is possible that we already have a connection to the IP/port pszDest resolved to.
                 // In that case, drop the connection that was just created.
-                if (WithNodeExclusive(static_cast<CService>(addrConnect), [&](CNode* /*pnode*/){ return true; })) {
+                if (ExistsNodeShared(static_cast<CService>(addrConnect))) {
                     LogPrintf("Not opening a connection to %s, already connected to %s\n", pszDest, addrConnect.ToStringAddrPort());
                     return nullptr;
                 }
@@ -2616,7 +2616,7 @@ size_t CConnman::SocketRecvData(CNode *pnode)
     {
         bool notify = false;
         if (!pnode->ReceiveMsgBytes(Span<const uint8_t>(pchBuf, nBytes), notify)) {
-            LOCK(m_nodes_mutex);
+            READ_LOCK(m_nodes_mutex); // is this here for lock ordering?
             pnode->CloseSocketDisconnect(this);
         }
         RecordBytesRecv(nBytes);
@@ -2631,7 +2631,7 @@ size_t CConnman::SocketRecvData(CNode *pnode)
         if (!pnode->fDisconnect) {
             LogPrint(BCLog::NET, "socket closed for peer=%d\n", pnode->GetId());
         }
-        LOCK(m_nodes_mutex);
+        READ_LOCK(m_nodes_mutex); // is this here for lock ordering?
         pnode->fOtherSideDisconnected = true; // avoid lingering
         pnode->CloseSocketDisconnect(this);
     }
@@ -2644,7 +2644,7 @@ size_t CConnman::SocketRecvData(CNode *pnode)
             if (!pnode->fDisconnect){
                 LogPrint(BCLog::NET, "socket recv error for peer=%d: %s\n", pnode->GetId(), NetworkErrorString(nErr));
             }
-            LOCK(m_nodes_mutex);
+            READ_LOCK(m_nodes_mutex); // is this here for lock ordering?
             pnode->fOtherSideDisconnected = true; // avoid lingering
             pnode->CloseSocketDisconnect(this);
         }
@@ -4543,7 +4543,7 @@ bool CConnman::DisconnectNode(const std::string& strNode)
 bool CConnman::DisconnectNode(const CSubNet& subnet)
 {
     bool disconnected = false;
-    LOCK(m_nodes_mutex);
+    READ_LOCK(m_nodes_mutex);
     for (CNode* pnode : m_nodes) {
         if (subnet.Match(pnode->addr)) {
             LogPrint(BCLog::NET_NETCONN, "disconnect by subnet%s matched peer=%d; disconnecting\n", (fLogIPs ? strprintf("=%s", subnet.ToString()) : ""), pnode->GetId());
@@ -4561,15 +4561,11 @@ bool CConnman::DisconnectNode(const CNetAddr& addr)
 
 bool CConnman::DisconnectNode(NodeId id)
 {
-    LOCK(m_nodes_mutex);
-    for(CNode* pnode : m_nodes) {
-        if (id == pnode->GetId()) {
-            LogPrint(BCLog::NET_NETCONN, "disconnect by id peer=%d; disconnecting\n", pnode->GetId());
-            pnode->fDisconnect = true;
-            return true;
-        }
-    }
-    return false;
+    return WithNodeExclusive(id, [&](CNode* pnode){
+        LogPrint(BCLog::NET_NETCONN, "disconnect by id peer=%d; disconnecting\n", pnode->GetId());
+        pnode->fDisconnect = true;
+        return true;
+    }).value_or(false);
 }
 
 void CConnman::RecordBytesRecv(uint64_t bytes)
@@ -4819,8 +4815,8 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
 
 bool CConnman::ForNode(const CService& addr, std::function<bool(const CNode* pnode)> cond, std::function<bool(CNode* pnode)> func)
 {
+    READ_LOCK(m_nodes_mutex);
     CNode* found = nullptr;
-    LOCK(m_nodes_mutex);
     for (auto&& pnode : m_nodes) {
         if((CService)pnode->addr == addr) {
             found = pnode;
@@ -4832,14 +4828,8 @@ bool CConnman::ForNode(const CService& addr, std::function<bool(const CNode* pno
 
 bool CConnman::ForNode(const CService& addr, std::function<bool(const CNode* pnode)> cond, std::function<bool(const CNode* pnode)> func) const
 {
-    CNode* found = nullptr;
     READ_LOCK(m_nodes_mutex);
-    for (auto&& pnode : m_nodes) {
-        if((CService)pnode->addr == addr) {
-            found = pnode;
-            break;
-        }
-    }
+    const CNode* found = FindNodeLockedBy(addr, false);
     return found != nullptr && cond(found) && func(found);
 }
 
@@ -4859,7 +4849,7 @@ bool CConnman::ForNode(NodeId id, std::function<bool(const CNode* pnode)> cond, 
 bool CConnman::ForNode(NodeId id, std::function<bool(const CNode* pnode)> cond, std::function<bool(CNode* pnode)> func)
 {
     CNode* found = nullptr;
-    LOCK(m_nodes_mutex);
+    READ_LOCK(m_nodes_mutex);
     for (auto&& pnode : m_nodes) {
         if(pnode->GetId() == id) {
             found = pnode;

@@ -1319,7 +1319,7 @@ public:
 
     bool IsConnected(const CService& addr, std::function<bool(const CNode* pnode)> cond) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
     {
-        return ForNode(addr, cond, [](CNode* pnode){
+        return ForNode(addr, cond, [](const CNode* pnode){
             return true;
         });
     }
@@ -1332,7 +1332,7 @@ public:
     template<typename Condition, typename Callable>
     bool ForEachNodeContinueIf(const Condition& cond, Callable&& func) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
     {
-        LOCK(m_nodes_mutex);
+        READ_LOCK(m_nodes_mutex);
         for (auto&& node : m_nodes)
             if (cond(node))
                 if(!func(node))
@@ -1363,16 +1363,6 @@ public:
         return ForEachNodeContinueIf(FullyConnectedOnly, func);
     }
 
-    template<typename Condition, typename Callable>
-    void ForEachNode(const Condition& cond, Callable&& func) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
-    {
-        LOCK(m_nodes_mutex);
-        for (auto&& node : m_nodes) {
-            if (cond(node))
-                func(node);
-        }
-    };
-
     void ForEachNode(const NodeFn& fn) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
     {
         ForEachNode(FullyConnectedOnly, fn);
@@ -1392,17 +1382,6 @@ public:
     {
         ForEachNode(FullyConnectedOnly, fn);
     }
-
-    template<typename Condition, typename Callable, typename CallableAfter>
-    void ForEachNodeThen(const Condition& cond, Callable&& pre, CallableAfter&& post) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
-    {
-        LOCK(m_nodes_mutex);
-        for (auto&& node : m_nodes) {
-            if (cond(node))
-                pre(node);
-        }
-        post();
-    };
 
     template<typename Callable, typename CallableAfter>
     void ForEachNodeThen(Callable&& pre, CallableAfter&& post) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
@@ -1715,7 +1694,7 @@ private:
     template<typename Key, typename Callable>
     std::optional<std::invoke_result_t<Callable, CNode*>> WithNodeExclusive(const Key& key, Callable&& fn) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
     {
-        LOCK(m_nodes_mutex);
+        READ_LOCK(m_nodes_mutex);
         if (const CNode* cp = FindNodeLockedBy(key)) return std::optional<std::invoke_result_t<Callable, CNode*>>{fn(const_cast<CNode*>(cp))};
         return std::nullopt;
     }
