@@ -48,6 +48,7 @@
 #include <optional>
 #include <queue>
 #include <thread>
+#include <type_traits>
 #include <unordered_set>
 #include <vector>
 
@@ -61,6 +62,7 @@ class CMasternodeSync;
 class CNode;
 class CScheduler;
 struct bilingual_str;
+struct NodeEvictionCandidate;
 
 /** Default for -whitelistrelay. */
 static const bool DEFAULT_WHITELISTRELAY = true;
@@ -730,9 +732,9 @@ public:
     /** Messages still to be fed to m_transport->SetMessageToSend. */
     std::deque<CSerializedNetMsg> vSendMsg GUARDED_BY(cs_vSend);
     std::atomic<size_t> nSendMsgSize{0};
-    Mutex cs_vSend;
+    mutable Mutex cs_vSend;
     Mutex m_sock_mutex;
-    Mutex cs_vRecv;
+    mutable Mutex cs_vRecv;
 
     uint64_t nRecvBytes GUARDED_BY(cs_vRecv){0};
 
@@ -755,7 +757,7 @@ public:
     const bool m_inbound_onion;
     std::atomic<int> nNumWarningsSkipped{0};
     std::atomic<int> nVersion{0};
-    Mutex m_subver_mutex;
+    mutable Mutex m_subver_mutex;
     /**
      * cleanSubVer is a sanitized string of the user agent byte array we read
      * from the wire. This cleaned string can safely be logged or displayed.
@@ -1027,7 +1029,7 @@ public:
 
     void CloseSocketDisconnect(CConnman* connman) EXCLUSIVE_LOCKS_REQUIRED(!m_sock_mutex);
 
-    void CopyStats(CNodeStats& stats) EXCLUSIVE_LOCKS_REQUIRED(!m_subver_mutex, !m_addr_local_mutex, !cs_vSend, !cs_vRecv, !cs_mnauth);
+    void CopyStats(CNodeStats& stats) const EXCLUSIVE_LOCKS_REQUIRED(!m_subver_mutex, !m_addr_local_mutex, !cs_vSend, !cs_vRecv, !cs_mnauth);
 
     std::string ConnectionTypeAsString() const { return ::ConnectionTypeAsString(m_conn_type); }
 
@@ -1277,10 +1279,10 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex, !mutexMsgProc, !cs_mapSocketToNode);
     void OpenMasternodeConnection(const CAddress& addrConnect, bool use_v2transport, MasternodeProbeConn probe = MasternodeProbeConn::IsConnection)
         EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex, !mutexMsgProc, !cs_mapSocketToNode);
-    bool CheckIncomingNonce(uint64_t nonce) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
+    bool CheckIncomingNonce(uint64_t nonce) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
 
     // alias for thread safety annotations only, not defined
-    Mutex& GetNodesMutex() const LOCK_RETURNED(m_nodes_mutex);
+    SharedMutex& GetNodesMutex() const LOCK_RETURNED(m_nodes_mutex);
 
     struct CFullyConnectedOnly {
         bool operator() (const CNode* pnode) const {
@@ -1297,7 +1299,9 @@ public:
     constexpr static const CAllNodes AllNodes{};
 
     bool ForNode(NodeId id, std::function<bool(const CNode* pnode)> cond, std::function<bool(CNode* pnode)> func) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
-    bool ForNode(const CService& addr, std::function<bool(const CNode* pnode)> cond, std::function<bool(CNode* pnode)> func) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
+    bool ForNode(NodeId id, std::function<bool(const CNode* pnode)> cond, std::function<bool(const CNode* pnode)> func) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
+    bool ForNode(const CService& addr, std::function<bool(const CNode* pnode)> cond, std::function<bool(CNode* pnode)> func)  EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
+    bool ForNode(const CService& addr, std::function<bool(const CNode* pnode)> cond, std::function<bool(const CNode* pnode)> func) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
 
     template<typename Callable>
     bool ForNode(const CService& addr, Callable&& func) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
@@ -1345,7 +1349,7 @@ public:
     template<typename Condition, typename Callable>
     bool ForEachNodeContinueIf(const Condition& cond, Callable&& func) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
     {
-        LOCK(m_nodes_mutex);
+        READ_LOCK(m_nodes_mutex);
         for (const auto& node : m_nodes)
             if (cond(node))
                 if(!func(node))
@@ -1377,7 +1381,7 @@ public:
     template<typename Condition, typename Callable>
     void ForEachNode(const Condition& cond, Callable&& func) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
     {
-        LOCK(m_nodes_mutex);
+        READ_LOCK(m_nodes_mutex);
         for (auto&& node : m_nodes) {
             if (cond(node))
                 func(node);
@@ -1409,7 +1413,7 @@ public:
     template<typename Condition, typename Callable, typename CallableAfter>
     void ForEachNodeThen(const Condition& cond, Callable&& pre, CallableAfter&& post) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
     {
-        LOCK(m_nodes_mutex);
+        READ_LOCK(m_nodes_mutex);
         for (auto&& node : m_nodes) {
             if (cond(node))
                 pre(node);
@@ -1535,7 +1539,7 @@ public:
     /** Return true if we should disconnect the peer for failing an inactivity check. */
     bool ShouldRunInactivityChecks(const CNode& node, std::chrono::seconds now) const;
 
-    bool MultipleManualOrFullOutboundConns(Network net) const EXCLUSIVE_LOCKS_REQUIRED(m_nodes_mutex);
+    bool MultipleManualOrFullOutboundConns(Network net) const SHARED_LOCKS_REQUIRED(m_nodes_mutex);
 
     /**
      * RAII helper to atomically create a copy of `m_nodes` and add a reference
@@ -1651,21 +1655,78 @@ private:
 
     uint64_t CalculateKeyedNetGroup(const CAddress& ad) const;
 
-    CNode* FindNode(const CNetAddr& ip, bool fExcludeDisconnecting = true) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
-    CNode* FindNode(const std::string& addrName, bool fExcludeDisconnecting = true) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
-    CNode* FindNode(const CService& addr, bool fExcludeDisconnecting = true) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
+    const CNode* FindNodeLocked(const CNetAddr& ip, bool fExcludeDisconnecting = true) const SHARED_LOCKS_REQUIRED(m_nodes_mutex);
+    const CNode* FindNodeLocked(const std::string& addrName, bool fExcludeDisconnecting = true) const SHARED_LOCKS_REQUIRED(m_nodes_mutex);
+    const CNode* FindNodeLocked(const CService& addr, bool fExcludeDisconnecting = true) const SHARED_LOCKS_REQUIRED(m_nodes_mutex);
+    const CNode* FindNodeLocked(NodeId id, bool fExcludeDisconnecting = true) const SHARED_LOCKS_REQUIRED(m_nodes_mutex);
 
-    // Internal versions that require the lock to be held
-    CNode* FindNodeLocked(const CNetAddr& ip, bool fExcludeDisconnecting = true) EXCLUSIVE_LOCKS_REQUIRED(m_nodes_mutex);
-    CNode* FindNodeLocked(const std::string& addrName, bool fExcludeDisconnecting = true) EXCLUSIVE_LOCKS_REQUIRED(m_nodes_mutex);
-    CNode* FindNodeLocked(const CService& addr, bool fExcludeDisconnecting = true) EXCLUSIVE_LOCKS_REQUIRED(m_nodes_mutex);
+    // Mutable find helpers for callers that already hold the exclusive lock
+    CNode* FindNodeLockedMutable(const CNetAddr& ip, bool fExcludeDisconnecting = true) EXCLUSIVE_LOCKS_REQUIRED(m_nodes_mutex);
+    CNode* FindNodeLockedMutable(const std::string& addrName, bool fExcludeDisconnecting = true) EXCLUSIVE_LOCKS_REQUIRED(m_nodes_mutex);
+    CNode* FindNodeLockedMutable(const CService& addr, bool fExcludeDisconnecting = true) EXCLUSIVE_LOCKS_REQUIRED(m_nodes_mutex);
+    CNode* FindNodeLockedMutable(NodeId id, bool fExcludeDisconnecting = true) EXCLUSIVE_LOCKS_REQUIRED(m_nodes_mutex);
+
+    // Type-agnostic node matching helpers
+    static inline bool NodeMatches(const CNode* p, const CService& addr)
+    {
+        return static_cast<CService>(p->addr) == addr;
+    }
+    static inline bool NodeMatches(const CNode* p, const CNetAddr& ip)
+    {
+        return static_cast<CNetAddr>(p->addr) == ip;
+    }
+    static inline bool NodeMatches(const CNode* p, const std::string& addrName)
+    {
+        return p->m_addr_name == addrName;
+    }
+    static inline bool NodeMatches(const CNode* p, const NodeId id)
+    {
+        return p->GetId() == id;
+    }
+
+    template<typename Key>
+    const CNode* FindNodeLockedBy(const Key& key, bool fExcludeDisconnecting = true) const SHARED_LOCKS_REQUIRED(m_nodes_mutex)
+    {
+        for (const CNode* pnode : m_nodes) {
+            if (fExcludeDisconnecting && pnode->fDisconnect) continue;
+            if (NodeMatches(pnode, key)) return pnode;
+        }
+        return nullptr;
+    }
+
+    // Callback helpers with explicit lock semantics (templated on key type)
+    // Lambda-based shared accessor returning optional result (nullopt = not found)
+    template<typename Key, typename Callable>
+    std::optional<std::invoke_result_t<Callable, const CNode*>> WithNodeShared(const Key& key, Callable&& fn) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
+    {
+        READ_LOCK(m_nodes_mutex);
+        if (const CNode* p = FindNodeLockedBy(key)) return std::optional<std::invoke_result_t<Callable, const CNode*>>{fn(p)};
+        return std::nullopt;
+    }
+
+    // Fast existence check under shared lock
+    template<typename Key>
+    bool ExistsNodeShared(const Key& key) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
+    {
+        READ_LOCK(m_nodes_mutex);
+        return FindNodeLockedBy(key) != nullptr;
+    }
+
+    template<typename Key, typename Callable>
+    std::optional<std::invoke_result_t<Callable, CNode*>> WithNodeExclusive(const Key& key, Callable&& fn) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
+    {
+        LOCK(m_nodes_mutex);
+        if (const CNode* cp = FindNodeLockedBy(key)) return std::optional<std::invoke_result_t<Callable, CNode*>>{fn(const_cast<CNode*>(cp))};
+        return std::nullopt;
+    }
 
     /**
      * Determine whether we're already connected to a given address, in order to
      * avoid initiating duplicate connections.
      */
-    bool AlreadyConnectedToAddress(const CAddress& addr) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
+    bool AlreadyConnectedToAddress(const CAddress& addr) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
 
+    std::vector<NodeEvictionCandidate> GetEvictionCandidates() const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
     bool AttemptToEvictConnection() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
     CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, ConnectionType conn_type, bool use_v2transport) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex);
     void AddWhitelistPermissionFlags(NetPermissionFlags& flags, const CNetAddr &addr) const;
@@ -1746,12 +1807,12 @@ private:
     mutable Mutex m_added_nodes_mutex;
     std::vector<CNode*> m_nodes GUARDED_BY(m_nodes_mutex);
     std::list<CNode*> m_nodes_disconnected;
-    mutable Mutex m_nodes_mutex;
+    mutable SharedMutex m_nodes_mutex;
     std::atomic<NodeId> nLastNodeId{0};
     unsigned int nPrevNodeCount{0};
 
     // Stores number of full-tx connections (outbound and manual) per network
-    std::array<unsigned int, Network::NET_MAX> m_network_conn_counts GUARDED_BY(m_nodes_mutex) = {};
+    std::array<unsigned int, Network::NET_MAX> m_network_conn_counts GUARDED_BY(m_nodes_mutex) = {}; // TODO consider moving this to seperate mutex
 
     std::vector<uint256> vPendingMasternodes;
     mutable RecursiveMutex cs_vPendingMasternodes;

@@ -161,6 +161,11 @@ using SharedMutex = SharedAnnotatedMixin<std::shared_mutex>;
 
 #define AssertLockHeld(cs) AssertLockHeldInternal(#cs, __FILE__, __LINE__, &cs)
 
+// For shared locks, we use the same internal function but disable thread safety analysis
+// because the function signature requires exclusive lock but we only have shared lock
+inline void AssertSharedLockHeldInline(const char* name, const char* file, int line, SharedMutex* cs) NO_THREAD_SAFETY_ANALYSIS { AssertLockHeldInternal(name, file, line, cs); }
+#define AssertSharedLockHeld(cs) (AssertSharedLockHeldInline(#cs, __FILE__, __LINE__, &cs))
+
 inline void AssertLockNotHeldInline(const char* name, const char* file, int line, Mutex* cs) EXCLUSIVE_LOCKS_REQUIRED(!cs) { AssertLockNotHeldInternal(name, file, line, cs); }
 inline void AssertLockNotHeldInline(const char* name, const char* file, int line, RecursiveMutex* cs) LOCKS_EXCLUDED(cs) { AssertLockNotHeldInternal(name, file, line, cs); }
 inline void AssertLockNotHeldInline(const char* name, const char* file, int line, GlobalMutex* cs) LOCKS_EXCLUDED(cs) { AssertLockNotHeldInternal(name, file, line, cs); }
