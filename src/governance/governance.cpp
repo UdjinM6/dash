@@ -57,7 +57,6 @@ GovernanceStore::GovernanceStore() :
     cs(),
     mapObjects(),
     mapErasedGovernanceObjects(),
-    cmapVoteToObject(MAX_CACHE_SIZE),
     cmapInvalidVotes(MAX_CACHE_SIZE),
     cmmapOrphanVotes(MAX_CACHE_SIZE),
     mapLastMasternodeObject(),
@@ -76,6 +75,7 @@ CGovernanceManager::CGovernanceManager(CMasternodeMetaMan& mn_metaman, CNetFulfi
     m_mn_sync{mn_sync},
     nTimeLastDiff(0),
     nCachedBlockHeight(0),
+    cmapVoteToObject(MAX_CACHE_SIZE),
     mapPostponedObjects(),
     fRateChecksEnabled(true),
     votedFundingYesTriggerHash(std::nullopt),
@@ -353,6 +353,8 @@ MessageProcessingResult CGovernanceManager::ProcessMessage(CNode& peer, CConnman
 
 void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj)
 {
+    LOCK(cs);
+
     AssertLockNotHeld(cs_relay);
     uint256 nHash = govobj.GetHash();
     std::vector<vote_time_pair_t> vecVotePairs;
@@ -795,6 +797,8 @@ void CGovernanceManager::MasternodeRateUpdate(const CGovernanceObject& govobj)
 {
     if (govobj.GetObjectType() != GovernanceObject::TRIGGER) return;
 
+    LOCK(cs);
+
     const COutPoint& masternodeOutpoint = govobj.GetMasternodeOutpoint();
     auto it = mapLastMasternodeObject.find(masternodeOutpoint);
 
@@ -1048,6 +1052,7 @@ void CGovernanceManager::RequestGovernanceObject(CNode* pfrom, const uint256& nH
 
 void CGovernanceManager::AddInvalidVote(const CGovernanceVote& vote)
 {
+    LOCK(cs);
     cmapInvalidVotes.Insert(vote.GetHash(), vote);
 }
 
@@ -1229,14 +1234,18 @@ void CGovernanceManager::InitOnLoad()
 void GovernanceStore::Clear()
 {
     LOCK(cs);
-
-    LogPrint(BCLog::GOBJECT, "Governance object manager was cleared\n");
     mapObjects.clear();
     mapErasedGovernanceObjects.clear();
-    cmapVoteToObject.Clear();
     cmapInvalidVotes.Clear();
     cmmapOrphanVotes.Clear();
     mapLastMasternodeObject.clear();
+}
+
+void CGovernanceManager::Clear()
+{
+    LogPrint(BCLog::GOBJECT, "Governance object manager was cleared\n");
+    GovernanceStore::Clear();
+    cmapVoteToObject.Clear();
 }
 
 std::string GovernanceStore::ToString() const
@@ -1261,10 +1270,14 @@ std::string GovernanceStore::ToString() const
         }
     }
 
-    return strprintf("Governance Objects: %d (Proposals: %d, Triggers: %d, Other: %d; Erased: %d), Votes: %d",
+    return strprintf("Governance Objects: %d (Proposals: %d, Triggers: %d, Other: %d; Erased: %d)",
         (int)mapObjects.size(),
-        nProposalCount, nTriggerCount, nOtherCount, (int)mapErasedGovernanceObjects.size(),
-        (int)cmapVoteToObject.GetSize());
+        nProposalCount, nTriggerCount, nOtherCount, (int)mapErasedGovernanceObjects.size());
+}
+
+std::string CGovernanceManager::ToString() const
+{
+    return strprintf("%s, Votes: %d", GovernanceStore::ToString(), (int)cmapVoteToObject.GetSize());
 }
 
 UniValue CGovernanceManager::ToJson() const
