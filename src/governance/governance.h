@@ -184,7 +184,7 @@ protected:
     mutable Mutex cs_store;
 
     // keep track of the scanning errors
-    std::map<uint256, CGovernanceObject> mapObjects GUARDED_BY(cs_store);
+    std::map<uint256, std::shared_ptr<CGovernanceObject>> mapObjects GUARDED_BY(cs_store);
     // mapErasedGovernanceObjects contains key-value pairs, where
     //   key   - governance object's hash
     //   value - expiration time for deleted objects
@@ -248,7 +248,7 @@ class CGovernanceManager : public GovernanceStore, public GovernanceSignerParent
 
 private:
     using db_type = CFlatDB<GovernanceStore>;
-    using object_ref_cm_t = CacheMap<uint256, CGovernanceObject*>;
+    using object_ref_cm_t = CacheMap<uint256, std::shared_ptr<CGovernanceObject>>;
 
 private:
     const std::unique_ptr<db_type> m_db;
@@ -264,7 +264,7 @@ private:
     // keep track of current block height
     int nCachedBlockHeight;
     object_ref_cm_t cmapVoteToObject;
-    std::map<uint256, CGovernanceObject> mapPostponedObjects;
+    std::map<uint256, std::shared_ptr<CGovernanceObject>> mapPostponedObjects;
     std::set<uint256> setAdditionalRelayObjects;
     std::map<uint256, std::chrono::seconds> m_requested_hash_time;
     bool fRateChecksEnabled;
@@ -339,7 +339,7 @@ public:
     // Signer interface
     bool MasternodeRateCheck(const CGovernanceObject& govobj, bool fUpdateFailStatus = false) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    CGovernanceObject* FindGovernanceObjectByDataHash(const uint256& nDataHash) override
+    std::shared_ptr<CGovernanceObject> FindGovernanceObjectByDataHash(const uint256& nDataHash) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     std::vector<std::shared_ptr<const CGovernanceObject>> GetApprovedProposals(const CDeterministicMNList& tip_mn_list) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
@@ -368,7 +368,7 @@ public:
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     bool SerializeVoteForHash(const uint256& nHash, CDataStream& ss) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
-    CGovernanceObject* FindGovernanceObject(const uint256& nHash) override
+    std::shared_ptr<CGovernanceObject> FindGovernanceObject(const uint256& nHash) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
     int GetVoteCount() const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
@@ -377,7 +377,7 @@ public:
     void AddPostponedObject(const CGovernanceObject& govobj)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
 
-    const CGovernanceObject* FindConstGovernanceObject(const uint256& nHash) const
+    std::shared_ptr<const CGovernanceObject> FindConstGovernanceObject(const uint256& nHash) const
         EXCLUSIVE_LOCKS_REQUIRED(!cs_store);
 
 private:
@@ -394,12 +394,12 @@ private:
     bool GetBestSuperblockInternal(const CDeterministicMNList& tip_mn_list, CSuperblock_sptr& pSuperblockRet,
                                    int nBlockHeight)
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
-    CGovernanceObject* FindGovernanceObjectInternal(const uint256& nHash)
+    std::shared_ptr<CGovernanceObject> FindGovernanceObjectInternal(const uint256& nHash)
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
     std::vector<std::shared_ptr<CSuperblock>> GetActiveTriggersInternal() const
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
 
-    const CGovernanceObject* InternalFindConstGovernanceObject(const uint256& nHash) const
+    std::shared_ptr<const CGovernanceObject> InternalFindConstGovernanceObject(const uint256& nHash) const
         EXCLUSIVE_LOCKS_REQUIRED(cs_store);
 
     // Internal counterpart to "Signer interface"
