@@ -135,6 +135,8 @@ public:
     CGovernanceObject();
     CGovernanceObject(const uint256& nHashParentIn, int nRevisionIn, int64_t nTime, const uint256& nCollateralHashIn, const std::string& strDataHexIn);
     CGovernanceObject(const CGovernanceObject& other);
+    template <typename Stream>
+    CGovernanceObject(deserialize_type, Stream& s) { s >> *this; }
 
     // Getters
     bool IsSetCachedFunding() const { return fCachedFunding; }
