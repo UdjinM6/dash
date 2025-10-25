@@ -128,7 +128,7 @@ std::optional<const CGovernanceObject> GovernanceSigner::CreateGovernanceTrigger
 
     // Check if identical trigger (equal DataHash()) is already created (signed by other masternode)
     CGovernanceObject gov_sb(uint256(), 1, GetAdjustedTime(), uint256(), sb_opt.value().GetHexStrData());
-    if (auto identical_sb = m_govman.FindGovernanceObjectByDataHash(gov_sb.GetDataHash())) {
+    if (const auto& identical_sb = m_govman.FindGovernanceObjectByDataHash(gov_sb.GetDataHash())) {
         // Somebody submitted a trigger with the same data, support it instead of submitting a duplicate
         return std::make_optional<CGovernanceObject>(*identical_sb);
     }
@@ -214,7 +214,7 @@ void GovernanceSigner::VoteGovernanceTriggers(const std::optional<const CGoverna
     // Vote NO-FUNDING for the rest of the active triggers
     const auto activeTriggers = m_govman.GetActiveTriggers();
     for (const auto& trigger : activeTriggers) {
-        const auto govobj = m_govman.FindGovernanceObject(trigger->GetGovernanceObjHash());
+        const auto& govobj = m_govman.FindGovernanceObject(trigger->GetGovernanceObjHash());
         if (!govobj) {
             LogPrint(BCLog::GOBJECT, "%s -- Not voting NO-FUNDING for unknown trigger %s\n", __func__,
                      trigger->GetGovernanceObjHash().ToString());
