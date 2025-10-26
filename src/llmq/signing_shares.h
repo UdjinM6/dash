@@ -470,6 +470,11 @@ public:
                                                             const CSigSharesNodeState::SessionInfo& session,
                                                             const CBatchedSigShares& batchedSigShares);
 
+    // Validates the structure of batched sig shares (duplicates, bounds, member validity)
+    // This is extracted for testability - it's the pure validation logic without external dependencies
+    static PreVerifyBatchedResult ValidateBatchedSigSharesStructure(const CQuorum& quorum,
+                                                                     const CBatchedSigShares& batchedSigShares);
+
 private:
     // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages)
     bool ProcessMessageSigSesAnn(const CNode& pfrom, const CSigSesAnn& ann);
