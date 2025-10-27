@@ -522,7 +522,7 @@ void CGovernanceManager::CheckAndRemove()
             // Remove vote references
             const object_ref_cm_t::list_t& listItems = cmapVoteToObject.GetItemList();
             for (auto lit = listItems.begin(); lit != listItems.end();) {
-                if (lit->value && pObj && lit->value->GetHash() == pObj->GetHash()) {
+                if (lit->value == pObj) {
                     uint256 nKey = lit->key;
                     ++lit;
                     cmapVoteToObject.Erase(nKey);
