@@ -5,7 +5,6 @@
 """Tests governance checks can be skipped for blocks covered by the best chainlock."""
 
 import json
-import time
 
 from test_framework.governance import have_trigger_for_height
 from test_framework.messages import uint256_to_string
@@ -136,12 +135,25 @@ class DashGovernanceTest (DashTestFramework):
         assert not have_trigger_for_height(self.nodes[0:5], sb_block_height + sb_cycle)
         self.bump_mocktime(156)
         self.generate(self.nodes[0], 1, sync_fun=lambda: self.sync_blocks(self.nodes[0:5]))
+
+        self.log.info("Bump time to trigger governance cleanup")
         # Trigger scheduler to mark old triggers for deletion
-        self.bump_mocktime(5 * 60)
-        # Let it do the job
-        time.sleep(1)
+        delta = 5 * 60
+        self.mocktime += delta
+        for node in self.nodes:
+            with node.assert_debug_log(expected_msgs=['UpdateCachesAndClean']):
+                node.mocktime = self.mocktime
+                node.setmocktime(self.mocktime)
+                node.mockscheduler(delta)
         # Move forward to satisfy GOVERNANCE_DELETION_DELAY, should actually remove old triggers now
-        self.bump_mocktime(10 * 60)
+        delta = 10 * 60
+        self.mocktime += delta
+        for node in self.nodes:
+            with node.assert_debug_log(expected_msgs=['UpdateCachesAndClean -- Governance Objects: 0']):
+                # Trigger scheduler to mark old triggers for deletion
+                node.mocktime = self.mocktime
+                node.setmocktime(self.mocktime)
+                node.mockscheduler(delta)
         self.wait_until(lambda: len(self.nodes[0].gobject("list", "valid", "triggers")) == 0, timeout=5)
 
         self.log.info("Reconnect isolated node and confirm the next ChainLock will let it sync")
