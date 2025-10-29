@@ -1324,7 +1324,7 @@ public:
         });
     }
 
-    bool IsMasternodeOrDisconnectRequested(const CService& addr) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
+    bool IsMasternodeOrDisconnectRequested(const CService& addr) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
 
     void PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
         EXCLUSIVE_LOCKS_REQUIRED(!mutexMsgProc, !m_total_bytes_sent_mutex);
@@ -1634,17 +1634,6 @@ private:
 
     uint64_t CalculateKeyedNetGroup(const CAddress& ad) const;
 
-    const CNode* FindNodeLocked(const CNetAddr& ip, bool fExcludeDisconnecting = true) const SHARED_LOCKS_REQUIRED(m_nodes_mutex);
-    const CNode* FindNodeLocked(const std::string& addrName, bool fExcludeDisconnecting = true) const SHARED_LOCKS_REQUIRED(m_nodes_mutex);
-    const CNode* FindNodeLocked(const CService& addr, bool fExcludeDisconnecting = true) const SHARED_LOCKS_REQUIRED(m_nodes_mutex);
-    const CNode* FindNodeLocked(NodeId id, bool fExcludeDisconnecting = true) const SHARED_LOCKS_REQUIRED(m_nodes_mutex);
-
-    // Mutable find helpers for callers that already hold the exclusive lock
-    CNode* FindNodeLockedMutable(const CNetAddr& ip, bool fExcludeDisconnecting = true) EXCLUSIVE_LOCKS_REQUIRED(m_nodes_mutex);
-    CNode* FindNodeLockedMutable(const std::string& addrName, bool fExcludeDisconnecting = true) EXCLUSIVE_LOCKS_REQUIRED(m_nodes_mutex);
-    CNode* FindNodeLockedMutable(const CService& addr, bool fExcludeDisconnecting = true) EXCLUSIVE_LOCKS_REQUIRED(m_nodes_mutex);
-    CNode* FindNodeLockedMutable(NodeId id, bool fExcludeDisconnecting = true) EXCLUSIVE_LOCKS_REQUIRED(m_nodes_mutex);
-
     // Type-agnostic node matching helpers
     static inline bool NodeMatches(const CNode* p, const CService& addr)
     {
@@ -1664,9 +1653,21 @@ private:
     }
 
     template<typename Key>
-    const CNode* FindNodeLockedBy(const Key& key, bool fExcludeDisconnecting = true) const SHARED_LOCKS_REQUIRED(m_nodes_mutex)
+    const CNode* FindNode(const Key& key, bool fExcludeDisconnecting = true) const SHARED_LOCKS_REQUIRED(m_nodes_mutex)
     {
+        AssertSharedLockHeld(m_nodes_mutex);
         for (const CNode* pnode : m_nodes) {
+            if (fExcludeDisconnecting && pnode->fDisconnect) continue;
+            if (NodeMatches(pnode, key)) return pnode;
+        }
+        return nullptr;
+    }
+
+    template<typename Key>
+    CNode* FindNodeMutable(const Key& key, bool fExcludeDisconnecting = true) SHARED_LOCKS_REQUIRED(m_nodes_mutex)
+    {
+        AssertSharedLockHeld(m_nodes_mutex);
+        for (CNode* pnode : m_nodes) {
             if (fExcludeDisconnecting && pnode->fDisconnect) continue;
             if (NodeMatches(pnode, key)) return pnode;
         }
@@ -1676,27 +1677,19 @@ private:
     // Callback helpers with explicit lock semantics (templated on key type)
     // Lambda-based shared accessor returning optional result (nullopt = not found)
     template<typename Key, typename Callable>
-    std::optional<std::invoke_result_t<Callable, const CNode*>> WithNodeShared(const Key& key, Callable&& fn) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
+    std::optional<std::invoke_result_t<Callable, CNode*>> WithNodeMutable(const Key& key, Callable&& fn) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
     {
         READ_LOCK(m_nodes_mutex);
-        if (const CNode* p = FindNodeLockedBy(key)) return std::optional<std::invoke_result_t<Callable, const CNode*>>{fn(p)};
+        if (CNode* p = FindNodeMutable(key)) return std::optional<std::invoke_result_t<Callable, CNode*>>{fn(p)};
         return std::nullopt;
     }
 
     // Fast existence check under shared lock
     template<typename Key>
-    bool ExistsNodeShared(const Key& key) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
+    bool ExistsNode(const Key& key) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
     {
         READ_LOCK(m_nodes_mutex);
-        return FindNodeLockedBy(key) != nullptr;
-    }
-
-    template<typename Key, typename Callable>
-    std::optional<std::invoke_result_t<Callable, CNode*>> WithNodeExclusive(const Key& key, Callable&& fn) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex)
-    {
-        READ_LOCK(m_nodes_mutex);
-        if (const CNode* cp = FindNodeLockedBy(key)) return std::optional<std::invoke_result_t<Callable, CNode*>>{fn(const_cast<CNode*>(cp))};
-        return std::nullopt;
+        return FindNode(key) != nullptr;
     }
 
     /**

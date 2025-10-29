@@ -338,88 +338,10 @@ bool IsLocal(const CService& addr)
     return mapLocalHost.count(addr) > 0;
 }
 
-// Internal FindNodeLocked - const versions do the actual work
-const CNode* CConnman::FindNodeLocked(const CNetAddr& ip, bool fExcludeDisconnecting) const
-{
-    for (const CNode* pnode : m_nodes) {
-        if (fExcludeDisconnecting && pnode->fDisconnect) {
-            continue;
-        }
-        if (static_cast<CNetAddr>(pnode->addr) == ip) {
-            return pnode;
-        }
-    }
-    return nullptr;
-}
-
-const CNode* CConnman::FindNodeLocked(const std::string& addrName, bool fExcludeDisconnecting) const
-{
-    for (const CNode* pnode : m_nodes) {
-        if (fExcludeDisconnecting && pnode->fDisconnect) {
-            continue;
-        }
-        if (pnode->m_addr_name == addrName) {
-            return pnode;
-        }
-    }
-    return nullptr;
-}
-
-const CNode* CConnman::FindNodeLocked(const CService& addr, bool fExcludeDisconnecting) const
-{
-    for (const CNode* pnode : m_nodes) {
-        if (fExcludeDisconnecting && pnode->fDisconnect) {
-            continue;
-        }
-        if (static_cast<CService>(pnode->addr) == addr) {
-            return pnode;
-        }
-    }
-    return nullptr;
-}
-
-const CNode* CConnman::FindNodeLocked(NodeId id, bool fExcludeDisconnecting) const
-{
-    for (const CNode* pnode : m_nodes) {
-        if (fExcludeDisconnecting && pnode->fDisconnect) {
-            continue;
-        }
-        if (pnode->GetId() == id) {
-            return pnode;
-        }
-    }
-    return nullptr;
-}
-
-CNode* CConnman::FindNodeLockedMutable(const CNetAddr& ip, bool fExcludeDisconnecting)
-{
-    AssertLockHeld(m_nodes_mutex);
-    return const_cast<CNode*>(FindNodeLocked(ip, fExcludeDisconnecting));
-}
-
-CNode* CConnman::FindNodeLockedMutable(const std::string& addrName, bool fExcludeDisconnecting)
-{
-    AssertLockHeld(m_nodes_mutex);
-    return const_cast<CNode*>(FindNodeLocked(addrName, fExcludeDisconnecting));
-}
-
-CNode* CConnman::FindNodeLockedMutable(const CService& addr, bool fExcludeDisconnecting)
-{
-    AssertLockHeld(m_nodes_mutex);
-    return const_cast<CNode*>(FindNodeLocked(addr, fExcludeDisconnecting));
-}
-
-CNode* CConnman::FindNodeLockedMutable(NodeId id, bool fExcludeDisconnecting)
-{
-    AssertLockHeld(m_nodes_mutex);
-    return const_cast<CNode*>(FindNodeLocked(id, fExcludeDisconnecting));
-}
-
-
 bool CConnman::AlreadyConnectedToAddress(const CAddress& addr) const
 {
     READ_LOCK(m_nodes_mutex);
-    return FindNodeLocked(static_cast<CService>(addr)) != nullptr;
+    return FindNode(static_cast<CService>(addr)) != nullptr;
 }
 
 bool CConnman::CheckIncomingNonce(uint64_t nonce) const
@@ -457,8 +379,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         }
 
         // Look for an existing connection
-        if (WithNodeShared(static_cast<CService>(addrConnect), [](const CNode*){ return true; }))
-        {
+        if (ExistsNode(static_cast<CService>(addrConnect))) {
             LogPrintf("Failed to open new connection, already connected\n");
             return nullptr;
         }
@@ -493,7 +414,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
                 }
                 // It is possible that we already have a connection to the IP/port pszDest resolved to.
                 // In that case, drop the connection that was just created.
-                if (ExistsNodeShared(static_cast<CService>(addrConnect))) {
+                if (ExistsNode(static_cast<CService>(addrConnect))) {
                     LogPrintf("Not opening a connection to %s, already connected to %s\n", pszDest, addrConnect.ToStringAddrPort());
                     return nullptr;
                 }
@@ -1882,7 +1803,7 @@ bool CConnman::AttemptToEvictConnection()
     if (!node_id_to_evict) {
         return false;
     }
-    return WithNodeExclusive(*node_id_to_evict, [](CNode* pnode){
+    return WithNodeMutable(*node_id_to_evict, [](CNode* pnode){
         LogPrint(BCLog::NET_NETCONN, "selected %s connection for eviction peer=%d; disconnecting\n", pnode->ConnectionTypeAsString(), pnode->GetId());
         pnode->fDisconnect = true;
         return true;
@@ -3447,52 +3368,53 @@ void CConnman::ThreadOpenMasternodeConnections(CDeterministicMNManager& dmnman, 
 
         MasternodeProbeConn isProbe = MasternodeProbeConn::IsNotConnection;
 
-        const auto getPendingQuorumNodes = [&]() EXCLUSIVE_LOCKS_REQUIRED(m_nodes_mutex, cs_vPendingMasternodes) {
-            AssertLockHeld(m_nodes_mutex);
+        const auto getPendingQuorumNodes = [&]() SHARED_LOCKS_REQUIRED(m_nodes_mutex) EXCLUSIVE_LOCKS_REQUIRED(cs_vPendingMasternodes) {
+            AssertSharedLockHeld(m_nodes_mutex);
             AssertLockHeld(cs_vPendingMasternodes);
             std::vector<CDeterministicMNCPtr> ret;
             for (const auto& group : masternodeQuorumNodes) {
                 for (const auto& proRegTxHash : group.second) {
+                    if (connectedProRegTxHashes.count(proRegTxHash)) {
+                        continue;
+                    }
                     auto dmn = mnList.GetMN(proRegTxHash);
                     if (!dmn) {
                         continue;
                     }
                     const auto addr2 = dmn->pdmnState->netInfo->GetPrimary();
-                    if (connectedNodes.count(addr2) && !connectedProRegTxHashes.count(proRegTxHash)) {
+                    CNode* pnode = FindNodeMutable(addr2);
+                    if (pnode && pnode->m_masternode_connection) {
+                        // node is masternode, skip it
+                        continue;
+                    }
+                    if (connectedNodes.count(addr2)) {
                         // we probably connected to it before it became a masternode
                         // or maybe we are still waiting for mnauth
-                        // Use shared access since we already hold m_nodes_mutex
-                        bool slowHandshake = false;
-                        if (const CNode* pnode = FindNodeLocked(addr2)) {
-                            slowHandshake = pnode->nTimeFirstMessageReceived.load() != 0s && GetTime<std::chrono::seconds>() - pnode->nTimeFirstMessageReceived.load() > 5s;
-                        }
-                        if (slowHandshake) {
+                        bool slow_handshake = pnode && pnode->nTimeFirstMessageReceived.load() != 0s &&
+                                             GetTime<std::chrono::seconds>() - pnode->nTimeFirstMessageReceived.load() > 5s;
+                        if (slow_handshake) {
                             // clearly not expecting mnauth to take that long even if it wasn't the first message
                             // we received (as it should normally), disconnect
-                            LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- dropping non-mnauth connection to %s, service=%s\n", _func_, proRegTxHash.ToString(), addr2.ToStringAddrPort());
-                            if (CNode* p2 = FindNodeLockedMutable(addr2)) { p2->fDisconnect = true; }
+                            LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- dropping non-mnauth connection to %s, service=%s\n",
+                                                         _func_, proRegTxHash.ToString(), addr2.ToStringAddrPort());
+                            pnode->fDisconnect = true;
                         }
                         // either way - it's not ready, skip it for now
                         continue;
                     }
-                    // Check if node is masternode or disconnect requested using FindNodeLocked
-                    const CNode* existingNode = FindNodeLocked(addr2);
-                    bool isDisconnectRequested = existingNode && (existingNode->m_masternode_connection || existingNode->fDisconnect);
-                    if (!connectedNodes.count(addr2) && !isDisconnectRequested && !connectedProRegTxHashes.count(proRegTxHash)) {
-                        int64_t lastAttempt = mn_metaman.GetMetaInfo(dmn->proTxHash)->GetLastOutboundAttempt();
-                        // back off trying connecting to an address if we already tried recently
-                        if (nANow - lastAttempt < chainParams.LLMQConnectionRetryTimeout()) {
-                            continue;
-                        }
-                        ret.emplace_back(dmn);
+                    // back off connecting to an address if we already tried recently
+                    int64_t last_attempt = mn_metaman.GetMetaInfo(dmn->proTxHash)->GetLastOutboundAttempt();
+                    if (nANow - last_attempt < chainParams.LLMQConnectionRetryTimeout()) {
+                        continue;
                     }
+                    // all checks passed
+                    ret.emplace_back(dmn);
                 }
             }
             return ret;
         };
 
-        const auto getPendingProbes = [&]() EXCLUSIVE_LOCKS_REQUIRED(m_nodes_mutex, cs_vPendingMasternodes) {
-            AssertLockHeld(m_nodes_mutex);
+        const auto getPendingProbes = [&]() EXCLUSIVE_LOCKS_REQUIRED(cs_vPendingMasternodes) {
             AssertLockHeld(cs_vPendingMasternodes);
             std::vector<CDeterministicMNCPtr> ret;
             for (auto it = masternodePendingProbes.begin(); it != masternodePendingProbes.end(); ) {
@@ -3523,24 +3445,23 @@ void CConnman::ThreadOpenMasternodeConnections(CDeterministicMNManager& dmnman, 
 
         auto getConnectToDmn = [&]() -> CDeterministicMNCPtr {
             // don't hold lock while calling OpenMasternodeConnection as cs_main is locked deep inside
-            LOCK2(m_nodes_mutex, cs_vPendingMasternodes);
+            READ_LOCK(m_nodes_mutex);
+            LOCK(cs_vPendingMasternodes);
 
             if (!vPendingMasternodes.empty()) {
                 auto dmn = mnList.GetValidMN(vPendingMasternodes.front());
                 vPendingMasternodes.erase(vPendingMasternodes.begin());
                 // Check if we should connect to this masternode
-                // We already hold m_nodes_mutex here, so check fDisconnect and m_masternode_connection directly
-                bool shouldConnect = true;
+                // We already hold m_nodes_mutex here, so check m_masternode_connection directly
                 if (dmn && !connectedNodes.count(dmn->pdmnState->netInfo->GetPrimary())) {
-                    bool anyBad = false;
-                    if (const CNode* pnode = FindNodeLocked(dmn->pdmnState->netInfo->GetPrimary())) {
-                        anyBad = pnode->m_masternode_connection || pnode->fDisconnect;
+                    if (const CNode* pnode = FindNode(dmn->pdmnState->netInfo->GetPrimary())) {
+                        if (!pnode->m_masternode_connection) {
+                            LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- opening pending masternode connection to %s, service=%s\n",
+                                                         _func_, dmn->proTxHash.ToString(),
+                                                         dmn->pdmnState->netInfo->GetPrimary().ToStringAddrPort());
+                            return dmn;
+                        }
                     }
-                    shouldConnect = !anyBad;
-                }
-                if (dmn && shouldConnect) {
-                    LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- opening pending masternode connection to %s, service=%s\n", _func_, dmn->proTxHash.ToString(), dmn->pdmnState->netInfo->GetPrimary().ToStringAddrPort());
-                    return dmn;
                 }
             }
 
@@ -3626,8 +3547,9 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         if (addrConnect.GetPort() == GetListenPort() && IsLocal(addrConnect)) {
             return;
         }
-    } else if (WithNodeShared(std::string(pszDest), [](const CNode*){ return true; }))
+    } else if (ExistsNode(std::string(pszDest))) {
         return;
+    }
 
     LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- connecting to %s\n", __func__, getIpStr());
     CNode* pnode = ConnectNode(addrConnect, pszDest, fCountFailure, conn_type, use_v2transport);
@@ -4533,7 +4455,7 @@ void CConnman::GetNodeStats(std::vector<CNodeStats>& vstats) const
 
 bool CConnman::DisconnectNode(const std::string& strNode)
 {
-    return WithNodeExclusive(strNode, [&](CNode* pnode){
+    return WithNodeMutable(strNode, [&](CNode* pnode){
         LogPrint(BCLog::NET_NETCONN, "disconnect by address%s matched peer=%d; disconnecting\n", (fLogIPs ? strprintf("=%s", strNode) : ""), pnode->GetId());
         pnode->fDisconnect = true;
         return true;
@@ -4561,7 +4483,7 @@ bool CConnman::DisconnectNode(const CNetAddr& addr)
 
 bool CConnman::DisconnectNode(NodeId id)
 {
-    return WithNodeExclusive(id, [&](CNode* pnode){
+    return WithNodeMutable(id, [&](CNode* pnode){
         LogPrint(BCLog::NET_NETCONN, "disconnect by id peer=%d; disconnecting\n", pnode->GetId());
         pnode->fDisconnect = true;
         return true;
@@ -4816,50 +4738,33 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
 bool CConnman::ForNode(const CService& addr, std::function<bool(const CNode* pnode)> cond, std::function<bool(CNode* pnode)> func)
 {
     READ_LOCK(m_nodes_mutex);
-    CNode* found = nullptr;
-    for (auto&& pnode : m_nodes) {
-        if((CService)pnode->addr == addr) {
-            found = pnode;
-            break;
-        }
-    }
+    CNode* found = FindNodeMutable(addr, false);
     return found != nullptr && cond(found) && func(found);
 }
 
 bool CConnman::ForNode(const CService& addr, std::function<bool(const CNode* pnode)> cond, std::function<bool(const CNode* pnode)> func) const
 {
     READ_LOCK(m_nodes_mutex);
-    const CNode* found = FindNodeLockedBy(addr, false);
-    return found != nullptr && cond(found) && func(found);
-}
-
-bool CConnman::ForNode(NodeId id, std::function<bool(const CNode* pnode)> cond, std::function<bool(const CNode* pnode)> func) const
-{
-    CNode* found = nullptr;
-    READ_LOCK(m_nodes_mutex);
-    for (auto&& pnode : m_nodes) {
-        if(pnode->GetId() == id) {
-            found = pnode;
-            break;
-        }
-    }
+    const CNode* found = FindNode(addr, false);
     return found != nullptr && cond(found) && func(found);
 }
 
 bool CConnman::ForNode(NodeId id, std::function<bool(const CNode* pnode)> cond, std::function<bool(CNode* pnode)> func)
 {
-    CNode* found = nullptr;
     READ_LOCK(m_nodes_mutex);
-    for (auto&& pnode : m_nodes) {
-        if(pnode->GetId() == id) {
-            found = pnode;
-            break;
-        }
-    }
+    CNode* found = FindNodeMutable(id, false);
     return found != nullptr && cond(found) && func(found);
 }
 
-bool CConnman::IsMasternodeOrDisconnectRequested(const CService& addr) {
+bool CConnman::ForNode(NodeId id, std::function<bool(const CNode* pnode)> cond, std::function<bool(const CNode* pnode)> func) const
+{
+    READ_LOCK(m_nodes_mutex);
+    const CNode* found = FindNode(id, false);
+    return found != nullptr && cond(found) && func(found);
+}
+
+bool CConnman::IsMasternodeOrDisconnectRequested(const CService& addr) const
+{
     return ForNode(addr, AllNodes, [](const CNode* pnode){
         return pnode->m_masternode_connection || pnode->fDisconnect;
     });
