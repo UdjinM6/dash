@@ -51,6 +51,7 @@ jobs:
           build-args: |
             USER_ID=${{ steps.prepare.outputs.host_user_id }}
             GROUP_ID=${{ steps.prepare.outputs.host_group_id }}
+            guix_download_path=https://gnu.mirror.constant.com/guix
           build-contexts: |
             docker_root=${{ github.workspace }}/dash/contrib/containers/guix
           file: ./dash/contrib/containers/guix/Dockerfile
