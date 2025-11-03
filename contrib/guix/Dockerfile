@@ -2,7 +2,6 @@ FROM alpine:3.17
 
 RUN apk --no-cache --update add \
       bash \
-      bzip2 \
       ca-certificates \
       curl \
       git \
