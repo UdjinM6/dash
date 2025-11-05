@@ -14,7 +14,7 @@ static constexpr int MASTERNODE_MAX_FAILED_OUTBOUND_ATTEMPTS{5};
 static constexpr int MASTERNODE_MAX_MIXING_TXES{5};
 
 namespace {
-static const CMasternodeMetaInfo default_meta_info_meta_info{};
+static const CMasternodeMetaInfo default_meta_info{};
 } // anonymous namespace
 
 CMasternodeMetaMan::CMasternodeMetaMan() :
@@ -70,7 +70,7 @@ void CMasternodeMetaInfo::RemoveGovernanceObject(const uint256& nGovernanceObjec
 const CMasternodeMetaInfo& CMasternodeMetaMan::GetMetaInfoOrDefault(const uint256& protx_hash) const
 {
     const auto it = metaInfos.find(protx_hash);
-    if (it == metaInfos.end()) return default_meta_info_meta_info;
+    if (it == metaInfos.end()) return default_meta_info;
     return it->second;
 }
 
@@ -109,11 +109,9 @@ bool CMasternodeMetaMan::IsDsqOver(const uint256& protx_hash, int mn_count) cons
 
 void CMasternodeMetaMan::AllowMixing(const uint256& proTxHash)
 {
-    nDsqCount++;
-
     LOCK(cs);
     auto& mm = GetMetaInfo(proTxHash);
-    mm.m_last_dsq = nDsqCount.load();
+    mm.m_last_dsq = ++nDsqCount;
     mm.m_mixing_tx_count = 0;
 }
 
@@ -138,8 +136,8 @@ void CMasternodeMetaMan::AddGovernanceVote(const uint256& proTxHash, const uint2
 void CMasternodeMetaMan::RemoveGovernanceObject(const uint256& nGovernanceObjectHash)
 {
     LOCK(cs);
-    for (auto& p : metaInfos) {
-        p.second.RemoveGovernanceObject(nGovernanceObjectHash);
+    for (auto& [_, meta_info] : metaInfos) {
+        meta_info.RemoveGovernanceObject(nGovernanceObjectHash);
     }
 }
 

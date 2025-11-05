@@ -676,7 +676,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
             const auto opt_proTx = GetTxPayload<CProUpServTx>(tx);
             if (!opt_proTx) continue; // should not happen but does not matter
 
-            if (m_mn_metaman.ResetPlatformBan(opt_proTx->proTxHash, nHeight)) {
+            if (!m_mn_metaman.ResetPlatformBan(opt_proTx->proTxHash, nHeight)) {
                 LogPrint(BCLog::LLMQ, "%s -- MN %s is failed to Platform revived at height %d\n", __func__,
                          opt_proTx->proTxHash.ToString(), nHeight);
             }
