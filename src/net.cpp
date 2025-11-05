@@ -3403,7 +3403,7 @@ void CConnman::ThreadOpenMasternodeConnections(CDeterministicMNManager& dmnman, 
                         continue;
                     }
                     // back off connecting to an address if we already tried recently
-                    int64_t last_attempt = mn_metaman.GetMetaInfo(dmn->proTxHash)->GetLastOutboundAttempt();
+                    int64_t last_attempt = mn_metaman.GetLastOutboundAttempt(dmn->proTxHash);
                     if (nANow - last_attempt < chainParams.LLMQConnectionRetryTimeout()) {
                         continue;
                     }
@@ -3426,14 +3426,14 @@ void CConnman::ThreadOpenMasternodeConnections(CDeterministicMNManager& dmnman, 
                 bool connectedAndOutbound = connectedProRegTxHashes.count(dmn->proTxHash) && !connectedProRegTxHashes[dmn->proTxHash];
                 if (connectedAndOutbound) {
                     // we already have an outbound connection to this MN so there is no theed to probe it again
-                    mn_metaman.GetMetaInfo(dmn->proTxHash)->SetLastOutboundSuccess(nANow);
+                    mn_metaman.SetLastOutboundSuccess(dmn->proTxHash, nANow);
                     it = masternodePendingProbes.erase(it);
                     continue;
                 }
 
                 ++it;
 
-                int64_t lastAttempt = mn_metaman.GetMetaInfo(dmn->proTxHash)->GetLastOutboundAttempt();
+                int64_t lastAttempt = mn_metaman.GetLastOutboundAttempt(dmn->proTxHash);
                 // back off trying connecting to an address if we already tried recently
                 if (nANow - lastAttempt < chainParams.LLMQConnectionRetryTimeout()) {
                     continue;
@@ -3493,7 +3493,7 @@ void CConnman::ThreadOpenMasternodeConnections(CDeterministicMNManager& dmnman, 
 
         didConnect = true;
 
-        mn_metaman.GetMetaInfo(connectToDmn->proTxHash)->SetLastOutboundAttempt(nANow);
+        mn_metaman.SetLastOutboundAttempt(connectToDmn->proTxHash, nANow);
 
         OpenMasternodeConnection(CAddress(connectToDmn->pdmnState->netInfo->GetPrimary(), NODE_NETWORK), /*use_v2transport=*/GetLocalServices() & NODE_P2P_V2, isProbe);
         // should be in the list now if connection was opened
@@ -3506,7 +3506,7 @@ void CConnman::ThreadOpenMasternodeConnections(CDeterministicMNManager& dmnman, 
         if (!connected) {
             LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- connection failed for masternode  %s, service=%s\n", __func__, connectToDmn->proTxHash.ToString(), connectToDmn->pdmnState->netInfo->GetPrimary().ToStringAddrPort());
             // Will take a few consequent failed attempts to PoSe-punish a MN.
-            if (mn_metaman.GetMetaInfo(connectToDmn->proTxHash)->OutboundFailedTooManyTimes()) {
+            if (mn_metaman.OutboundFailedTooManyTimes(connectToDmn->proTxHash)) {
                 LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- failed to connect to masternode %s too many times\n", __func__, connectToDmn->proTxHash.ToString());
             }
         }

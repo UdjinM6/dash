@@ -1379,8 +1379,7 @@ static UniValue BuildDMNListEntry(const CWallet* const pwallet, const CDetermini
     }
 #endif
 
-    const auto metaInfo = mn_metaman.GetMetaInfo(dmn.proTxHash);
-    o.pushKV("metaInfo", metaInfo->ToJson());
+    o.pushKV("metaInfo", mn_metaman.GetInfo(dmn.proTxHash).ToJson());
 
     return o;
 }
