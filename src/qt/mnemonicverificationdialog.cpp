@@ -115,17 +115,14 @@ void MnemonicVerificationDialog::setupStep1()
     // Compact to content
     adjustSize();
 
-    // Match visual hierarchy and tone of the improved mock
-    QString warningStyle = QString("font-size:17px; font-weight:700; ") + GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_ERROR);
-    QString instructionStyle = QString("font-size:14px; ") + GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_PRIMARY);
+    // Set warning and instruction text with themed colors
+    // Font sizes and weights are defined in general.css
     ui->warningLabel->setText(
-        tr("<span style='%1'>WARNING: If you lose your mnemonic seed phrase, you will lose access to your wallet forever. Write it down in a safe place and never share it with anyone.</span>")
-        .arg(warningStyle)
-    );
+        tr("WARNING: If you lose your mnemonic seed phrase, you will lose access to your wallet forever. Write it down in a safe place and never share it with anyone."));
+    ui->warningLabel->setStyleSheet(GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_ERROR));
+
     ui->instructionLabel->setText(
-        tr("<span style='%1'>Please write down these words in order. You will need them to restore your wallet.</span>")
-        .arg(instructionStyle)
-    );
+        tr("Please write down these words in order. You will need them to restore your wallet."));
 
     // Reduce extra padding to avoid an over-padded look
     if (auto outer = findChild<QVBoxLayout*>("verticalLayout_step1")) {
@@ -166,12 +163,7 @@ void MnemonicVerificationDialog::setupStep2()
     ui->word1Edit->clear();
     ui->word2Edit->clear();
     ui->word3Edit->clear();
-    ui->word1Edit->setMaximumWidth(320);
-    ui->word2Edit->setMaximumWidth(320);
-    ui->word3Edit->setMaximumWidth(320);
-    ui->word1Status->setMinimumWidth(18);
-    ui->word2Status->setMinimumWidth(18);
-    ui->word3Status->setMinimumWidth(18);
+    // Widget sizes are defined in general.css
 
     ui->word1Label->setText(tr("Word #%1:").arg(m_selected_positions[0]));
     ui->word2Label->setText(tr("Word #%1:").arg(m_selected_positions[1]));
@@ -191,10 +183,7 @@ void MnemonicVerificationDialog::setupStep2()
     if (QAbstractButton* cont = ui->buttonBox->button(QDialogButtonBox::Ok)) cont->setEnabled(false);
     if (ui->showMnemonicAgainButton) ui->showMnemonicAgainButton->hide();
 
-    // Ensure verification label has minimal top spacing
-    if (ui->verificationLabel) {
-        ui->verificationLabel->setStyleSheet("QLabel { margin-top: 0px; margin-bottom: 4px; }");
-    }
+    // Verification label styling is defined in general.css
 
     // Hide any existing title label if present
     if (auto titleLabel = findChild<QLabel*>("verifyTitleLabel")) {
@@ -303,16 +292,15 @@ void MnemonicVerificationDialog::updateWordValidation()
     const bool ok2 = !t2.isEmpty() && validateWord(t2, m_selected_positions[1]);
     const bool ok3 = !t3.isEmpty() && validateWord(t3, m_selected_positions[2]);
 
+    // Status labels show checkmarks/X marks with themed colors
+    // Font weight is defined in general.css
     auto setStatus = [](QLabel* lbl, bool filled, bool valid) {
         if (!lbl) return;
         if (!filled) { lbl->clear(); lbl->setStyleSheet(""); return; }
-        if (valid) {
-            lbl->setText("✓");
-            lbl->setStyleSheet(QString("QLabel { %1 font-weight: 700; }").arg(GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_SUCCESS)));
-        } else {
-            lbl->setText("✗");
-            lbl->setStyleSheet(QString("QLabel { %1 font-weight: 700; }").arg(GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_ERROR)));
-        }
+        lbl->setText(valid ? "✓" : "✗");
+        lbl->setStyleSheet(valid ?
+            GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_SUCCESS) :
+            GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_ERROR));
     };
     setStatus(ui->word1Status, !t1.isEmpty(), ok1);
     setStatus(ui->word2Status, !t2.isEmpty(), ok2);
@@ -405,7 +393,7 @@ void MnemonicVerificationDialog::buildMnemonicGrid(bool reveal)
         const int columns = (n >= 24) ? 4 : 3;
         const int rows = (n + columns - 1) / columns;
 
-        QFont mono; mono.setStyleHint(QFont::Monospace); mono.setFamily("Monospace"); mono.setPointSize(13);
+        // Font styling is defined in general.css
         m_gridLayout->setContentsMargins(6, 2, 6, 8);
         m_gridLayout->setHorizontalSpacing(32);
         m_gridLayout->setVerticalSpacing(7);
@@ -415,7 +403,6 @@ void MnemonicVerificationDialog::buildMnemonicGrid(bool reveal)
                 int idx = r * columns + c; if (idx >= n) break;
                 const QString text = QString("%1. •••••••").arg(idx + 1, 2);
                 QLabel* lbl = new QLabel(text);
-                lbl->setFont(mono);
                 lbl->setTextInteractionFlags(Qt::TextSelectableByMouse);
                 m_gridLayout->addWidget(lbl, r, c);
             }
@@ -430,7 +417,7 @@ void MnemonicVerificationDialog::buildMnemonicGrid(bool reveal)
     const int columns = (n >= 24) ? 4 : 3;
     const int rows = (n + columns - 1) / columns;
 
-    QFont mono; mono.setStyleHint(QFont::Monospace); mono.setFamily("Monospace"); mono.setPointSize(13);
+    // Font styling is defined in general.css
     m_gridLayout->setContentsMargins(6, 2, 6, 8);
     m_gridLayout->setHorizontalSpacing(32);
     m_gridLayout->setVerticalSpacing(7);
@@ -440,7 +427,6 @@ void MnemonicVerificationDialog::buildMnemonicGrid(bool reveal)
             int idx = r * columns + c; if (idx >= n) break;
             const QString text = QString("%1. %2").arg(idx + 1, 2).arg(words[idx]);
             QLabel* lbl = new QLabel(text);
-            lbl->setFont(mono);
             lbl->setTextInteractionFlags(Qt::TextSelectableByMouse);
             m_gridLayout->addWidget(lbl, r, c);
         }
