@@ -23,11 +23,12 @@
 
 #include <algorithm>
 
-MnemonicVerificationDialog::MnemonicVerificationDialog(const SecureString& mnemonic, QWidget *parent) :
+MnemonicVerificationDialog::MnemonicVerificationDialog(const SecureString& mnemonic, QWidget *parent, bool viewOnly) :
     QDialog(parent, GUIUtil::dialog_flags),
     ui(new Ui::MnemonicVerificationDialog),
     m_mnemonic(mnemonic),
-    m_mnemonic_revealed(false)
+    m_mnemonic_revealed(false),
+    m_view_only(viewOnly)
 {
     ui->setupUi(this);
 
@@ -39,7 +40,7 @@ MnemonicVerificationDialog::MnemonicVerificationDialog(const SecureString& mnemo
     setMinimumSize(QSize(550, 360));
     resize(minimumSize());
 
-    setWindowTitle(tr("Save Your Mnemonic"));
+    setWindowTitle(m_view_only ? tr("Your Recovery Phrase") : tr("Save Your Mnemonic"));
 
     // Words will be parsed on-demand to minimize exposure time in non-secure memory
     // m_words is intentionally left empty initially
@@ -79,16 +80,19 @@ MnemonicVerificationDialog::MnemonicVerificationDialog(const SecureString& mnemo
     // Connections
     connect(ui->showMnemonicButton, &QPushButton::clicked, this, &MnemonicVerificationDialog::onShowMnemonicClicked);
     connect(ui->hideMnemonicButton,  &QPushButton::clicked, this, &MnemonicVerificationDialog::onHideMnemonicClicked);
-    connect(ui->writtenDownCheckbox, &QCheckBox::toggled, this, [this](bool checked) {
-        if (checked && m_has_ever_revealed) setupStep2();
-    });
-    connect(ui->word1Edit, &QLineEdit::textChanged, this, &MnemonicVerificationDialog::onWord1Changed);
-    connect(ui->word2Edit, &QLineEdit::textChanged, this, &MnemonicVerificationDialog::onWord2Changed);
-    connect(ui->word3Edit, &QLineEdit::textChanged, this, &MnemonicVerificationDialog::onWord3Changed);
-    connect(ui->showMnemonicAgainButton, &QPushButton::clicked, this, &MnemonicVerificationDialog::onShowMnemonicAgainClicked);
+
+    if (!m_view_only) {
+        connect(ui->writtenDownCheckbox, &QCheckBox::toggled, this, [this](bool checked) {
+            if (checked && m_has_ever_revealed) setupStep2();
+        });
+        connect(ui->word1Edit, &QLineEdit::textChanged, this, &MnemonicVerificationDialog::onWord1Changed);
+        connect(ui->word2Edit, &QLineEdit::textChanged, this, &MnemonicVerificationDialog::onWord2Changed);
+        connect(ui->word3Edit, &QLineEdit::textChanged, this, &MnemonicVerificationDialog::onWord3Changed);
+        connect(ui->showMnemonicAgainButton, &QPushButton::clicked, this, &MnemonicVerificationDialog::onShowMnemonicAgainClicked);
+    }
 
     // Button box
-    ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Continue"));
+    ui->buttonBox->button(QDialogButtonBox::Ok)->setText(m_view_only ? tr("Close") : tr("Continue"));
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &MnemonicVerificationDialog::accept);
     connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &MnemonicVerificationDialog::reject);
 
@@ -111,7 +115,20 @@ void MnemonicVerificationDialog::setupStep1()
     ui->writtenDownCheckbox->setEnabled(false);
     ui->writtenDownCheckbox->setChecked(false);
     m_mnemonic_revealed = false;
-    ui->buttonBox->hide();
+
+    // In view-only mode, hide the checkbox and show buttonBox immediately
+    if (m_view_only) {
+        ui->writtenDownCheckbox->hide();
+        ui->buttonBox->show();
+        // Hide Cancel button in view-only mode - only Close button is needed
+        if (QAbstractButton* cancelBtn = ui->buttonBox->button(QDialogButtonBox::Cancel)) {
+            cancelBtn->hide();
+        }
+    } else {
+        ui->writtenDownCheckbox->show();
+        ui->buttonBox->hide();
+    }
+
     // Restore original minimum size (in case we came back from Step 2)
     setMinimumSize(QSize(550, 360));
 
@@ -125,12 +142,19 @@ void MnemonicVerificationDialog::setupStep1()
 
     // Set warning and instruction text with themed colors
     // Font sizes and weights are defined in general.css
-    ui->warningLabel->setText(
-        tr("WARNING: If you lose your mnemonic seed phrase, you will lose access to your wallet forever. Write it down in a safe place and never share it with anyone."));
-    ui->warningLabel->setStyleSheet(GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_ERROR));
-
-    ui->instructionLabel->setText(
-        tr("Please write down these words in order. You will need them to restore your wallet."));
+    if (m_view_only) {
+        ui->warningLabel->setText(
+            tr("WARNING: Never share your recovery phrase with anyone. Store it securely offline."));
+        ui->warningLabel->setStyleSheet(GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_ERROR));
+        ui->instructionLabel->setText(
+            tr("These words can restore your wallet. Keep them safe and private."));
+    } else {
+        ui->warningLabel->setText(
+            tr("WARNING: If you lose your mnemonic seed phrase, you will lose access to your wallet forever. Write it down in a safe place and never share it with anyone."));
+        ui->warningLabel->setStyleSheet(GUIUtil::getThemedStyleQString(GUIUtil::ThemedStyle::TS_ERROR));
+        ui->instructionLabel->setText(
+            tr("Please write down these words in order. You will need them to restore your wallet."));
+    }
 
     // Reduce extra padding to avoid an over-padded look
     if (auto outer = findChild<QVBoxLayout*>("verticalLayout_step1")) {
@@ -250,7 +274,9 @@ void MnemonicVerificationDialog::onShowMnemonicClicked()
     buildMnemonicGrid(true);
     ui->showMnemonicButton->hide();
     ui->hideMnemonicButton->show();
-    ui->writtenDownCheckbox->setEnabled(true);
+    if (!m_view_only) {
+        ui->writtenDownCheckbox->setEnabled(true);
+    }
     m_mnemonic_revealed = true;
     m_has_ever_revealed = true;
 }
@@ -320,11 +346,14 @@ void MnemonicVerificationDialog::updateWordValidation()
 
 void MnemonicVerificationDialog::accept()
 {
-    if (!validateWord(ui->word1Edit->text().trimmed().toLower(), m_selected_positions[0]) ||
-        !validateWord(ui->word2Edit->text().trimmed().toLower(), m_selected_positions[1]) ||
-        !validateWord(ui->word3Edit->text().trimmed().toLower(), m_selected_positions[2])) {
-        QMessageBox::warning(this, tr("Verification Failed"), tr("One or more words are incorrect. Please try again."));
-        return;
+    // In view-only mode, skip verification
+    if (!m_view_only) {
+        if (!validateWord(ui->word1Edit->text().trimmed().toLower(), m_selected_positions[0]) ||
+            !validateWord(ui->word2Edit->text().trimmed().toLower(), m_selected_positions[1]) ||
+            !validateWord(ui->word3Edit->text().trimmed().toLower(), m_selected_positions[2])) {
+            QMessageBox::warning(this, tr("Verification Failed"), tr("One or more words are incorrect. Please try again."));
+            return;
+        }
     }
     QDialog::accept();
 }

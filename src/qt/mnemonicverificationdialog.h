@@ -20,7 +20,7 @@ class MnemonicVerificationDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit MnemonicVerificationDialog(const SecureString& mnemonic, QWidget *parent = nullptr);
+    explicit MnemonicVerificationDialog(const SecureString& mnemonic, QWidget *parent = nullptr, bool viewOnly = false);
     ~MnemonicVerificationDialog();
 
     void accept() override;
@@ -51,6 +51,7 @@ private:
     QList<int> m_selected_positions;
     bool m_mnemonic_revealed;
     bool m_has_ever_revealed{false};
+    bool m_view_only{false};
     class QGridLayout* m_gridLayout{nullptr};
     QSize m_defaultSize;
 };
