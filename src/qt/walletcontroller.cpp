@@ -293,13 +293,11 @@ void CreateWalletActivity::finish()
         }
 
         // Unlock wallet if encrypted (needed to retrieve mnemonic)
-        bool was_locked = false;
-        bool was_unlocked_for_mixing = false;
-        WalletModel::EncryptionStatus enc_status = m_wallet_model->getEncryptionStatus();
-        if (enc_status == WalletModel::Locked || enc_status == WalletModel::UnlockedForMixingOnly) {
-            was_locked = (enc_status == WalletModel::Locked);
-            was_unlocked_for_mixing = (enc_status == WalletModel::UnlockedForMixingOnly);
-            // Unlock fully (not just for mixing) to retrieve mnemonic
+        // Note: Newly created wallet can only be locked (if encrypted) or unencrypted.
+        // Mixing-only unlock state is not possible at wallet creation time.
+        const bool was_locked = (m_wallet_model->getEncryptionStatus() == WalletModel::Locked);
+        if (was_locked) {
+            // Unlock to retrieve mnemonic using passphrase from wallet creation
             if (!m_wallet_model->setWalletLocked(false, m_passphrase, false)) {
                 QMessageBox::warning(m_parent_widget, tr("Unlock failed"),
                     tr("Failed to unlock wallet for mnemonic verification. Wallet creation completed but verification skipped."));
@@ -316,7 +314,9 @@ void CreateWalletActivity::finish()
 
         if (!has_mnemonic || mnemonic.empty()) {
             // No mnemonic found - log warning and skip verification
-            restoreWalletLockState(was_locked, was_unlocked_for_mixing);
+            if (was_locked) {
+                m_wallet_model->setWalletLocked(true);
+            }
             // Clear sensitive data before showing message
             mnemonic.assign(mnemonic.size(), 0);
             mnemonic_passphrase.assign(mnemonic_passphrase.size(), 0);
@@ -340,11 +340,15 @@ void CreateWalletActivity::finish()
 
         if (verify_dialog.exec() == QDialog::Accepted) {
             // Verification successful
-            restoreWalletLockState(was_locked, was_unlocked_for_mixing);
+            if (was_locked) {
+                m_wallet_model->setWalletLocked(true);
+            }
             Q_EMIT created(m_wallet_model);
         } else {
             // User cancelled verification
-            restoreWalletLockState(was_locked, was_unlocked_for_mixing);
+            if (was_locked) {
+                m_wallet_model->setWalletLocked(true);
+            }
             QMessageBox::warning(m_parent_widget, tr("Verification cancelled"),
                 tr("You cancelled mnemonic verification. Please make sure you have saved your mnemonic phrase safely."));
             Q_EMIT created(m_wallet_model);
@@ -355,36 +359,6 @@ void CreateWalletActivity::finish()
     }
 
     Q_EMIT finished();
-}
-
-void CreateWalletActivity::restoreWalletLockState(bool was_locked, bool was_unlocked_for_mixing)
-{
-    if (!was_locked && !was_unlocked_for_mixing) {
-        return; // Wallet was not locked, nothing to restore
-    }
-
-    if (!m_wallet_model) {
-        return; // Safety check: wallet model not available
-    }
-
-    if (was_unlocked_for_mixing) {
-        // Restore previous mixing-only unlock state
-        if (!m_wallet_model->setWalletLocked(true)) {
-            QMessageBox::warning(m_parent_widget, tr("Warning"),
-                tr("Failed to lock wallet. Please lock it manually."));
-            return;
-        }
-        if (!m_wallet_model->setWalletLocked(false, m_passphrase, true)) {
-            QMessageBox::warning(m_parent_widget, tr("Warning"),
-                tr("Failed to restore mixing unlock state."));
-        }
-    } else {
-        // Restore fully locked state
-        if (!m_wallet_model->setWalletLocked(true)) {
-            QMessageBox::warning(m_parent_widget, tr("Warning"),
-                tr("Failed to lock wallet. Please lock it manually."));
-        }
-    }
 }
 
 void CreateWalletActivity::create()

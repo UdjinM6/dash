@@ -123,7 +123,6 @@ private:
     void askPassphrase();
     void createWallet();
     void finish();
-    void restoreWalletLockState(bool was_locked, bool was_unlocked_for_mixing);
 
     SecureString m_passphrase;
     CreateWalletDialog* m_create_wallet_dialog{nullptr};
