@@ -112,8 +112,16 @@ void MnemonicVerificationDialog::setupStep1()
     ui->writtenDownCheckbox->setChecked(false);
     m_mnemonic_revealed = false;
     ui->buttonBox->hide();
-    // Compact to content
-    adjustSize();
+    // Restore original minimum size (in case we came back from Step 2)
+    setMinimumSize(QSize(550, 360));
+
+    // Restore to default size if we have it (when coming back from Step 2)
+    if (m_defaultSize.isValid() && !m_defaultSize.isEmpty()) {
+        resize(m_defaultSize);
+    } else {
+        // Compact to content on first load
+        adjustSize();
+    }
 
     // Set warning and instruction text with themed colors
     // Font sizes and weights are defined in general.css
