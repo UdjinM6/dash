@@ -396,8 +396,10 @@ MessageProcessingResult CInstantSendManager::ProcessInstantSendLock(NodeId from,
             // Let's see if the TX that was locked by this islock is already mined in a ChainLocked block. If yes,
             // we can simply ignore the islock, as the ChainLock implies locking of all TXs in that chain
             if (clhandler.HasChainLock(minedHeight, hashBlock)) {
-                LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txlock=%s, islock=%s: dropping islock as it already got a ChainLock in block %s, peer=%d\n", __func__,
-                         islock->txid.ToString(), hash.ToString(), hashBlock.ToString(), from);
+                LogPrint(BCLog::INSTANTSEND,
+                         "CInstantSendManager::%s -- txlock=%s, islock=%s: dropping islock as it already got a "
+                         "ChainLock in block %s, peer=%d\n",
+                         __func__, islock->txid.ToString(), hash.ToString(), hashBlock.ToString(), from);
                 return {};
             }
         } else {
@@ -406,8 +408,10 @@ MessageProcessingResult CInstantSendManager::ProcessInstantSendLock(NodeId from,
                 CacheBlockHeight(pindexMined->GetBlockHash(), pindexMined->nHeight);
                 minedHeight = pindexMined->nHeight;
                 if (clhandler.HasChainLock(minedHeight, pindexMined->GetBlockHash())) {
-                    LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txlock=%s, islock=%s: dropping islock as it already got a ChainLock in block %s, peer=%d\n", __func__,
-                             islock->txid.ToString(), hash.ToString(), hashBlock.ToString(), from);
+                    LogPrint(BCLog::INSTANTSEND,
+                             "CInstantSendManager::%s -- txlock=%s, islock=%s: dropping islock as it already got a "
+                             "ChainLock in block %s, peer=%d\n",
+                             __func__, islock->txid.ToString(), hash.ToString(), hashBlock.ToString(), from);
                     return {};
                 }
             }
@@ -988,8 +992,7 @@ std::optional<int> CInstantSendManager::GetBlockHeight(const uint256& hash) cons
         if (m_cached_block_heights.get(hash, cached_height)) return cached_height;
     }
 
-    const CBlockIndex* pindex =
-        WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(hash));
+    const CBlockIndex* pindex = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(hash));
     if (pindex == nullptr) {
         return std::nullopt;
     }
