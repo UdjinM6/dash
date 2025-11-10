@@ -123,15 +123,15 @@ public:
 
 private:
     instantsend::PendingState ProcessPendingInstantSendLocks()
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_height_cache);
 
     Uint256HashSet ProcessPendingInstantSendLocks(const Consensus::LLMQParams& llmq_params, int signOffset, bool ban,
                                                   const Uint256HashMap<std::pair<NodeId, instantsend::InstantSendLockPtr>>& pend,
                                                   std::vector<std::pair<NodeId, MessageProcessingResult>>& peer_activity)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_height_cache);
     MessageProcessingResult ProcessInstantSendLock(NodeId from, const uint256& hash,
                                                    const instantsend::InstantSendLockPtr& islock)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_height_cache);
 
     void AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_timingsTxSeen);
@@ -144,7 +144,7 @@ private:
     void RemoveMempoolConflictsForLock(const uint256& hash, const instantsend::InstantSendLock& islock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
     void ResolveBlockConflicts(const uint256& islockHash, const instantsend::InstantSendLock& islock)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_height_cache);
 
     void WorkThreadMain(PeerManager& peerman)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry);
@@ -158,14 +158,16 @@ public:
     instantsend::InstantSendLockPtr GetConflictingLock(const CTransaction& tx) const override;
 
     [[nodiscard]] MessageProcessingResult ProcessMessage(NodeId from, std::string_view msg_type, CDataStream& vRecv)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks, !cs_height_cache);
 
     void TransactionAddedToMempool(const CTransactionRef& tx)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_timingsTxSeen);
-    void TransactionRemovedFromMempool(const CTransactionRef& tx);
+    void TransactionRemovedFromMempool(const CTransactionRef& tx)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     void BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_timingsTxSeen);
-    void BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingLocks, !cs_pendingRetry, !cs_timingsTxSeen, !cs_height_cache);
+    void BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
 
     bool AlreadyHave(const CInv& inv) const EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
     bool GetInstantSendLockByHash(const uint256& hash, instantsend::InstantSendLock& ret) const
@@ -175,17 +177,21 @@ public:
     void NotifyChainLock(const CBlockIndex* pindexChainLock)
         EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
     void UpdatedBlockTip(const CBlockIndex* pindexNew)
-        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry);
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_nonLocked, !cs_pendingRetry, !cs_height_cache);
 
-    void RemoveConflictingLock(const uint256& islockHash, const instantsend::InstantSendLock& islock);
+    void RemoveConflictingLock(const uint256& islockHash, const instantsend::InstantSendLock& islock)
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
     void TryEmplacePendingLock(const uint256& hash, const NodeId id, const instantsend::InstantSendLockPtr& islock) override
         EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingLocks);
 
     size_t GetInstantSendLockCount() const;
 
-    void CacheBlockHeight(const uint256& hash, int height) const;
-    std::optional<int> GetBlockHeight(const uint256& hash) const override;
-    int GetTipHeight() const override;
+    void CacheBlockHeight(const uint256& hash, int height) const
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
+    std::optional<int> GetBlockHeight(const uint256& hash) const override
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
+    int GetTipHeight() const override
+        EXCLUSIVE_LOCKS_REQUIRED(!cs_height_cache);
 
     bool IsInstantSendEnabled() const override;
     /**
