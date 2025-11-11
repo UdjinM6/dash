@@ -396,8 +396,8 @@ MessageProcessingResult CInstantSendManager::ProcessInstantSendLock(NodeId from,
             // Let's see if the TX that was locked by this islock is already mined in a ChainLocked block. If yes,
             // we can simply ignore the islock, as the ChainLock implies locking of all TXs in that chain
             if (clhandler.HasChainLock(minedHeight, hashBlock)) {
-                LogPrint(BCLog::INSTANTSEND,
-                         "CInstantSendManager::%s -- txlock=%s, islock=%s: dropping islock as it already got a "
+                LogPrint(BCLog::INSTANTSEND, /* Continued */
+                         "CInstantSendManager::%s -- txlock=%s, islock=%s: dropping islock as it already got a " /* Continued */
                          "ChainLock in block %s, peer=%d\n",
                          __func__, islock->txid.ToString(), hash.ToString(), hashBlock.ToString(), from);
                 return {};
@@ -408,8 +408,8 @@ MessageProcessingResult CInstantSendManager::ProcessInstantSendLock(NodeId from,
                 CacheBlockHeight(pindexMined->GetBlockHash(), pindexMined->nHeight);
                 minedHeight = pindexMined->nHeight;
                 if (clhandler.HasChainLock(minedHeight, pindexMined->GetBlockHash())) {
-                    LogPrint(BCLog::INSTANTSEND,
-                             "CInstantSendManager::%s -- txlock=%s, islock=%s: dropping islock as it already got a "
+                    LogPrint(BCLog::INSTANTSEND, /* Continued */
+                             "CInstantSendManager::%s -- txlock=%s, islock=%s: dropping islock as it already got a " /* Continued */
                              "ChainLock in block %s, peer=%d\n",
                              __func__, islock->txid.ToString(), hash.ToString(), hashBlock.ToString(), from);
                     return {};
