@@ -34,6 +34,8 @@ class CEvoDB;
 class CSimplifiedMNList;
 class CSimplifiedMNListEntry;
 class CMasternodeMetaMan;
+class ChainstateManager;
+class CSpecialTxProcessor;
 class TxValidationState;
 struct RPCResult;
 
@@ -718,6 +720,19 @@ public:
 
     void DoMaintenance() EXCLUSIVE_LOCKS_REQUIRED(!cs, !cs_cleanup);
 
+    // Recalculate and optionally repair diffs between snapshots
+    struct RecalcDiffsResult {
+        int start_height{0};
+        int stop_height{0};
+        int diffs_recalculated{0};
+        int snapshots_verified{0};
+        std::vector<std::string> verification_errors;
+        std::vector<std::string> repair_errors;
+    };
+    [[nodiscard]] RecalcDiffsResult RecalculateAndRepairDiffs(const CBlockIndex* start_index, const CBlockIndex* stop_index,
+                                                              ChainstateManager& chainman, CSpecialTxProcessor& tx_proc,
+                                                              bool repair) EXCLUSIVE_LOCKS_REQUIRED(!cs, ::cs_main);
+
     // Migration support for nVersion-first CDeterministicMNStateDiff format
     [[nodiscard]] bool IsMigrationRequired() const EXCLUSIVE_LOCKS_REQUIRED(!cs, ::cs_main);
     [[nodiscard]] bool MigrateLegacyDiffs(const CBlockIndex* const tip_index) EXCLUSIVE_LOCKS_REQUIRED(!cs, ::cs_main);
@@ -725,6 +740,19 @@ public:
 private:
     void CleanupCache(int nHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
     CDeterministicMNList GetListForBlockInternal(gsl::not_null<const CBlockIndex*> pindex) EXCLUSIVE_LOCKS_REQUIRED(cs);
+
+    // Helper methods for RecalculateAndRepairDiffs
+    std::vector<const CBlockIndex*> CollectSnapshotBlocks(const CBlockIndex* start_index, const CBlockIndex* stop_index,
+                                                           const Consensus::Params& consensus_params) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    bool VerifySnapshotPair(const CBlockIndex* from_index, const CBlockIndex* to_index, const CDeterministicMNList& from_snapshot,
+                            const CDeterministicMNList& to_snapshot, RecalcDiffsResult& result, size_t pair_index,
+                            size_t total_pairs) EXCLUSIVE_LOCKS_REQUIRED(cs, ::cs_main);
+    std::vector<std::pair<uint256, CDeterministicMNListDiff>> RepairSnapshotPair(
+        const CBlockIndex* from_index, const CBlockIndex* to_index, const CDeterministicMNList& from_snapshot,
+        const CDeterministicMNList& to_snapshot, CSpecialTxProcessor& tx_proc, RecalcDiffsResult& result)
+        EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+    void WriteRepairedDiffs(const std::vector<std::pair<uint256, CDeterministicMNListDiff>>& recalculated_diffs,
+                            RecalcDiffsResult& result) EXCLUSIVE_LOCKS_REQUIRED(cs);
 };
 
 bool CheckProRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state, const CCoinsViewCache& view, bool check_sigs);
