@@ -388,11 +388,9 @@ MessageProcessingResult CInstantSendManager::ProcessInstantSendLock(NodeId from,
     const auto tx = GetTransaction(nullptr, &mempool, islock->txid, Params().GetConsensus(), hashBlock);
     const bool found_transaction{tx != nullptr};
     // we ignore failure here as we must be able to propagate the lock even if we don't have the TX locally
-    int minedHeight{-1};
-    if (found_transaction && !hashBlock.IsNull()) {
-        if (auto h = GetBlockHeight(hashBlock)) {
-            minedHeight = *h;
-        } else {
+    std::optional<int> minedHeight = GetBlockHeight(hashBlock);
+    if (found_transaction) {
+        if (!minedHeight.has_value()) {
             const CBlockIndex* pindexMined = WITH_LOCK(::cs_main, return m_chainstate.m_blockman.LookupBlockIndex(hashBlock));
             if (pindexMined != nullptr) {
                 CacheBlockHeight(pindexMined->GetBlockHash(), pindexMined->nHeight);
@@ -401,7 +399,7 @@ MessageProcessingResult CInstantSendManager::ProcessInstantSendLock(NodeId from,
         }
         // Let's see if the TX that was locked by this islock is already mined in a ChainLocked block. If yes,
         // we can simply ignore the islock, as the ChainLock implies locking of all TXs in that chain
-        if (clhandler.HasChainLock(minedHeight, hashBlock)) {
+        if (minedHeight.has_value() && clhandler.HasChainLock(*minedHeight, hashBlock)) {
             LogPrint(BCLog::INSTANTSEND, /* Continued */
                      "CInstantSendManager::%s -- txlock=%s, islock=%s: dropping islock as it already got a " /* Continued */
                      "ChainLock in block %s, peer=%d\n",
@@ -412,8 +410,8 @@ MessageProcessingResult CInstantSendManager::ProcessInstantSendLock(NodeId from,
 
     if (found_transaction) {
         db.WriteNewInstantSendLock(hash, islock);
-        if (minedHeight >= 0) {
-            db.WriteInstantSendLockMined(hash, minedHeight);
+        if (minedHeight.has_value()) {
+            db.WriteInstantSendLockMined(hash, *minedHeight);
         }
     } else {
         // put it in a separate pending map and try again later
@@ -978,6 +976,9 @@ void CInstantSendManager::CacheBlockHeight(const uint256& hash, int height) cons
 
 std::optional<int> CInstantSendManager::GetBlockHeight(const uint256& hash) const
 {
+    if (hash.IsNull()) {
+        return std::nullopt;
+    }
     {
         LOCK(cs_height_cache);
         int cached_height{0};
