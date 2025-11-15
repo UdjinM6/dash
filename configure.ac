@@ -1103,6 +1103,11 @@ if test "$use_hardening" != "no"; then
   AX_CHECK_LINK_FLAG([-fPIE -pie], [PIE_FLAGS="-fPIE"; HARDENED_LDFLAGS="$HARDENED_LDFLAGS -pie"], [], [$CXXFLAG_WERROR])
 fi
 
+dnl Add build-id for perf and debug symbol matching (Linux only)
+if test "$TARGET_OS" = "linux"; then
+  AX_CHECK_LINK_FLAG([-Wl,--build-id=sha1], [CORE_LDFLAGS="$CORE_LDFLAGS -Wl,--build-id=sha1"], [], [$LDFLAG_WERROR])
+fi
+
 dnl These flags are specific to ld64, and may cause issues with other linkers.
 dnl For example: GNU ld will interpret -dead_strip as -de and then try and use
 dnl "ad_strip" as the symbol for the entry point.
