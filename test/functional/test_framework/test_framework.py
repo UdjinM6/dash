@@ -633,6 +633,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             f.write("rpcport=" + str(node_rpc_port) + "\n")
             f.write("server=1\n")
             f.write("debug=1\n")
+            f.write("fastprune=1\n")
             f.write("keypool=1\n")
             f.write("discover=0\n")
             f.write("listenonion=0\n")
@@ -1478,6 +1479,7 @@ class DashTestFramework(BitcoinTestFramework):
         for i in range(old_num_nodes, old_num_nodes + num_nodes):
             append_config(self.nodes[i].datadir, [
                 "dip3params=2:2",
+                "fastprune=1",
                 f"testactivationheight=v20@{self.v20_height}",
                 f"testactivationheight=mn_rr@{self.mn_rr_height}",
             ])
