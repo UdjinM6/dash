@@ -61,6 +61,8 @@ class WalletTest(BitcoinTestFramework):
 
     def run_test(self):
 
+        assert False # simulate failure
+
         # Check that there's no UTXO on none of the nodes
         assert_equal(len(self.nodes[0].listunspent()), 0)
         assert_equal(len(self.nodes[1].listunspent()), 0)
