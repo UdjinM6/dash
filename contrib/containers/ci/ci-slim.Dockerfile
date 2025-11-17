@@ -78,7 +78,7 @@ RUN uv pip install --system --break-system-packages \
     jinja2 \
     lief==0.13.2 \
     multiprocess \
-    mypy==0.971 \
+    mypy==0.981 \
     pyzmq==24.0.1 \
     vulture==2.6
 
