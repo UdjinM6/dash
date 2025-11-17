@@ -78,9 +78,9 @@ RUN uv pip install --system --break-system-packages \
     jinja2 \
     lief==0.13.2 \
     multiprocess \
-    mypy==0.942 \
-    pyzmq==22.3.0 \
-    vulture==2.3
+    mypy==0.971 \
+    pyzmq==24.0.1 \
+    vulture==2.6
 
 # Install packages relied on by tests
 ARG DASH_HASH_VERSION=1.4.0
