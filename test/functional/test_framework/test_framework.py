@@ -625,7 +625,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                 os.remove(os.path.join(new_data_dir, self.chain, entry))
 
         write_config(os.path.join(new_data_dir, "dash.conf"),
-                n=mnidx, chain=self.chain, disable_autoconnect=self.disable_autoconnect)
+                     n=mnidx, chain=self.chain, disable_autoconnect=self.disable_autoconnect)
         self.append_dip3_config(new_data_dir)
 
         os.makedirs(os.path.join(new_data_dir, 'stderr'), exist_ok=True)
@@ -1477,11 +1477,11 @@ class DashTestFramework(BitcoinTestFramework):
                 mn2.get_node(self).setmnthreadactive(True)
 
     def append_dip3_config(self, datadir):
-            append_config(datadir, [
-                "dip3params=2:2",
-                f"testactivationheight=v20@{self.v20_height}",
-                f"testactivationheight=mn_rr@{self.mn_rr_height}",
-            ])
+        append_config(datadir, [
+            "dip3params=2:2",
+            f"testactivationheight=v20@{self.v20_height}",
+            f"testactivationheight=mn_rr@{self.mn_rr_height}",
+        ])
 
     def set_dash_test_params(self, num_nodes, masterodes_count, extra_args=None, evo_count=0):
         self.mn_count = masterodes_count
