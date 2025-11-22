@@ -1668,21 +1668,9 @@ void CSigSharesManager::DispatchPendingProcessing()
     }
 
     if (hasWork) {
-        // Work exists - spawn a worker to help!
         workerPool.push([this](int) {
-            ProcessPendingSigSharesLoop();
+            ProcessPendingSigShares();
         });
-    }
-}
-
-void CSigSharesManager::ProcessPendingSigSharesLoop()
-{
-    while (!workInterrupt) {
-        bool moreWork = ProcessPendingSigShares();
-
-        if (!moreWork) {
-            return;  // No work found, exit immediately
-        }
     }
 }
 

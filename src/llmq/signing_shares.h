@@ -509,7 +509,6 @@ private:
     void DispatchPendingProcessing() EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     // Worker pool task functions
-    void ProcessPendingSigSharesLoop() EXCLUSIVE_LOCKS_REQUIRED(!cs);
     void SignAndProcessSingleShare(PendingSignatureData work) EXCLUSIVE_LOCKS_REQUIRED(!cs_pendingSigns, !cs);
 };
 } // namespace llmq
