@@ -584,16 +584,14 @@ bool CSigSharesManager::PreVerifyBatchedSigShares(const CActiveMasternodeManager
     return true;
 }
 
-bool CSigSharesManager::CollectPendingSigSharesToVerify(
+void CSigSharesManager::CollectPendingSigSharesToVerify(
     size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
     std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums)
 {
-    bool more_work{false};
-
     {
         LOCK(cs);
         if (nodeStates.empty()) {
-            return false;
+            return;
         }
 
         // This will iterate node states in random order and pick one sig share at a time. This avoids processing
@@ -626,15 +624,8 @@ bool CSigSharesManager::CollectPendingSigSharesToVerify(
             rnd);
 
         if (retSigShares.empty()) {
-            return false;
+            return;
         }
-
-        // Determine if there is still work left in any node state after pulling this batch
-        more_work = std::any_of(nodeStates.begin(), nodeStates.end(),
-                                [](const auto& entry) {
-                                    const auto& ns = entry.second;
-                                    return !ns.pendingIncomingSigShares.Empty();
-                                });
     }
 
     // For the convenience of the caller, also build a map of quorumHash -> quorum
@@ -655,24 +646,22 @@ bool CSigSharesManager::CollectPendingSigSharesToVerify(
             if (!quorum) {
                 LogPrintf("%s: ERROR! Unexpected missing quorum with llmqType=%d, quorumHash=%s\n", __func__,
                           ToUnderlying(llmqType), sigShare.getQuorumHash().ToString());
-                return false;
+                return;
             }
             retQuorums.try_emplace(k, quorum);
         }
     }
-
-    return more_work;
 }
 
-bool CSigSharesManager::ProcessPendingSigShares()
+void CSigSharesManager::ProcessPendingSigShares()
 {
     std::unordered_map<NodeId, std::vector<CSigShare>> sigSharesByNodes;
     std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher> quorums;
 
     const size_t nMaxBatchSize{32};
-    bool more_work = CollectPendingSigSharesToVerify(nMaxBatchSize, sigSharesByNodes, quorums);
+    CollectPendingSigSharesToVerify(nMaxBatchSize, sigSharesByNodes, quorums);
     if (sigSharesByNodes.empty()) {
-        return false;
+        return;
     }
 
     // It's ok to perform insecure batched verification here as we verify against the quorum public key shares,
@@ -731,8 +720,6 @@ bool CSigSharesManager::ProcessPendingSigShares()
 
         ProcessPendingSigShares(v, quorums);
     }
-
-    return more_work;
 }
 
 // It's ensured that no duplicates are passed to this method

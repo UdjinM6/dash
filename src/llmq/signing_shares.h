@@ -467,11 +467,11 @@ private:
     static bool PreVerifyBatchedSigShares(const CActiveMasternodeManager& mn_activeman, const CQuorumManager& quorum_manager,
                                           const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan);
 
-    bool CollectPendingSigSharesToVerify(
+    void CollectPendingSigSharesToVerify(
         size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
         std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums)
         EXCLUSIVE_LOCKS_REQUIRED(!cs);
-    bool ProcessPendingSigShares() EXCLUSIVE_LOCKS_REQUIRED(!cs);
+    void ProcessPendingSigShares() EXCLUSIVE_LOCKS_REQUIRED(!cs);
 
     void ProcessPendingSigShares(
         const std::vector<CSigShare>& sigSharesToProcess,
