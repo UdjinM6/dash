@@ -21,11 +21,11 @@
     </screenshot>
   </screenshots>
   <releases>
-    <release date="2024-11-10" version="23.0.0"/>
+    <release date="2025-11-10" version="23.0.0"/>
     <release date="2024-12-12" version="22.0.0"/>
     <release date="2024-10-22" version="21.1.1"/>
   </releases>
-  <content_rating type="oars-1.1" id="money-purchasing">intense</content_rating>
+  <content_rating type="oars-1.1"/>
   <developer id="org.dash">
     <name>Dash Core Group</name>
   </developer>
