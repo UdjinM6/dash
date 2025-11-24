@@ -8,6 +8,7 @@
 #include <llmq/quorums.h>
 #include <llmq/signhash.h>
 #include <llmq/signing_shares.h>
+#include <llmq/options.h>
 
 #include <bls/bls_batchverifier.h>
 #include <chainparams.h>
@@ -516,7 +517,7 @@ void CSigningManager::ProcessPendingReconstructedRecoveredSigs(PeerManager& peer
     WITH_LOCK(cs_pending, swap(m, pendingReconstructedRecoveredSigs));
 
     for (const auto& p : m) {
-        ProcessRecoveredSig(p.second, peerman);
+        ProcessRecoveredSig(p.second, peerman, -1);
     }
 }
 
@@ -578,7 +579,7 @@ bool CSigningManager::ProcessPendingRecoveredSigs(PeerManager& peerman)
                 continue;
             }
 
-            ProcessRecoveredSig(recSig, peerman);
+            ProcessRecoveredSig(recSig, peerman, nodeId);
         }
     }
 
@@ -586,7 +587,7 @@ bool CSigningManager::ProcessPendingRecoveredSigs(PeerManager& peerman)
 }
 
 // signature must be verified already
-void CSigningManager::ProcessRecoveredSig(const std::shared_ptr<const CRecoveredSig>& recoveredSig, PeerManager& peerman)
+void CSigningManager::ProcessRecoveredSig(const std::shared_ptr<const CRecoveredSig>& recoveredSig, PeerManager& peerman, NodeId from)
 {
     auto llmqType = recoveredSig->getLlmqType();
 
@@ -629,7 +630,12 @@ void CSigningManager::ProcessRecoveredSig(const std::shared_ptr<const CRecovered
         peerman.PostProcessMessage(l->HandleNewRecoveredSig(*recoveredSig));
     }
 
-    GetMainSignals().NotifyRecoveredSig(recoveredSig, recoveredSig->GetHash().ToString());
+    // TODO refactor to use a better abstraction analogous to IsAllMembersConnectedEnabled
+    auto proactive_relay = from == -1 &&
+                           llmqType != Consensus::LLMQType::LLMQ_100_67 &&
+                           llmqType != Consensus::LLMQType::LLMQ_400_60 &&
+                           llmqType != Consensus::LLMQType::LLMQ_400_85;
+    GetMainSignals().NotifyRecoveredSig(recoveredSig, recoveredSig->GetHash().ToString(), proactive_relay);
 }
 
 void CSigningManager::PushReconstructedRecoveredSig(const std::shared_ptr<const llmq::CRecoveredSig>& recoveredSig)
