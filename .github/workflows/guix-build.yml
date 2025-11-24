@@ -10,7 +10,7 @@ on:
   pull_request:
     types: [labeled]
   push:
-  workflow_dispatch:
+  workflow_dispatch: #dummy changes
     inputs:
       ref:
         description: 'Branch or tag to build'
