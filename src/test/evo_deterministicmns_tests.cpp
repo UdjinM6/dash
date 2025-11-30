@@ -397,7 +397,8 @@ void FuncV19Activation(TestChainSetup& setup)
     }
 
     // check mn list/diff
-    const CBlockIndex* v19_index = chainman.ActiveChain().Tip()->GetAncestor(Params().GetConsensus().V19Height);
+    const CBlockIndex* v19_index = chainman.ActiveChain().Tip()->GetAncestor(
+        Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19));
     auto v19_list = dmnman.GetListForBlock(v19_index);
     dummy_diff = v19_list.BuildDiff(tip_list);
     dummy_list = v19_list;

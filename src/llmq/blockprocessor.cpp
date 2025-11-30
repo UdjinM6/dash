@@ -466,7 +466,7 @@ bool CQuorumBlockProcessor::GetCommitmentsFromBlock(const CBlock& block, gsl::no
         }
     }
 
-    if (pindex->nHeight < consensus.DIP0003Height && !ret.empty()) {
+    if (pindex->nHeight < consensus.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003) && !ret.empty()) {
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-premature");
     }
 

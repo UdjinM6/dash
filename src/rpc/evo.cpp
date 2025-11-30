@@ -1765,7 +1765,7 @@ static UniValue evodb_verify_or_repair_impl(const JSONRPCRequest& request, bool 
         // Default to DIP0003 activation height if startBlock not specified
         if (request.params[0].isNull()) {
             const auto& consensus_params = Params().GetConsensus();
-            start_index = chainman.ActiveChain()[consensus_params.DIP0003Height];
+            start_index = chainman.ActiveChain()[consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)];
             if (!start_index) {
                 throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot find DIP0003 activation block");
             }

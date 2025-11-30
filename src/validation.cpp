@@ -318,8 +318,8 @@ int GetUTXOConfirmations(CChainState& active_chainstate, const COutPoint& outpoi
 static bool ContextualCheckTransaction(const CTransaction& tx, TxValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
 {
     int nHeight = pindexPrev == nullptr ? 0 : pindexPrev->nHeight + 1;
-    bool fDIP0001Active_context = nHeight >= consensusParams.DIP0001Height;
-    bool fDIP0003Active_context = nHeight >= consensusParams.DIP0003Height;
+    bool fDIP0001Active_context = nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0001);
+    bool fDIP0003Active_context = nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003);
 
     if (fDIP0003Active_context) {
         // check version 3 transaction types
@@ -1568,7 +1568,7 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, bool fV20Active)
 
     const int nMNPIBlock = Params().GetConsensus().nMasternodePaymentsIncreaseBlock;
     const int nMNPIPeriod = Params().GetConsensus().nMasternodePaymentsIncreasePeriod;
-    const int nReallocActivationHeight = Params().GetConsensus().BRRHeight;
+    const int nReallocActivationHeight = Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_BRR);
 
                                                                       // mainnet:
     if(nHeight > nMNPIBlock)                  ret += blockValue / 20; // 158000 - 25.0% - 2014-10-24
@@ -1998,7 +1998,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
     AssertLockHeld(cs_main);
     assert(m_chain_helper);
 
-    bool fDIP0003Active = pindex->nHeight >= Params().GetConsensus().DIP0003Height;
+    bool fDIP0003Active = pindex->nHeight >= Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003);
     if (fDIP0003Active && !m_evoDb.VerifyBestBlock(pindex->GetBlockHash())) {
         // Nodes that upgraded after DIP3 activation will have to reindex to ensure evodb consistency
         AbortNode("Found EvoDB inconsistency, you must reindex to continue");
@@ -2317,7 +2317,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     assert(hashPrevBlock == view.GetBestBlock());
 
     if (pindex->pprev) {
-        bool fDIP0003Active = pindex->nHeight >= m_params.GetConsensus().DIP0003Height;
+        bool fDIP0003Active = pindex->nHeight >= m_params.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003);
         if (fDIP0003Active && !m_evoDb.VerifyBestBlock(pindex->pprev->GetBlockHash())) {
             // Nodes that upgraded after DIP3 activation will have to reindex to ensure evodb consistency
             return AbortNode(state, "Found EvoDB inconsistency, you must reindex to continue");
@@ -2443,7 +2443,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     std::vector<CAddressUnspentIndexEntry> addressUnspentIndex;
     std::vector<CSpentIndexEntry> spentIndex;
 
-    bool fDIP0001Active_context = pindex->nHeight >= Params().GetConsensus().DIP0001Height;
+    bool fDIP0001Active_context = pindex->nHeight >= Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0001);
 
     // MUST process special txes before updating UTXO to ensure consistency between mempool and block processing
     std::optional<MNListUpdates> mnlist_updates_opt{std::nullopt};
@@ -4131,8 +4131,8 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
                                       pindexPrev->GetMedianTimePast() :
                                       block.GetBlockTime()};
 
-    bool fDIP0001Active_context = nHeight >= consensusParams.DIP0001Height;
-    bool fDIP0003Active_context = nHeight >= consensusParams.DIP0003Height;
+    bool fDIP0001Active_context = nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0001);
+    bool fDIP0003Active_context = nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003);
 
     // Size limits
     unsigned int nMaxBlockSize = MaxBlockSize(fDIP0001Active_context);
@@ -4860,7 +4860,7 @@ bool CChainState::ReplayBlocks()
         pindexOld = &(m_blockman.m_block_index[hashHeads[1]]);
         pindexFork = LastCommonAncestor(pindexOld, pindexNew);
         assert(pindexFork != nullptr);
-        const bool fDIP0003Active = pindexOld->nHeight >= m_params.GetConsensus().DIP0003Height;
+        const bool fDIP0003Active = pindexOld->nHeight >= m_params.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003);
         if (fDIP0003Active && !m_evoDb.VerifyBestBlock(pindexOld->GetBlockHash())) {
             return error("ReplayBlocks(DASH): Found EvoDB inconsistency");
         }

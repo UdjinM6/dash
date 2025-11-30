@@ -1590,17 +1590,17 @@ CDeterministicMNManager::RecalcDiffsResult CDeterministicMNManager::RecalculateA
     result.stop_height = stop_index->nHeight;
 
     const auto& consensus_params = Params().GetConsensus();
-
+    const int height_dip003{Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)};
     // Clamp start height to DIP0003 activation (no snapshots/diffs exist before this)
-    if (start_index->nHeight < consensus_params.DIP0003Height) {
-        start_index = stop_index->GetAncestor(consensus_params.DIP0003Height);
+    if (start_index->nHeight < height_dip003) {
+        start_index = stop_index->GetAncestor(height_dip003);
         if (!start_index) {
-            result.verification_errors.push_back(strprintf("Stop height %d is below DIP0003 activation height %d",
-                                                           stop_index->nHeight, consensus_params.DIP0003Height));
+            result.verification_errors.push_back(
+                strprintf("Stop height %d is below DIP0003 activation height %d", stop_index->nHeight, height_dip003));
             return result;
         }
         LogPrintf("CDeterministicMNManager::%s -- Clamped start height from %d to DIP0003 activation height %d\n",
-                  __func__, result.start_height, consensus_params.DIP0003Height);
+                  __func__, result.start_height, height_dip003);
         // Update result to reflect the clamped start height
         result.start_height = start_index->nHeight;
     }
@@ -1640,7 +1640,7 @@ CDeterministicMNManager::RecalcDiffsResult CDeterministicMNManager::RecalculateA
         if (!has_from_snapshot) {
             // The initial snapshot at DIP0003 activation might not exist in the database on nodes
             // that synced before the fix to explicitly write it. This is the only acceptable case.
-            if (from_index->nHeight == consensus_params.DIP0003Height) {
+            if (from_index->nHeight == consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
                 // Create an empty initial snapshot (matching what GetListForBlockInternal does)
                 from_snapshot = CDeterministicMNList(from_index->GetBlockHash(), from_index->nHeight, 0);
                 LogPrintf("CDeterministicMNManager::%s -- Using empty initial snapshot at DIP0003 height %d\n",
@@ -1698,8 +1698,9 @@ std::vector<const CBlockIndex*> CDeterministicMNManager::CollectSnapshotBlocks(
     // Add the starting snapshot (find the snapshot at or before start)
     // Walk backwards to find a snapshot block (divisible by DISK_SNAPSHOT_PERIOD)
     // or the initial snapshot at DIP0003 activation height
+    const int height_dip0003{consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)};
     const CBlockIndex* snapshot_start_index = start_index;
-    while (snapshot_start_index && snapshot_start_index->nHeight > consensus_params.DIP0003Height &&
+    while (snapshot_start_index && snapshot_start_index->nHeight > height_dip0003 &&
            (snapshot_start_index->nHeight % DISK_SNAPSHOT_PERIOD) != 0) {
         snapshot_start_index = snapshot_start_index->pprev;
     }
@@ -1716,9 +1717,9 @@ std::vector<const CBlockIndex*> CDeterministicMNManager::CollectSnapshotBlocks(
     while (true) {
         // Calculate next snapshot height
         int next_snapshot_height;
-        if (current_snapshot_height == consensus_params.DIP0003Height) {
+        if (current_snapshot_height == height_dip0003) {
             // If we're at DIP0003 activation (initial snapshot), next is at first regular interval
-            next_snapshot_height = ((consensus_params.DIP0003Height / DISK_SNAPSHOT_PERIOD) + 1) * DISK_SNAPSHOT_PERIOD;
+            next_snapshot_height = ((height_dip0003 / DISK_SNAPSHOT_PERIOD) + 1) * DISK_SNAPSHOT_PERIOD;
         } else {
             // Otherwise, add DISK_SNAPSHOT_PERIOD
             next_snapshot_height = current_snapshot_height + DISK_SNAPSHOT_PERIOD;

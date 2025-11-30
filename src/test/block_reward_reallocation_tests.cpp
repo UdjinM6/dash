@@ -171,7 +171,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
         BOOST_REQUIRE(dmnman.GetListAtChainTip().HasMN(tx.GetHash()));
 
         BOOST_CHECK_EQUAL(tip->nHeight, 498);
-        BOOST_CHECK(tip->nHeight < Params().GetConsensus().BRRHeight);
+        BOOST_CHECK(tip->nHeight < Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_BRR));
     }
 
     CreateAndProcessBlock({}, coinbasePubKey);
@@ -182,7 +182,7 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
         BOOST_CHECK_EQUAL(tip->nHeight, 499);
         dmnman.UpdatedBlockTip(tip);
         BOOST_REQUIRE(dmnman.GetListAtChainTip().HasMN(tx.GetHash()));
-        BOOST_CHECK(tip->nHeight < Params().GetConsensus().BRRHeight);
+        BOOST_CHECK(tip->nHeight < Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_BRR));
         // Creating blocks by different ways
         const auto pblocktemplate = BlockAssembler(m_node.chainman->ActiveChainstate(), m_node, m_node.mempool.get(), Params()).CreateNewBlock(coinbasePubKey);
     }
@@ -191,14 +191,15 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
         LOCK(cs_main);
         dmnman.UpdatedBlockTip(m_node.chainman->ActiveChain().Tip());
     }
-    BOOST_CHECK(m_node.chainman->ActiveChain().Height() < Params().GetConsensus().BRRHeight);
+    BOOST_CHECK(m_node.chainman->ActiveChain().Height() <
+                Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_BRR));
     CreateAndProcessBlock({}, coinbasePubKey);
 
     {
         // Advance to ACTIVE at height = (BRRHeight - 1)
         LOCK(cs_main);
         const CBlockIndex* const tip{m_node.chainman->ActiveChain().Tip()};
-        BOOST_CHECK_EQUAL(tip->nHeight, Params().GetConsensus().BRRHeight - 1);
+        BOOST_CHECK_EQUAL(tip->nHeight, Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_BRR) - 1);
         dmnman.UpdatedBlockTip(tip);
         BOOST_REQUIRE(dmnman.GetListAtChainTip().HasMN(tx.GetHash()));
     }
