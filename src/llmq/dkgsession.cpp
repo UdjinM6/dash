@@ -4,22 +4,24 @@
 
 #include <llmq/dkgsession.h>
 
+#include <batchedlogger.h>
+#include <evo/deterministicmns.h>
 #include <llmq/commitment.h>
 #include <llmq/debug.h>
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/options.h>
 #include <llmq/utils.h>
-
-#include <batchedlogger.h>
-#include <chainparams.h>
-#include <cxxtimer.hpp>
-#include <deploymentstatus.h>
-#include <evo/deterministicmns.h>
-#include <logging.h>
 #include <masternode/meta.h>
 #include <masternode/node.h>
 #include <util/irange.h>
+
+#include <chainparams.h>
+#include <deploymentstatus.h>
+#include <logging.h>
 #include <util/underlying.h>
+#include <validation.h>
+
+#include <cxxtimer.hpp>
 
 #include <array>
 #include <atomic>
@@ -71,17 +73,18 @@ CDKGSession::CDKGSession(const CBlockIndex* pQuorumBaseBlockIndex, const Consens
                          CBLSWorker& _blsWorker, CDeterministicMNManager& dmnman, CDKGSessionManager& _dkgManager,
                          CDKGDebugManager& _dkgDebugManager, CMasternodeMetaMan& mn_metaman,
                          CQuorumSnapshotManager& qsnapman, const CActiveMasternodeManager* const mn_activeman,
-                         const CSporkManager& sporkman) :
-    params(_params),
-    blsWorker(_blsWorker),
-    cache(_blsWorker),
-    m_dmnman(dmnman),
-    dkgManager(_dkgManager),
-    dkgDebugManager(_dkgDebugManager),
-    m_mn_metaman(mn_metaman),
-    m_qsnapman(qsnapman),
-    m_mn_activeman(mn_activeman),
-    m_sporkman(sporkman),
+                         const ChainstateManager& chainman, const CSporkManager& sporkman) :
+    params{_params},
+    blsWorker{_blsWorker},
+    cache{_blsWorker},
+    m_dmnman{dmnman},
+    dkgManager{_dkgManager},
+    dkgDebugManager{_dkgDebugManager},
+    m_mn_metaman{mn_metaman},
+    m_qsnapman{qsnapman},
+    m_mn_activeman{mn_activeman},
+    m_chainman{chainman},
+    m_sporkman{sporkman},
     m_quorum_base_block_index{pQuorumBaseBlockIndex},
     m_use_legacy_bls{!m_quorum_base_block_index || m_quorum_base_block_index->nHeight + 1 <
                                                        Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19)}
@@ -90,7 +93,7 @@ CDKGSession::CDKGSession(const CBlockIndex* pQuorumBaseBlockIndex, const Consens
 
 bool CDKGSession::Init(const uint256& _myProTxHash, int _quorumIndex)
 {
-    const auto mns = utils::GetAllQuorumMembers(params.type, m_dmnman, m_qsnapman, m_quorum_base_block_index);
+    const auto mns = utils::GetAllQuorumMembers(params.type, m_dmnman, m_qsnapman, m_chainman, m_quorum_base_block_index);
     quorumIndex = _quorumIndex;
     members.resize(mns.size());
     memberIds.resize(members.size());
@@ -135,7 +138,7 @@ bool CDKGSession::Init(const uint256& _myProTxHash, int _quorumIndex)
 
     if (!myProTxHash.IsNull()) {
         dkgDebugManager.InitLocalSessionStatus(params, quorumIndex, m_quorum_base_block_index->GetBlockHash(), m_quorum_base_block_index->nHeight);
-        relayMembers = utils::GetQuorumRelayMembers(params, m_dmnman, m_qsnapman, m_quorum_base_block_index,
+        relayMembers = utils::GetQuorumRelayMembers(params, m_dmnman, m_qsnapman, m_chainman, m_quorum_base_block_index,
                                                     myProTxHash, true);
         if (LogAcceptDebug(BCLog::LLMQ)) {
             std::stringstream ss;
@@ -1280,7 +1283,7 @@ std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments()
         t2.stop();
 
         cxxtimer::Timer t3(true);
-        if (!fqc.Verify(m_dmnman, m_qsnapman, m_quorum_base_block_index, true)) {
+        if (!fqc.Verify(m_dmnman, m_qsnapman, m_chainman, m_quorum_base_block_index, true)) {
             logger.Batch("failed to verify final commitment");
             continue;
         }
@@ -1343,7 +1346,7 @@ CFinalCommitment CDKGSession::FinalizeSingleCommitment()
         fqc.quorumSig = fqc.membersSig;
     }
 
-    if (!fqc.Verify(m_dmnman, m_qsnapman, m_quorum_base_block_index, true)) {
+    if (!fqc.Verify(m_dmnman, m_qsnapman, m_chainman, m_quorum_base_block_index, true)) {
         logger.Batch("failed to verify final commitment");
         assert(false);
     }
