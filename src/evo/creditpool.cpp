@@ -252,9 +252,10 @@ CCreditPoolDiff::CCreditPoolDiff(CCreditPool starter, const CBlockIndex* pindexP
 {
     assert(pindexPrev);
 
-    if (DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_MN_RR)) {
+    const int nHeight{pindexPrev->nHeight + 1};
+    if (nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_MN_RR)) {
         // If credit pool exists, it means v20 is activated
-        platformReward = PlatformShare(GetMasternodePayment(pindexPrev->nHeight + 1, blockSubsidy, /*fV20Active=*/ true));
+        platformReward = PlatformShare(GetMasternodePayment(nHeight, blockSubsidy, /*fV20Active=*/true));
     }
 }
 

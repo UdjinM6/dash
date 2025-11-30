@@ -32,12 +32,12 @@ std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(co
 
 static bool IsV19Active(gsl::not_null<const CBlockIndex*> pindexPrev)
 {
-    return DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_V19);
+    return pindexPrev->nHeight + 1 >= Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19);
 }
 
 static bool IsV20Active(gsl::not_null<const CBlockIndex*> pindexPrev)
 {
-    return DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_V20);
+    return pindexPrev->nHeight + 1 >= Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V20);
 }
 
 namespace llmq {

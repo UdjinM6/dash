@@ -749,7 +749,7 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
     const auto *const pindex = m_chainstate.m_chain.Height() < nHeight ? m_chainstate.m_chain.Tip() : m_chainstate.m_chain.Tip()->GetAncestor(nHeight);
 
     bool rotation_enabled = IsQuorumRotationEnabled(llmqParams, pindex);
-    bool basic_bls_enabled{DeploymentActiveAfter(pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V19)};
+    bool basic_bls_enabled{pindex->nHeight + 1 >= Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19)};
     size_t quorums_num = rotation_enabled ? llmqParams.signingActiveQuorumCount : 1;
 
     std::stringstream ss;

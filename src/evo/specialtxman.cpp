@@ -106,7 +106,7 @@ static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, llmq::CQuorumSn
         return true;
 
     const auto& consensusParams = Params().GetConsensus();
-    if (!DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_DIP0003)) {
+    if (Assert(pindexPrev)->nHeight + 1 < consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-tx-type");
     }
 
@@ -679,7 +679,8 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
         LogPrint(BCLog::BENCHMARK, "      - m_mnhfman.ProcessBlock: %.2fms [%.2fs]\n", 0.001 * (nTime8 - nTime7),
                  nTimeMnehf * 0.000001);
 
-        if (DeploymentActiveAfter(pindex, m_consensus_params, Consensus::DEPLOYMENT_V19) && bls::bls_legacy_scheme.load()) {
+        if (pindex->nHeight + 1 >= m_consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_V19) &&
+            bls::bls_legacy_scheme.load()) {
             // NOTE: The block next to the activation is the one that is using new rules.
             // V19 activated just activated, so we must switch to the new rules here.
             bls::bls_legacy_scheme.store(false);

@@ -59,16 +59,13 @@ CMNHFManager::~CMNHFManager()
 
 CMNHFManager::Signals CMNHFManager::GetSignalsStage(const CBlockIndex* const pindexPrev)
 {
-    if (!DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)) return {};
-
-    Signals signals_tmp = GetForBlock(pindexPrev);
-
     if (pindexPrev == nullptr) return {};
+
     const int height = pindexPrev->nHeight + 1;
+    if (height < Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V20)) return {};
 
     Signals signals_ret;
-
-    for (auto signal : signals_tmp) {
+    for (auto signal : GetForBlock(pindexPrev)) {
         bool expired{false};
         const auto signal_pindex = pindexPrev->GetAncestor(signal.second);
         assert(signal_pindex != nullptr);

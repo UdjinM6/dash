@@ -4098,9 +4098,9 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
         return state.Invalid(BlockValidationResult::BLOCK_TIME_FUTURE, "time-too-new", strprintf("block timestamp too far in the future %d %d", block.GetBlockTime(), nAdjustedTime + 2 * 60 * 60));
 
     // Reject blocks with outdated version
-    if ((block.nVersion < 2 && DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_HEIGHTINCB)) ||
-        (block.nVersion < 3 && DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_DERSIG)) ||
-        (block.nVersion < 4 && DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_CLTV))) {
+    if ((block.nVersion < 2 && nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_HEIGHTINCB)) ||
+        (block.nVersion < 3 && nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DERSIG)) ||
+        (block.nVersion < 4 && nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_CLTV))) {
             return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, strprintf("bad-version(0x%08x)", block.nVersion),
                                  strprintf("rejected nVersion=0x%08x block", block.nVersion));
     }
@@ -4122,7 +4122,7 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
 
     // Enforce BIP113 (Median Time Past).
     bool enforce_locktime_median_time_past{false};
-    if (DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_CSV)) {
+    if (nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_CSV)) {
         assert(pindexPrev != nullptr);
         enforce_locktime_median_time_past = true;
     }
@@ -4164,7 +4164,7 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
     // Enforce rule that the coinbase starts with serialized block height
     // After DIP3/DIP4 activation, we don't enforce the height in the input script anymore.
     // The CbTx special transaction payload will then contain the height, which is checked in CheckCbTx
-    if (DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_HEIGHTINCB) && !fDIP0003Active_context)
+    if (nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_HEIGHTINCB) && !fDIP0003Active_context)
     {
         CScript expect = CScript() << nHeight;
         if (block.vtx[0]->vin[0].scriptSig.size() < expect.size() ||

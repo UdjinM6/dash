@@ -918,7 +918,8 @@ static RPCHelpMan getblocktemplate()
     result.pushKV("vbavailable", vbavailable);
     result.pushKV("vbrequired", int(0));
 
-    const bool fDIP0001Active_context{DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_DIP0001)};
+    const int nHeight{pindexPrev->nHeight+1};
+    const bool fDIP0001Active_context{nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0001)};
     result.pushKV("previousblockhash", pblock->hashPrevBlock.GetHex());
     result.pushKV("transactions", transactions);
     result.pushKV("coinbaseaux", aux);
@@ -933,7 +934,7 @@ static RPCHelpMan getblocktemplate()
     result.pushKV("curtime", pblock->GetBlockTime());
     result.pushKV("bits", strprintf("%08x", pblock->nBits));
     result.pushKV("previousbits", strprintf("%08x", pblocktemplate->nPrevBits));
-    result.pushKV("height", (int64_t)(pindexPrev->nHeight+1));
+    result.pushKV("height", (int64_t)(nHeight));
 
     UniValue masternodeObj(UniValue::VARR);
     for (const auto& txout : pblocktemplate->voutMasternodePayments) {
@@ -948,7 +949,7 @@ static RPCHelpMan getblocktemplate()
     }
 
     result.pushKV("masternode", masternodeObj);
-    result.pushKV("masternode_payments_started", pindexPrev->nHeight + 1 > consensusParams.nMasternodePaymentsStartBlock);
+    result.pushKV("masternode_payments_started", nHeight > consensusParams.nMasternodePaymentsStartBlock);
     result.pushKV("masternode_payments_enforced", true);
 
     UniValue superblockObjArray(UniValue::VARR);
@@ -964,7 +965,7 @@ static RPCHelpMan getblocktemplate()
         }
     }
     result.pushKV("superblock", superblockObjArray);
-    result.pushKV("superblocks_started", pindexPrev->nHeight + 1 > consensusParams.nSuperblockStartBlock);
+    result.pushKV("superblocks_started", nHeight > consensusParams.nSuperblockStartBlock);
     result.pushKV("superblocks_enabled", AreSuperblocksEnabled(*node.sporkman));
 
     result.pushKV("coinbase_payload", HexStr(pblock->vtx[0]->vExtraPayload));

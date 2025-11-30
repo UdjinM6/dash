@@ -196,7 +196,8 @@ bool BuildSimplifiedMNListDiff(CDeterministicMNManager& dmnman, const Chainstate
         return false;
     }
 
-    if (DeploymentActiveAfter(blockIndex, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)) {
+    const auto& consensusParams{Params().GetConsensus()};
+    if (blockIndex->nHeight + 1 >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_V20)) {
         if (!mnListDiffRet.BuildQuorumChainlockInfo(qman, blockIndex)) {
             errorRet = strprintf("failed to build quorum chainlock info");
             return false;
@@ -205,7 +206,7 @@ bool BuildSimplifiedMNListDiff(CDeterministicMNManager& dmnman, const Chainstate
 
     // TODO store coinbase TX in CBlockIndex
     CBlock block;
-    if (!ReadBlockFromDisk(block, blockIndex, Params().GetConsensus())) {
+    if (!ReadBlockFromDisk(block, blockIndex, consensusParams)) {
         errorRet = strprintf("failed to read block %s from disk", blockHash.ToString());
         return false;
     }

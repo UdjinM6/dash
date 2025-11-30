@@ -83,7 +83,8 @@ CDKGSession::CDKGSession(const CBlockIndex* pQuorumBaseBlockIndex, const Consens
     m_mn_activeman(mn_activeman),
     m_sporkman(sporkman),
     m_quorum_base_block_index{pQuorumBaseBlockIndex},
-    m_use_legacy_bls{!DeploymentActiveAfter(m_quorum_base_block_index, Params().GetConsensus(), Consensus::DEPLOYMENT_V19)}
+    m_use_legacy_bls{!m_quorum_base_block_index || m_quorum_base_block_index->nHeight + 1 <
+                                                       Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19)}
 {
 }
 
@@ -1238,7 +1239,9 @@ std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments()
 
         const bool isQuorumRotationEnabled{IsQuorumRotationEnabled(params, m_quorum_base_block_index)};
         // TODO: always put `true` here: so far as v19 is activated, we always write BASIC now
-        fqc.nVersion = CFinalCommitment::GetVersion(isQuorumRotationEnabled, DeploymentActiveAfter(m_quorum_base_block_index, Params().GetConsensus(), Consensus::DEPLOYMENT_V19));
+        fqc.nVersion = CFinalCommitment::GetVersion(isQuorumRotationEnabled, m_quorum_base_block_index->nHeight + 1 >=
+                                                                                 Params().GetConsensus().DeploymentHeight(
+                                                                                     Consensus::DEPLOYMENT_V19));
         fqc.quorumIndex = isQuorumRotationEnabled ? quorumIndex : 0;
 
         uint256 commitmentHash = BuildCommitmentHash(fqc.llmqType, fqc.quorumHash, fqc.validMembers, fqc.quorumPublicKey, fqc.quorumVvecHash);
@@ -1326,8 +1329,8 @@ CFinalCommitment CDKGSession::FinalizeSingleCommitment()
     }
     const bool isQuorumRotationEnabled{false};
     fqc.nVersion = CFinalCommitment::GetVersion(isQuorumRotationEnabled,
-                                                DeploymentActiveAfter(m_quorum_base_block_index, Params().GetConsensus(),
-                                                                      Consensus::DEPLOYMENT_V19));
+                                                m_quorum_base_block_index->nHeight + 1 >=
+                                                    Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19));
     fqc.quorumIndex = 0;
 
     uint256 commitmentHash = BuildCommitmentHash(fqc.llmqType, fqc.quorumHash, fqc.validMembers, fqc.quorumPublicKey,
