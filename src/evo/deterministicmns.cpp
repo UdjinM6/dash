@@ -653,7 +653,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
     AssertLockHeld(::cs_main);
 
     const auto& consensusParams = Params().GetConsensus();
-    if (!DeploymentActiveAt(*pindex, consensusParams, Consensus::DEPLOYMENT_DIP0003)) {
+    if (pindex->nHeight < consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
         return true;
     }
 
@@ -778,7 +778,7 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
 {
     CDeterministicMNList snapshot;
 
-    if (!DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003)) {
+    if (pindex->nHeight < Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
         return snapshot;
     }
 

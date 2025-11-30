@@ -61,7 +61,7 @@ static std::optional<CreditPoolDataPerBlock> GetCreditDataFromBlock(const gsl::n
                                                                     const Consensus::Params& consensusParams)
 {
     // There's no CbTx before DIP0003 activation
-    if (!DeploymentActiveAt(*block_index, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003)) {
+    if (block_index->nHeight < consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
         return std::nullopt;
     }
 
@@ -117,7 +117,7 @@ std::string CCreditPool::ToString() const
 
 std::optional<CCreditPool> CCreditPoolManager::GetFromCache(const CBlockIndex& block_index)
 {
-    if (!DeploymentActiveAt(block_index, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)) return CCreditPool{};
+    if (block_index.nHeight < Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V20)) return CCreditPool{};
 
     const uint256 block_hash = block_index.GetBlockHash();
     CCreditPool pool;
