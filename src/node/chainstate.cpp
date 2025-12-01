@@ -77,7 +77,7 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
     evodb = std::make_unique<CEvoDB>(util::DbWrapperParams{.path = data_dir, .memory = dash_dbs_in_memory, .wipe = fReset || fReindexChainState});
 
     mnhf_manager.reset();
-    mnhf_manager = std::make_unique<CMNHFManager>(*evodb);
+    mnhf_manager = std::make_unique<CMNHFManager>(*evodb, chainman);
 
     chainman.InitializeChainstate(mempool, *evodb, chain_helper);
     chainman.m_total_coinstip_cache = nCoinCacheUsage;
@@ -240,7 +240,7 @@ void DashChainstateSetup(ChainstateManager& chainman,
     dmnman = std::make_unique<CDeterministicMNManager>(*evodb, mn_metaman);
 
     cpoolman.reset();
-    cpoolman = std::make_unique<CCreditPoolManager>(*evodb);
+    cpoolman = std::make_unique<CCreditPoolManager>(*evodb, chainman);
 
     if (llmq_ctx) {
         llmq_ctx->Interrupt();
@@ -252,7 +252,7 @@ void DashChainstateSetup(ChainstateManager& chainman,
                                              util::DbWrapperParams{.path = data_dir, .memory = llmq_dbs_in_memory, .wipe = llmq_dbs_wipe});
     mempool->ConnectManagers(dmnman.get(), llmq_ctx->isman.get());
     // Enable CMNHFManager::{Process, Undo}Block
-    mnhf_manager->ConnectManagers(&chainman, llmq_ctx->qman.get());
+    mnhf_manager->ConnectManagers(llmq_ctx->qman.get());
 
     chain_helper.reset();
     chain_helper = std::make_unique<CChainstateHelper>(*cpoolman, *dmnman, *mnhf_manager, govman, *(llmq_ctx->isman), *(llmq_ctx->quorum_block_processor),
@@ -300,7 +300,7 @@ std::optional<ChainstateLoadVerifyError> VerifyLoadedChainstate(ChainstateManage
             if (tip && tip->nTime > get_unix_time_seconds() + MAX_FUTURE_BLOCK_TIME) {
                 return ChainstateLoadVerifyError::ERROR_BLOCK_FROM_FUTURE;
             }
-            const bool v19active{DeploymentActiveAfter(tip, consensus_params, Consensus::DEPLOYMENT_V19)};
+            const bool v19active{tip && tip->nHeight + 1 >= consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_V19)};
             if (v19active) {
                 bls::bls_legacy_scheme.store(false);
                 if (notify_bls_state) notify_bls_state(bls::bls_legacy_scheme.load());

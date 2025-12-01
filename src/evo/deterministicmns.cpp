@@ -3,31 +3,34 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <evo/deterministicmns.h>
+
 #include <evo/dmn_types.h>
 #include <evo/dmnstate.h>
 #include <evo/evodb.h>
 #include <evo/providertx.h>
 #include <evo/simplifiedmns.h>
 #include <evo/specialtx.h>
+#include <masternode/meta.h>
+#include <messagesigner.h>
+#include <stats/client.h>
+#include <util/irange.h>
+#include <util/pointer.h>
 
 #include <chainparams.h>
 #include <coins.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <index/txindex.h>
-#include <masternode/meta.h>
-#include <messagesigner.h>
 #include <node/blockstorage.h>
 #include <script/standard.h>
-#include <stats/client.h>
 #include <uint256.h>
-#include <univalue.h>
-#include <util/irange.h>
-#include <util/pointer.h>
+#include <validation.h>
 
 #include <functional>
 #include <optional>
 #include <memory>
+
+#include <univalue.h>
 
 static const std::string DB_LIST_SNAPSHOT = "dmn_S3";
 static const std::string DB_LIST_DIFF = "dmn_D4";        // Bumped for nVersion-first format
@@ -185,14 +188,17 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNPayee(gsl::not_null<const CBlock
         return nullptr;
     }
 
+    const int block_height{pindexPrev->nHeight + 1};
+    const auto& consensusParams{Params().GetConsensus()};
+
     // The flag is-v19-activate is used for optimization; we don't need to go over all masternodes every pre-v19 block
-    const bool isv19Active{DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_V19)};
-    const bool isMNRewardReallocation{DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_MN_RR)};
+    const bool isv19Active{block_height >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_V19)};
+    const bool isMNRewardReallocation{block_height >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_MN_RR)};
     // EvoNodes are rewarded 4 blocks in a row until MNRewardReallocation (Platform release)
     // For optimization purposes we also check if v19 active to avoid loop over all masternodes
     CDeterministicMNCPtr best = nullptr;
     if (isv19Active && !isMNRewardReallocation) {
-        ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
+        ForEachMNShared(/*onlyValid=*/true, [&](const auto& dmn) {
             if (dmn->pdmnState->nLastPaidHeight == nHeight) {
                 // We found the last MN Payee.
                 // If the last payee is an EvoNode, we need to check its consecutive payments and pay him again if needed
@@ -208,7 +214,7 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNPayee(gsl::not_null<const CBlock
         // We can proceed with classic MN payee selection
     }
 
-    ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
+    ForEachMNShared(/*onlyValid=*/true, [&](const auto& dmn) {
         if (best == nullptr || CompareByLastPaid(dmn.get(), best.get())) {
             best = dmn;
         }
@@ -222,8 +228,8 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(gsl
     if (nCount < 0 ) {
         return {};
     }
-    const bool isMNRewardReallocation = DeploymentActiveAfter(pindexPrev, Params().GetConsensus(),
-                                                              Consensus::DEPLOYMENT_MN_RR);
+    const bool isMNRewardReallocation = pindexPrev->nHeight + 1 >=
+                                        Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_MN_RR);
     const auto weighted_count = isMNRewardReallocation ? GetValidMNsCount() : GetValidWeightedMNsCount();
     nCount = std::min(nCount, int(weighted_count));
 
@@ -233,7 +239,7 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(gsl
     int remaining_evo_payments{0};
     CDeterministicMNCPtr evo_to_be_skipped{nullptr};
     if (!isMNRewardReallocation) {
-        ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
+        ForEachMNShared(/*onlyValid=*/true, [&](const auto& dmn) {
             if (dmn->pdmnState->nLastPaidHeight == nHeight) {
                 // We found the last MN Payee.
                 // If the last payee is an EvoNode, we need to check its consecutive payments and pay him again if needed
@@ -248,7 +254,7 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(gsl
         });
     }
 
-    ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
+    ForEachMNShared(/*onlyValid=*/true, [&](const auto& dmn) {
         if (dmn == evo_to_be_skipped) return;
         for ([[maybe_unused]] auto _ : irange::range(isMNRewardReallocation ? 1 : GetMnType(dmn->nType).voting_weight)) {
             result.emplace_back(dmn);
@@ -278,7 +284,7 @@ gsl::not_null<std::shared_ptr<const CSimplifiedMNList>> CDeterministicMNList::to
         std::vector<std::unique_ptr<CSimplifiedMNListEntry>> sml_entries;
         sml_entries.reserve(mnMap.size());
 
-        ForEachMN(false, [&sml_entries](auto& dmn) {
+        ForEachMN(/*onlyValid=*/false, [&sml_entries](const auto& dmn) {
             sml_entries.emplace_back(std::make_unique<CSimplifiedMNListEntry>(dmn.to_sml_entry()));
         });
         m_cached_sml = std::make_shared<CSimplifiedMNList>(std::move(sml_entries));
@@ -335,7 +341,7 @@ void CDeterministicMNList::DecreaseScores()
     toDecrease.reserve(GetAllMNsCount() / 10);
     // only iterate and decrease for valid ones (not PoSe banned yet)
     // if a MN ever reaches the maximum, it stays in PoSe banned state until revived
-    ForEachMNShared(true /* onlyValid */, [&toDecrease](auto& dmn) {
+    ForEachMNShared(/*onlyValid=*/true, [&toDecrease](const auto& dmn) {
         // There is no reason to check if this MN is banned here since onlyValid=true will only run on non-banned MNs
         if (dmn->pdmnState->nPoSePenalty > 0) {
             toDecrease.emplace_back(dmn);
@@ -651,7 +657,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
     AssertLockHeld(::cs_main);
 
     const auto& consensusParams = Params().GetConsensus();
-    if (!DeploymentActiveAt(*pindex, consensusParams, Consensus::DEPLOYMENT_DIP0003)) {
+    if (pindex->nHeight < consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
         return true;
     }
 
@@ -776,7 +782,7 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
 {
     CDeterministicMNList snapshot;
 
-    if (!DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003)) {
+    if (pindex->nHeight < Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
         return snapshot;
     }
 
@@ -1035,8 +1041,9 @@ static bool CheckHashSig(const ProTx& proTx, const CBLSPublicKey& pubKey, TxVali
     return true;
 }
 
-template<typename ProTx>
-static std::optional<ProTx> GetValidatedPayload(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state)
+template <typename ProTx>
+static std::optional<ProTx> GetValidatedPayload(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
+                                                const ChainstateManager& chainman, TxValidationState& state)
 {
     if (tx.nType != ProTx::SPECIALTX_TYPE) {
         state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-type");
@@ -1048,7 +1055,7 @@ static std::optional<ProTx> GetValidatedPayload(const CTransaction& tx, gsl::not
         state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-payload");
         return std::nullopt;
     }
-    if (!opt_ptx->IsTriviallyValid(pindexPrev, state)) {
+    if (!opt_ptx->IsTriviallyValid(pindexPrev, chainman, state)) {
         // pass the state returned by the function above
         return std::nullopt;
     }
@@ -1065,9 +1072,10 @@ static std::optional<ProTx> GetValidatedPayload(const CTransaction& tx, gsl::not
  * @returns                  true if version change is valid or DEPLOYMENT_V24 is not active
  */
 bool IsVersionChangeValid(gsl::not_null<const CBlockIndex*> pindexPrev, const uint16_t tx_type,
-                          const uint16_t state_version, const uint16_t tx_version, TxValidationState& state)
+                          const uint16_t state_version, const uint16_t tx_version, const ChainstateManager& chainman,
+                          TxValidationState& state)
 {
-    if (!DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_V24)) {
+    if (!DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24)) {
         // New restrictions only apply after v24 deployment
         return true;
     }
@@ -1090,15 +1098,17 @@ bool IsVersionChangeValid(gsl::not_null<const CBlockIndex*> pindexPrev, const ui
     return true;
 }
 
-bool CheckProRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state, const CCoinsViewCache& view, bool check_sigs)
+bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
+                   CDeterministicMNManager& dmnman, const CCoinsViewCache& view, const ChainstateManager& chainman,
+                   TxValidationState& state, bool check_sigs)
 {
-    const auto opt_ptx = GetValidatedPayload<CProRegTx>(tx, pindexPrev, state);
+    const auto opt_ptx = GetValidatedPayload<CProRegTx>(tx, pindexPrev, chainman, state);
     if (!opt_ptx) {
         // pass the state returned by the function above
         return false;
     }
 
-    const bool is_v24_active{DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_V24)};
+    const bool is_v24_active{DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24)};
 
     // No longer allow legacy scheme masternode registration
     if (is_v24_active && opt_ptx->nVersion < ProTxVersion::BasicBLS) {
@@ -1223,9 +1233,10 @@ bool CheckProRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl:
     return true;
 }
 
-bool CheckProUpServTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state, bool check_sigs)
+bool CheckProUpServTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,
+                      const ChainstateManager& chainman, TxValidationState& state, bool check_sigs)
 {
-    const auto opt_ptx = GetValidatedPayload<CProUpServTx>(tx, pindexPrev, state);
+    const auto opt_ptx = GetValidatedPayload<CProUpServTx>(tx, pindexPrev, chainman, state);
     if (!opt_ptx) {
         // pass the state returned by the function above
         return false;
@@ -1248,7 +1259,7 @@ bool CheckProUpServTx(CDeterministicMNManager& dmnman, const CTransaction& tx, g
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-hash");
     }
 
-    if (!IsVersionChangeValid(pindexPrev, tx.nType, dmn->pdmnState->nVersion, opt_ptx->nVersion, state)) {
+    if (!IsVersionChangeValid(pindexPrev, tx.nType, dmn->pdmnState->nVersion, opt_ptx->nVersion, chainman, state)) {
         // pass the state returned by the function above
         return false;
     }
@@ -1299,9 +1310,11 @@ bool CheckProUpServTx(CDeterministicMNManager& dmnman, const CTransaction& tx, g
     return true;
 }
 
-bool CheckProUpRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state, const CCoinsViewCache& view, bool check_sigs)
+bool CheckProUpRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev,
+                     CDeterministicMNManager& dmnman, const CCoinsViewCache& view, const ChainstateManager& chainman,
+                     TxValidationState& state, bool check_sigs)
 {
-    const auto opt_ptx = GetValidatedPayload<CProUpRegTx>(tx, pindexPrev, state);
+    const auto opt_ptx = GetValidatedPayload<CProUpRegTx>(tx, pindexPrev, chainman, state);
     if (!opt_ptx) {
         // pass the state returned by the function above
         return false;
@@ -1319,7 +1332,7 @@ bool CheckProUpRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gs
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-hash");
     }
 
-    if (!IsVersionChangeValid(pindexPrev, tx.nType, dmn->pdmnState->nVersion, opt_ptx->nVersion, state)) {
+    if (!IsVersionChangeValid(pindexPrev, tx.nType, dmn->pdmnState->nVersion, opt_ptx->nVersion, chainman, state)) {
         // pass the state returned by the function above
         return false;
     }
@@ -1369,9 +1382,10 @@ bool CheckProUpRegTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gs
     return true;
 }
 
-bool CheckProUpRevTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, TxValidationState& state, bool check_sigs)
+bool CheckProUpRevTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,
+                     const ChainstateManager& chainman, TxValidationState& state, bool check_sigs)
 {
-    const auto opt_ptx = GetValidatedPayload<CProUpRevTx>(tx, pindexPrev, state);
+    const auto opt_ptx = GetValidatedPayload<CProUpRevTx>(tx, pindexPrev, chainman, state);
     if (!opt_ptx) {
         // pass the state returned by the function above
         return false;
@@ -1383,7 +1397,7 @@ bool CheckProUpRevTx(CDeterministicMNManager& dmnman, const CTransaction& tx, gs
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-hash");
     }
 
-    if (!IsVersionChangeValid(pindexPrev, tx.nType, dmn->pdmnState->nVersion, opt_ptx->nVersion, state)) {
+    if (!IsVersionChangeValid(pindexPrev, tx.nType, dmn->pdmnState->nVersion, opt_ptx->nVersion, chainman, state)) {
         // pass the state returned by the function above
         return false;
     }
@@ -1591,17 +1605,17 @@ CDeterministicMNManager::RecalcDiffsResult CDeterministicMNManager::RecalculateA
     result.stop_height = stop_index->nHeight;
 
     const auto& consensus_params = Params().GetConsensus();
-
+    const int height_dip003{Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)};
     // Clamp start height to DIP0003 activation (no snapshots/diffs exist before this)
-    if (start_index->nHeight < consensus_params.DIP0003Height) {
-        start_index = stop_index->GetAncestor(consensus_params.DIP0003Height);
+    if (start_index->nHeight < height_dip003) {
+        start_index = stop_index->GetAncestor(height_dip003);
         if (!start_index) {
-            result.verification_errors.push_back(strprintf("Stop height %d is below DIP0003 activation height %d",
-                                                           stop_index->nHeight, consensus_params.DIP0003Height));
+            result.verification_errors.push_back(
+                strprintf("Stop height %d is below DIP0003 activation height %d", stop_index->nHeight, height_dip003));
             return result;
         }
         LogPrintf("CDeterministicMNManager::%s -- Clamped start height from %d to DIP0003 activation height %d\n",
-                  __func__, result.start_height, consensus_params.DIP0003Height);
+                  __func__, result.start_height, height_dip003);
         // Update result to reflect the clamped start height
         result.start_height = start_index->nHeight;
     }
@@ -1641,7 +1655,7 @@ CDeterministicMNManager::RecalcDiffsResult CDeterministicMNManager::RecalculateA
         if (!has_from_snapshot) {
             // The initial snapshot at DIP0003 activation might not exist in the database on nodes
             // that synced before the fix to explicitly write it. This is the only acceptable case.
-            if (from_index->nHeight == consensus_params.DIP0003Height) {
+            if (from_index->nHeight == consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
                 // Create an empty initial snapshot (matching what GetListForBlockInternal does)
                 from_snapshot = CDeterministicMNList(from_index->GetBlockHash(), from_index->nHeight, 0);
                 LogPrintf("CDeterministicMNManager::%s -- Using empty initial snapshot at DIP0003 height %d\n",
@@ -1713,8 +1727,9 @@ std::vector<const CBlockIndex*> CDeterministicMNManager::CollectSnapshotBlocks(
     // Add the starting snapshot (find the snapshot at or before start)
     // Walk backwards to find a snapshot block (divisible by DISK_SNAPSHOT_PERIOD)
     // or the initial snapshot at DIP0003 activation height
+    const int height_dip0003{consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)};
     const CBlockIndex* snapshot_start_index = start_index;
-    while (snapshot_start_index && snapshot_start_index->nHeight > consensus_params.DIP0003Height &&
+    while (snapshot_start_index && snapshot_start_index->nHeight > height_dip0003 &&
            (snapshot_start_index->nHeight % DISK_SNAPSHOT_PERIOD) != 0) {
         snapshot_start_index = snapshot_start_index->pprev;
     }
@@ -1731,9 +1746,9 @@ std::vector<const CBlockIndex*> CDeterministicMNManager::CollectSnapshotBlocks(
     while (true) {
         // Calculate next snapshot height
         int next_snapshot_height;
-        if (current_snapshot_height == consensus_params.DIP0003Height) {
+        if (current_snapshot_height == height_dip0003) {
             // If we're at DIP0003 activation (initial snapshot), next is at first regular interval
-            next_snapshot_height = ((consensus_params.DIP0003Height / DISK_SNAPSHOT_PERIOD) + 1) * DISK_SNAPSHOT_PERIOD;
+            next_snapshot_height = ((height_dip0003 / DISK_SNAPSHOT_PERIOD) + 1) * DISK_SNAPSHOT_PERIOD;
         } else {
             // Otherwise, add DISK_SNAPSHOT_PERIOD
             next_snapshot_height = current_snapshot_height + DISK_SNAPSHOT_PERIOD;

@@ -35,8 +35,6 @@ CEHFSignalsHandler::~CEHFSignalsHandler()
 
 void CEHFSignalsHandler::UpdatedBlockTip(const CBlockIndex* const pindexNew)
 {
-    if (!DeploymentActiveAfter(pindexNew, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)) return;
-
     const auto ehfSignals = mnhfman.GetSignalsStage(pindexNew);
     for (const auto& deployment : Params().GetConsensus().vDeployments) {
         // Skip deployments that do not use dip0023

@@ -106,20 +106,20 @@ static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, llmq::CQuorumSn
         return true;
 
     const auto& consensusParams = Params().GetConsensus();
-    if (!DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_DIP0003)) {
+    if (Assert(pindexPrev)->nHeight + 1 < consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-tx-type");
     }
 
     try {
         switch (tx.nType) {
         case TRANSACTION_PROVIDER_REGISTER:
-            return CheckProRegTx(dmnman, tx, pindexPrev, state, view, check_sigs);
+            return CheckProRegTx(tx, pindexPrev, dmnman, view, chainman, state, check_sigs);
         case TRANSACTION_PROVIDER_UPDATE_SERVICE:
-            return CheckProUpServTx(dmnman, tx, pindexPrev, state, check_sigs);
+            return CheckProUpServTx(tx, pindexPrev, dmnman, chainman, state, check_sigs);
         case TRANSACTION_PROVIDER_UPDATE_REGISTRAR:
-            return CheckProUpRegTx(dmnman, tx, pindexPrev, state, view, check_sigs);
+            return CheckProUpRegTx(tx, pindexPrev, dmnman, view, chainman, state, check_sigs);
         case TRANSACTION_PROVIDER_UPDATE_REVOKE:
-            return CheckProUpRevTx(dmnman, tx, pindexPrev, state, check_sigs);
+            return CheckProUpRevTx(tx, pindexPrev, dmnman, chainman, state, check_sigs);
         case TRANSACTION_COINBASE: {
             if (!tx.IsCoinBase()) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-invalid");
@@ -200,7 +200,7 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
     // we iterate the prevList here and update the newList
     // this is only valid as long these have not diverged at this point, which is the case as long as we don't add
     // code above this loop that modifies newList
-    prevList.ForEachMN(false, [&pindexPrev, &newList, this](auto& dmn) {
+    prevList.ForEachMN(/*onlyValid=*/false, [&pindexPrev, &newList, this](const auto& dmn) {
         if (!dmn.pdmnState->confirmedHash.IsNull()) {
             // already confirmed
             return;
@@ -217,8 +217,8 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
 
     newList.DecreaseScores();
 
-    const bool isMNRewardReallocation{DeploymentActiveAfter(pindexPrev, m_consensus_params, Consensus::DEPLOYMENT_MN_RR)};
-    const bool is_v24_deployed{DeploymentActiveAfter(pindexPrev, m_consensus_params, Consensus::DEPLOYMENT_V24)};
+    const bool isMNRewardReallocation{DeploymentActiveAfter(pindexPrev, m_chainman, Consensus::DEPLOYMENT_MN_RR)};
+    const bool is_v24_deployed{DeploymentActiveAfter(pindexPrev, m_chainman, Consensus::DEPLOYMENT_V24)};
 
     // we skip the coinbase
     for (int i = 1; i < (int)block.vtx.size(); i++) {
@@ -443,7 +443,7 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
                 // The commitment has already been validated at this point, so it's safe to use members of it
 
                 const auto members = llmq::utils::GetAllQuorumMembers(opt_qc->commitment.llmqType, m_dmnman, m_qsnapman,
-                                                                      pQuorumBaseBlockIndex);
+                                                                      m_chainman, pQuorumBaseBlockIndex);
                 HandleQuorumCommitment(opt_qc->commitment, members, debugLogs, newList);
             }
         }
@@ -489,7 +489,7 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
 
     // reset nConsecutivePayments on non-paid EvoNodes
     auto newList2 = newList;
-    newList2.ForEachMN(false, [&](auto& dmn) {
+    newList2.ForEachMN(/*onlyValid=*/false, [&](const auto& dmn) {
         if (dmn.nType != MnType::Evo) return;
         if (payee != nullptr && dmn.proTxHash == payee->proTxHash && !isMNRewardReallocation) return;
         if (dmn.pdmnState->nConsecutivePayments == 0) return;
@@ -546,7 +546,8 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
         }
         if (fCheckCbTxMerkleRoots) {
             // To ensure that opt_cbTx is not missing when it's supposed to be
-            if (DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_DIP0003) && !opt_cbTx.has_value()) {
+            if (pindex->nHeight >= m_consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003) &&
+                !opt_cbTx.has_value()) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-version");
             }
         }
@@ -557,8 +558,8 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
                  nTimePayload * 0.000001);
 
         CRangesSet indexes;
-        if (DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20)) {
-            CCreditPool creditPool{m_cpoolman.GetCreditPool(pindex->pprev, m_consensus_params)};
+        if (pindex->nHeight >= m_consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_V20)) {
+            CCreditPool creditPool{m_cpoolman.GetCreditPool(pindex->pprev)};
             LogPrint(BCLog::CREDITPOOL, "CSpecialTxProcessor::%s -- CCreditPool is %s\n", __func__, creditPool.ToString());
             indexes = std::move(creditPool.indexes);
         }
@@ -606,7 +607,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
                  nTimeQuorum * 0.000001);
 
         CDeterministicMNList mn_list;
-        if (DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_DIP0003)) {
+        if (pindex->nHeight >= m_consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
             if (!BuildNewListFromBlock(block, pindex->pprev, view, true, state, mn_list)) {
                 // pass the state returned by the function above
                 return false;
@@ -679,7 +680,8 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
         LogPrint(BCLog::BENCHMARK, "      - m_mnhfman.ProcessBlock: %.2fms [%.2fs]\n", 0.001 * (nTime8 - nTime7),
                  nTimeMnehf * 0.000001);
 
-        if (DeploymentActiveAfter(pindex, m_consensus_params, Consensus::DEPLOYMENT_V19) && bls::bls_legacy_scheme.load()) {
+        if (pindex->nHeight + 1 >= m_consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_V19) &&
+            bls::bls_legacy_scheme.load()) {
             // NOTE: The block next to the activation is the one that is using new rules.
             // V19 activated just activated, so we must switch to the new rules here.
             bls::bls_legacy_scheme.store(false);
@@ -700,7 +702,7 @@ bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const CBlock& block, const CBloc
     auto bls_legacy_scheme = bls::bls_legacy_scheme.load();
 
     try {
-        if (!DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V19) && !bls_legacy_scheme) {
+        if (pindex->nHeight < m_consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_V19) && !bls_legacy_scheme) {
             // NOTE: The block next to the activation is the one that is using new rules.
             // Removing the activation block here, so we must switch back to the old rules.
             bls::bls_legacy_scheme.store(true);
@@ -732,8 +734,8 @@ bool CSpecialTxProcessor::CheckCreditPoolDiffForBlock(const CBlock& block, const
 {
     AssertLockHeld(::cs_main);
 
-    if (!DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_DIP0008)) return true;
-    if (!DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20)) return true;
+    if (pindex->nHeight < m_consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_DIP0008)) return true;
+    if (pindex->nHeight < m_consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_V20)) return true;
 
     try {
         const CAmount blockSubsidy = GetBlockSubsidy(pindex, m_consensus_params);

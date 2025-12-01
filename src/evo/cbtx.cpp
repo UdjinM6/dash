@@ -26,16 +26,18 @@ bool CheckCbTx(const CCbTx& cbTx, const CBlockIndex* pindexPrev, TxValidationSta
     }
 
     if (pindexPrev) {
-        if (pindexPrev->nHeight + 1 != cbTx.nHeight) {
+        const int nHeight{pindexPrev->nHeight + 1};
+        if (nHeight != cbTx.nHeight) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-height");
         }
 
-        const bool fDIP0008Active{DeploymentActiveAt(*pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0008)};
-        if (fDIP0008Active && cbTx.nVersion < CCbTx::Version::MERKLE_ROOT_QUORUMS) {
+        const auto& consensusParams{Params().GetConsensus()};
+        if (pindexPrev->nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0008) &&
+            cbTx.nVersion < CCbTx::Version::MERKLE_ROOT_QUORUMS) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
         }
 
-        const bool isV20{DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)};
+        const bool isV20{nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_V20)};
         if ((isV20 && cbTx.nVersion < CCbTx::Version::CLSIG_AND_BALANCE) || (!isV20 && cbTx.nVersion >= CCbTx::Version::CLSIG_AND_BALANCE)) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
         }
@@ -222,13 +224,14 @@ std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(co
         return std::nullopt;
     }
 
+    const auto& consensusParams{Params().GetConsensus()};
     // There's no CL in CbTx before v20 activation
-    if (!DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)) {
+    if (pindex->nHeight < consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_V20)) {
         return std::nullopt;
     }
 
     CBlock block;
-    if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
+    if (!ReadBlockFromDisk(block, pindex, consensusParams)) {
         return std::nullopt;
     }
 

@@ -698,7 +698,7 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     CProRegTx ptx;
     ptx.nType = mnType;
     ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProRegTx>(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()),
-                                                                 /*is_basic_override=*/!use_legacy);
+                                                                 chainman, /*is_basic_override=*/!use_legacy);
     ptx.netInfo = NetInfoInterface::MakeNetInfo(ptx.nVersion);
 
     if (action == ProTxRegisterAction::Fund) {
@@ -1011,8 +1011,9 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
         throw std::runtime_error(strprintf("masternode with proTxHash %s is not a %s", ptx.proTxHash.ToString(), GetMnType(mnType).description));
     }
 
-    ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProUpServTx>(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()),
-                                                                    /*is_basic_override=*/dmn->pdmnState->nVersion > ProTxVersion::LegacyBLS);
+    ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProUpServTx>(
+        WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), chainman,
+        /*is_basic_override=*/dmn->pdmnState->nVersion > ProTxVersion::LegacyBLS);
     ptx.netInfo = NetInfoInterface::MakeNetInfo(ptx.nVersion);
 
     ProcessNetInfoCore(ptx, request.params[1], /*optional=*/false);
@@ -1078,8 +1079,8 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
 
     FundSpecialTx(*wallet, tx, ptx, feeSource);
 
-    const bool isV19active = DeploymentActiveAfter(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip();),
-                                                   Params().GetConsensus(), Consensus::DEPLOYMENT_V19);
+    const bool isV19active = WITH_LOCK(::cs_main, return chainman.ActiveChain().Height() + 1) >=
+                             Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19);
     SignSpecialTxPayloadByHash(tx, ptx, keyOperator, !isV19active);
     SetTxPayload(tx, ptx);
 
@@ -1135,7 +1136,7 @@ static RPCHelpMan protx_update_registrar_wrapper(const bool specific_legacy_bls_
 
     CProUpRegTx ptx;
     ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProUpRegTx>(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()),
-                                                                   /*is_basic_override=*/!use_legacy);
+                                                                   chainman, /*is_basic_override=*/!use_legacy);
 
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
     auto dmn = dmnman.GetListAtChainTip().GetMN(ptx.proTxHash);
@@ -1261,8 +1262,9 @@ static RPCHelpMan protx_revoke()
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("masternode %s not found", ptx.proTxHash.ToString()));
     }
 
-    ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProUpRevTx>(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()),
-                                                                   /*is_basic_override=*/dmn->pdmnState->nVersion >= ProTxVersion::BasicBLS);
+    ptx.nVersion = ProTxVersion::GetMaxFromDeployment<CProUpRevTx>(
+        WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()), chainman,
+        /*is_basic_override=*/dmn->pdmnState->nVersion >= ProTxVersion::BasicBLS);
 
     CBLSSecretKey keyOperator = ParseBLSSecretKey(request.params[1].get_str(), "operatorKey");
 
@@ -1463,7 +1465,7 @@ static RPCHelpMan protx_list()
         }
 
         CDeterministicMNList mnList = dmnman.GetListForBlock(chainman.ActiveChain()[height]);
-        mnList.ForEachMN(false, [&](const auto& dmn) {
+        mnList.ForEachMN(/*onlyValid=*/false, [&](const auto& dmn) {
             if (setOutpts.count(dmn.collateralOutpoint) ||
                 CheckWalletOwnsKey(wallet.get(), dmn.pdmnState->keyIDOwner) ||
                 CheckWalletOwnsKey(wallet.get(), dmn.pdmnState->keyIDVoting) ||
@@ -1765,7 +1767,7 @@ static UniValue evodb_verify_or_repair_impl(const JSONRPCRequest& request, bool 
         // Default to DIP0003 activation height if startBlock not specified
         if (request.params[0].isNull()) {
             const auto& consensus_params = Params().GetConsensus();
-            start_index = chainman.ActiveChain()[consensus_params.DIP0003Height];
+            start_index = chainman.ActiveChain()[consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)];
             if (!start_index) {
                 throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot find DIP0003 activation block");
             }

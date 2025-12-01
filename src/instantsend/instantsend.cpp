@@ -435,7 +435,8 @@ void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
     CacheTipHeight(pindexNew);
 
-    bool fDIP0008Active = pindexNew->pprev && pindexNew->pprev->nHeight >= Params().GetConsensus().DIP0008Height;
+    bool fDIP0008Active = pindexNew->pprev && pindexNew->pprev->nHeight >=
+                                                  Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0008);
 
     if (AreChainLocksEnabled(spork_manager) && fDIP0008Active) {
         // Nothing to do here. We should keep all islocks and let chainlocks handle them.

@@ -203,16 +203,16 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     assert(pindexPrev != nullptr);
     nHeight = pindexPrev->nHeight + 1;
 
-    const bool fDIP0001Active_context{DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_DIP0001)};
-    const bool fDIP0003Active_context{DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_DIP0003)};
-    const bool fDIP0008Active_context{DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_DIP0008)};
-    const bool fV20Active_context{DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_V20)};
+    const bool fDIP0001Active_context{nHeight >= chainparams.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0001)};
+    const bool fDIP0003Active_context{nHeight >= chainparams.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)};
+    const bool fDIP0008Active_context{nHeight >= chainparams.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0008)};
+    const bool fV20Active_context{nHeight >= chainparams.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V20)};
 
     // Limit size to between 1K and MaxBlockSize()-1K for sanity:
     nBlockMaxSize = std::max<unsigned int>(1000, std::min<unsigned int>(MaxBlockSize(fDIP0001Active_context) - 1000, nBlockMaxSize));
     nBlockMaxSigOps = MaxBlockSigOps(fDIP0001Active_context);
 
-    pblock->nVersion = g_versionbitscache.ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
+    pblock->nVersion = m_chainstate.m_chainman.m_versionbitscache.ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
     // Non-mainnet only: allow overriding block.nVersion with
     // -blockversion=N to test forking scenarios
     if (Params().NetworkIDString() != CBaseChainParams::MAIN) {
@@ -223,7 +223,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     m_lock_time_cutoff = pindexPrev->GetMedianTimePast();
 
     if (fDIP0003Active_context) {
-        for (const Consensus::LLMQParams& params : llmq::GetEnabledQuorumParams(pindexPrev)) {
+        for (const Consensus::LLMQParams& params : llmq::GetEnabledQuorumParams(m_chainstate.m_chainman, pindexPrev)) {
             std::vector<CTransactionRef> vqcTx;
             if (m_quorum_block_processor.GetMineableCommitmentsTx(params,
                                                                   nHeight,
@@ -471,8 +471,8 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
     // This credit pool is used only to check withdrawal limits and to find
     // duplicates of indexes. There's used `BlockSubsidy` equaled to 0
     std::optional<CCreditPoolDiff> creditPoolDiff;
-    if (DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_V20)) {
-        CCreditPool creditPool = m_cpoolman.GetCreditPool(pindexPrev, chainparams.GetConsensus());
+    if (Assert(pindexPrev)->nHeight + 1 >= chainparams.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V20)) {
+        CCreditPool creditPool = m_cpoolman.GetCreditPool(pindexPrev);
         creditPoolDiff.emplace(std::move(creditPool), pindexPrev, chainparams.GetConsensus(), 0);
     }
 
