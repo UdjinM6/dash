@@ -188,12 +188,9 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNPayee(gsl::not_null<const CBlock
         return nullptr;
     }
 
-    const int block_height{pindexPrev->nHeight + 1};
-    const auto& consensusParams{Params().GetConsensus()};
-
     // The flag is-v19-activate is used for optimization; we don't need to go over all masternodes every pre-v19 block
-    const bool isv19Active{block_height >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_V19)};
-    const bool isMNRewardReallocation{block_height >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_MN_RR)};
+    const bool isv19Active{DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_V19)};
+    const bool isMNRewardReallocation{DeploymentActiveAfter(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_MN_RR)};
     // EvoNodes are rewarded 4 blocks in a row until MNRewardReallocation (Platform release)
     // For optimization purposes we also check if v19 active to avoid loop over all masternodes
     CDeterministicMNCPtr best = nullptr;
@@ -228,8 +225,8 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(gsl
     if (nCount < 0 ) {
         return {};
     }
-    const bool isMNRewardReallocation = pindexPrev->nHeight + 1 >=
-                                        Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_MN_RR);
+    const bool isMNRewardReallocation = DeploymentActiveAfter(pindexPrev, Params().GetConsensus(),
+                                                              Consensus::DEPLOYMENT_MN_RR);
     const auto weighted_count = isMNRewardReallocation ? GetValidMNsCount() : GetValidWeightedMNsCount();
     nCount = std::min(nCount, int(weighted_count));
 
@@ -657,7 +654,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, gsl::not_null<co
     AssertLockHeld(::cs_main);
 
     const auto& consensusParams = Params().GetConsensus();
-    if (pindex->nHeight < consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
+    if (!DeploymentActiveAt(*pindex, consensusParams, Consensus::DEPLOYMENT_DIP0003)) {
         return true;
     }
 
@@ -782,7 +779,7 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
 {
     CDeterministicMNList snapshot;
 
-    if (pindex->nHeight < Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
+    if (!DeploymentActiveAt(*pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003)) {
         return snapshot;
     }
 

@@ -1100,8 +1100,7 @@ static RPCHelpMan verifychainlock()
 
     CBLSSignature sig;
     if (pIndex) {
-        const bool use_legacy_signature{pIndex->nHeight + 1 <
-                                        Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19)};
+        const bool use_legacy_signature{!DeploymentActiveAfter(pIndex, chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)};
         if (!sig.SetHexStr(request.params[1].get_str(), use_legacy_signature)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
         }
@@ -1179,8 +1178,7 @@ static RPCHelpMan verifyislock()
     CHECK_NONFATAL(pBlockIndex != nullptr);
 
     CBLSSignature sig;
-    const bool use_bls_legacy{pBlockIndex->nHeight + 1 <
-                              Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19)};
+    const bool use_bls_legacy{!DeploymentActiveAfter(pBlockIndex, chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)};
     if (!sig.SetHexStr(request.params[2].get_str(), use_bls_legacy)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
     }

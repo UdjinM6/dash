@@ -53,7 +53,8 @@ bool IsQuorumRotationEnabled(const Consensus::LLMQParams& llmqParams, gsl::not_n
         return false;
     }
     // It should activate at least 1 block prior to the cycle start
-    return cycleQuorumBaseHeight >= Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0024);
+    return DeploymentActiveAfter(pindex->GetAncestor(cycleQuorumBaseHeight - 1), Params().GetConsensus(),
+                                 Consensus::DEPLOYMENT_DIP0024);
 }
 
 bool QuorumDataRecoveryEnabled()

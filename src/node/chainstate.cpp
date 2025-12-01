@@ -300,7 +300,7 @@ std::optional<ChainstateLoadVerifyError> VerifyLoadedChainstate(ChainstateManage
             if (tip && tip->nTime > get_unix_time_seconds() + MAX_FUTURE_BLOCK_TIME) {
                 return ChainstateLoadVerifyError::ERROR_BLOCK_FROM_FUTURE;
             }
-            const bool v19active{tip && tip->nHeight + 1 >= consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_V19)};
+            const bool v19active{DeploymentActiveAfter(tip, consensus_params, Consensus::DEPLOYMENT_V19)};
             if (v19active) {
                 bls::bls_legacy_scheme.store(false);
                 if (notify_bls_state) notify_bls_state(bls::bls_legacy_scheme.load());

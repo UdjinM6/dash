@@ -105,8 +105,7 @@ static bool CheckSpecialTxInner(CDeterministicMNManager& dmnman, llmq::CQuorumSn
     if (!tx.HasExtraPayloadField())
         return true;
 
-    const auto& consensusParams = Params().GetConsensus();
-    if (Assert(pindexPrev)->nHeight + 1 < consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
+    if (!DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), Consensus::DEPLOYMENT_DIP0003)) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-tx-type");
     }
 
@@ -217,7 +216,8 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
 
     newList.DecreaseScores();
 
-    const bool isMNRewardReallocation{DeploymentActiveAfter(pindexPrev, m_chainman, Consensus::DEPLOYMENT_MN_RR)};
+    const bool isMNRewardReallocation{
+        DeploymentActiveAfter(pindexPrev, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_MN_RR)};
     const bool is_v24_deployed{DeploymentActiveAfter(pindexPrev, m_chainman, Consensus::DEPLOYMENT_V24)};
 
     // we skip the coinbase
@@ -546,8 +546,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
         }
         if (fCheckCbTxMerkleRoots) {
             // To ensure that opt_cbTx is not missing when it's supposed to be
-            if (pindex->nHeight >= m_consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003) &&
-                !opt_cbTx.has_value()) {
+            if (DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_DIP0003) && !opt_cbTx.has_value()) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-version");
             }
         }
@@ -558,7 +557,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
                  nTimePayload * 0.000001);
 
         CRangesSet indexes;
-        if (pindex->nHeight >= m_consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_V20)) {
+        if (DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20)) {
             CCreditPool creditPool{m_cpoolman.GetCreditPool(pindex->pprev)};
             LogPrint(BCLog::CREDITPOOL, "CSpecialTxProcessor::%s -- CCreditPool is %s\n", __func__, creditPool.ToString());
             indexes = std::move(creditPool.indexes);
@@ -607,7 +606,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
                  nTimeQuorum * 0.000001);
 
         CDeterministicMNList mn_list;
-        if (pindex->nHeight >= m_consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
+        if (DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_DIP0003)) {
             if (!BuildNewListFromBlock(block, pindex->pprev, view, true, state, mn_list)) {
                 // pass the state returned by the function above
                 return false;
@@ -680,8 +679,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(const CBlock& block, const CB
         LogPrint(BCLog::BENCHMARK, "      - m_mnhfman.ProcessBlock: %.2fms [%.2fs]\n", 0.001 * (nTime8 - nTime7),
                  nTimeMnehf * 0.000001);
 
-        if (pindex->nHeight + 1 >= m_consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_V19) &&
-            bls::bls_legacy_scheme.load()) {
+        if (DeploymentActiveAfter(pindex, m_consensus_params, Consensus::DEPLOYMENT_V19) && bls::bls_legacy_scheme.load()) {
             // NOTE: The block next to the activation is the one that is using new rules.
             // V19 activated just activated, so we must switch to the new rules here.
             bls::bls_legacy_scheme.store(false);
@@ -702,7 +700,7 @@ bool CSpecialTxProcessor::UndoSpecialTxsInBlock(const CBlock& block, const CBloc
     auto bls_legacy_scheme = bls::bls_legacy_scheme.load();
 
     try {
-        if (pindex->nHeight < m_consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_V19) && !bls_legacy_scheme) {
+        if (!DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V19) && !bls_legacy_scheme) {
             // NOTE: The block next to the activation is the one that is using new rules.
             // Removing the activation block here, so we must switch back to the old rules.
             bls::bls_legacy_scheme.store(true);
@@ -734,8 +732,8 @@ bool CSpecialTxProcessor::CheckCreditPoolDiffForBlock(const CBlock& block, const
 {
     AssertLockHeld(::cs_main);
 
-    if (pindex->nHeight < m_consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_DIP0008)) return true;
-    if (pindex->nHeight < m_consensus_params.DeploymentHeight(Consensus::DEPLOYMENT_V20)) return true;
+    if (!DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_DIP0008)) return true;
+    if (!DeploymentActiveAt(*pindex, m_consensus_params, Consensus::DEPLOYMENT_V20)) return true;
 
     try {
         const CAmount blockSubsidy = GetBlockSubsidy(pindex, m_consensus_params);

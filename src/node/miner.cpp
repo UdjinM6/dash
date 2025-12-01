@@ -203,10 +203,10 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     assert(pindexPrev != nullptr);
     nHeight = pindexPrev->nHeight + 1;
 
-    const bool fDIP0001Active_context{nHeight >= chainparams.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0001)};
-    const bool fDIP0003Active_context{nHeight >= chainparams.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)};
-    const bool fDIP0008Active_context{nHeight >= chainparams.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0008)};
-    const bool fV20Active_context{nHeight >= chainparams.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V20)};
+    const bool fDIP0001Active_context{DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_DIP0001)};
+    const bool fDIP0003Active_context{DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_DIP0003)};
+    const bool fDIP0008Active_context{DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_DIP0008)};
+    const bool fV20Active_context{DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_V20)};
 
     // Limit size to between 1K and MaxBlockSize()-1K for sanity:
     nBlockMaxSize = std::max<unsigned int>(1000, std::min<unsigned int>(MaxBlockSize(fDIP0001Active_context) - 1000, nBlockMaxSize));
@@ -471,7 +471,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
     // This credit pool is used only to check withdrawal limits and to find
     // duplicates of indexes. There's used `BlockSubsidy` equaled to 0
     std::optional<CCreditPoolDiff> creditPoolDiff;
-    if (Assert(pindexPrev)->nHeight + 1 >= chainparams.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V20)) {
+    if (DeploymentActiveAfter(pindexPrev, chainparams.GetConsensus(), Consensus::DEPLOYMENT_V20)) {
         CCreditPool creditPool = m_cpoolman.GetCreditPool(pindexPrev);
         creditPoolDiff.emplace(std::move(creditPool), pindexPrev, chainparams.GetConsensus(), 0);
     }

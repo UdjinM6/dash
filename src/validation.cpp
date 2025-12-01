@@ -316,9 +316,8 @@ int GetUTXOConfirmations(CChainState& active_chainstate, const COutPoint& outpoi
 
 static bool ContextualCheckTransaction(const CTransaction& tx, TxValidationState& state, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
 {
-    int nHeight = pindexPrev == nullptr ? 0 : pindexPrev->nHeight + 1;
-    bool fDIP0001Active_context = nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0001);
-    bool fDIP0003Active_context = nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003);
+    bool fDIP0001Active_context = DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_DIP0001);
+    bool fDIP0003Active_context = DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_DIP0003);
 
     if (fDIP0003Active_context) {
         // check version 3 transaction types
@@ -1556,7 +1555,7 @@ CAmount GetBlockSubsidyInner(int nPrevBits, int nPrevHeight, const Consensus::Pa
 CAmount GetBlockSubsidy(const CBlockIndex* const pindex, const Consensus::Params& consensusParams)
 {
     if (pindex->pprev == nullptr) return Params().GenesisBlock().vtx[0]->GetValueOut();
-    const bool isV20Active{pindex->nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_V20)};
+    const bool isV20Active{DeploymentActiveAt(*pindex, consensusParams, Consensus::DEPLOYMENT_V20)};
     return GetBlockSubsidyInner(pindex->pprev->nBits, pindex->pprev->nHeight, consensusParams, isV20Active);
 }
 
@@ -1996,7 +1995,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
     AssertLockHeld(cs_main);
     assert(m_chain_helper);
 
-    bool fDIP0003Active = pindex->nHeight >= Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003);
+    bool fDIP0003Active = DeploymentActiveAt(*pindex, m_params.GetConsensus(), Consensus::DEPLOYMENT_DIP0003);
     if (fDIP0003Active && !m_evoDb.VerifyBestBlock(pindex->GetBlockHash())) {
         // Nodes that upgraded after DIP3 activation will have to reindex to ensure evodb consistency
         AbortNode("Found EvoDB inconsistency, you must reindex to continue");
@@ -2227,22 +2226,22 @@ static unsigned int GetBlockScriptFlags(const CBlockIndex* pindex, const Chainst
     flags |= SCRIPT_VERIFY_P2SH;
 
     // Enforce the DERSIG (BIP66) rule
-    if (DeploymentActiveAt(*pindex, chainman, Consensus::DEPLOYMENT_DERSIG)) {
+    if (DeploymentActiveAt(*pindex, chainman.GetConsensus(), Consensus::DEPLOYMENT_DERSIG)) {
         flags |= SCRIPT_VERIFY_DERSIG;
     }
 
     // Enforce CHECKLOCKTIMEVERIFY (BIP65)
-    if (DeploymentActiveAt(*pindex, chainman, Consensus::DEPLOYMENT_CLTV)) {
+    if (DeploymentActiveAt(*pindex, chainman.GetConsensus(), Consensus::DEPLOYMENT_CLTV)) {
         flags |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
     }
 
     // Enforce CHECKSEQUENCEVERIFY (BIP112)
-    if (DeploymentActiveAt(*pindex, chainman, Consensus::DEPLOYMENT_CSV)) {
+    if (DeploymentActiveAt(*pindex, chainman.GetConsensus(), Consensus::DEPLOYMENT_CSV)) {
         flags |= SCRIPT_VERIFY_CHECKSEQUENCEVERIFY;
     }
 
     // Enforce BIP147 NULLDUMMY
-    if (DeploymentActiveAt(*pindex, chainman, Consensus::DEPLOYMENT_BIP147)) {
+    if (DeploymentActiveAt(*pindex, chainman.GetConsensus(), Consensus::DEPLOYMENT_BIP147)) {
         flags |= SCRIPT_VERIFY_NULLDUMMY;
     }
 
@@ -2316,7 +2315,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     assert(hashPrevBlock == view.GetBestBlock());
 
     if (pindex->pprev) {
-        bool fDIP0003Active = pindex->nHeight >= m_params.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003);
+        bool fDIP0003Active = DeploymentActiveAt(*pindex, m_params.GetConsensus(), Consensus::DEPLOYMENT_DIP0003);
         if (fDIP0003Active && !m_evoDb.VerifyBestBlock(pindex->pprev->GetBlockHash())) {
             // Nodes that upgraded after DIP3 activation will have to reindex to ensure evodb consistency
             return AbortNode(state, "Found EvoDB inconsistency, you must reindex to continue");
@@ -2413,7 +2412,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     // Enforce BIP68 (sequence locks)
     int nLockTimeFlags = 0;
-    if (DeploymentActiveAt(*pindex, m_chainman, Consensus::DEPLOYMENT_CSV)) {
+    if (DeploymentActiveAt(*pindex, m_params.GetConsensus(), Consensus::DEPLOYMENT_CSV)) {
         nLockTimeFlags |= LOCKTIME_VERIFY_SEQUENCE;
     }
 
@@ -2442,7 +2441,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     std::vector<CAddressUnspentIndexEntry> addressUnspentIndex;
     std::vector<CSpentIndexEntry> spentIndex;
 
-    bool fDIP0001Active_context = pindex->nHeight >= Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0001);
+    bool fDIP0001Active_context = DeploymentActiveAt(*pindex, m_params.GetConsensus(), Consensus::DEPLOYMENT_DIP0001);
 
     // MUST process special txes before updating UTXO to ensure consistency between mempool and block processing
     std::optional<MNListUpdates> mnlist_updates_opt{std::nullopt};
@@ -4098,9 +4097,9 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
         return state.Invalid(BlockValidationResult::BLOCK_TIME_FUTURE, "time-too-new", strprintf("block timestamp too far in the future %d %d", block.GetBlockTime(), nAdjustedTime + 2 * 60 * 60));
 
     // Reject blocks with outdated version
-    if ((block.nVersion < 2 && nHeight >= chainman.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_HEIGHTINCB)) ||
-        (block.nVersion < 3 && nHeight >= chainman.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DERSIG)) ||
-        (block.nVersion < 4 && nHeight >= chainman.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_CLTV))) {
+    if ((block.nVersion < 2 && DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), Consensus::DEPLOYMENT_HEIGHTINCB)) ||
+        (block.nVersion < 3 && DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), Consensus::DEPLOYMENT_DERSIG)) ||
+        (block.nVersion < 4 && DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), Consensus::DEPLOYMENT_CLTV))) {
             return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, strprintf("bad-version(0x%08x)", block.nVersion),
                                  strprintf("rejected nVersion=0x%08x block", block.nVersion));
     }
@@ -4122,7 +4121,7 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
 
     // Enforce BIP113 (Median Time Past).
     bool enforce_locktime_median_time_past{false};
-    if (nHeight >= chainman.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_CSV)) {
+    if (DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), Consensus::DEPLOYMENT_CSV)) {
         assert(pindexPrev != nullptr);
         enforce_locktime_median_time_past = true;
     }
@@ -4131,8 +4130,8 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
                                       pindexPrev->GetMedianTimePast() :
                                       block.GetBlockTime()};
 
-    bool fDIP0001Active_context = nHeight >= chainman.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0001);
-    bool fDIP0003Active_context = nHeight >= chainman.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003);
+    bool fDIP0001Active_context = DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), Consensus::DEPLOYMENT_DIP0001);
+    bool fDIP0003Active_context = DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), Consensus::DEPLOYMENT_DIP0003);
 
     // Size limits
     unsigned int nMaxBlockSize = MaxBlockSize(fDIP0001Active_context);
@@ -4164,7 +4163,7 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
     // Enforce rule that the coinbase starts with serialized block height
     // After DIP3/DIP4 activation, we don't enforce the height in the input script anymore.
     // The CbTx special transaction payload will then contain the height, which is checked in CheckCbTx
-    if (nHeight >= chainman.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_HEIGHTINCB) && !fDIP0003Active_context)
+    if (DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), Consensus::DEPLOYMENT_HEIGHTINCB) && !fDIP0003Active_context)
     {
         CScript expect = CScript() << nHeight;
         if (block.vtx[0]->vin[0].scriptSig.size() < expect.size() ||
@@ -4860,7 +4859,7 @@ bool CChainState::ReplayBlocks()
         pindexOld = &(m_blockman.m_block_index[hashHeads[1]]);
         pindexFork = LastCommonAncestor(pindexOld, pindexNew);
         assert(pindexFork != nullptr);
-        const bool fDIP0003Active = pindexOld->nHeight >= m_params.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003);
+        const bool fDIP0003Active = DeploymentActiveAt(*pindexOld, m_params.GetConsensus(), Consensus::DEPLOYMENT_DIP0003);
         if (fDIP0003Active && !m_evoDb.VerifyBestBlock(pindexOld->GetBlockHash())) {
             return error("ReplayBlocks(DASH): Found EvoDB inconsistency");
         }
@@ -6025,9 +6024,9 @@ bool ChainstateManager::IsQuorumTypeEnabled(const Consensus::LLMQType llmqType,
     constexpr int TESTNET_LLMQ_25_67_ACTIVATION_HEIGHT = 847000;
 
     const bool fDIP0024IsActive{optDIP0024IsActive.value_or(
-        DeploymentActiveAfter(pindexPrev, /*chainman=*/*this, Consensus::DEPLOYMENT_DIP0024))};
+        DeploymentActiveAfter(pindexPrev, GetConsensus(), Consensus::DEPLOYMENT_DIP0024))};
     const bool fHaveDIP0024Quorums{
-        optHaveDIP0024Quorums.value_or(pindexPrev->nHeight >= m_chainparams.GetConsensus().DIP0024QuorumsHeight)};
+        optHaveDIP0024Quorums.value_or(pindexPrev->nHeight >= GetConsensus().DIP0024QuorumsHeight)};
     switch (llmqType) {
     case Consensus::LLMQType::LLMQ_DEVNET:
         return true;
@@ -6048,7 +6047,7 @@ bool ChainstateManager::IsQuorumTypeEnabled(const Consensus::LLMQType llmqType,
         return DeploymentActiveAfter(pindexPrev, /*chainman=*/*this, Consensus::DEPLOYMENT_TESTDUMMY);
     }
     case Consensus::LLMQType::LLMQ_100_67:
-        return DeploymentActiveAfter(pindexPrev, /*chainman=*/*this, Consensus::DEPLOYMENT_DIP0020);
+        return DeploymentActiveAfter(pindexPrev, GetConsensus(), Consensus::DEPLOYMENT_DIP0020);
 
     case Consensus::LLMQType::LLMQ_60_75:
     case Consensus::LLMQType::LLMQ_DEVNET_DIP0024:

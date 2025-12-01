@@ -61,9 +61,9 @@ CMNHFManager::~CMNHFManager()
 CMNHFManager::Signals CMNHFManager::GetSignalsStage(const CBlockIndex* const pindexPrev)
 {
     if (pindexPrev == nullptr) return {};
+    if (!DeploymentActiveAfter(pindexPrev, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V20)) return {};
 
     const int height = pindexPrev->nHeight + 1;
-    if (height < Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V20)) return {};
 
     Signals signals_ret;
     for (auto signal : GetForBlock(pindexPrev)) {
@@ -317,7 +317,6 @@ std::optional<CMNHFManager::Signals> CMNHFManager::GetFromCache(const CBlockInde
     // lets `phashBlock` to be nullptr
     if (pindex->phashBlock == nullptr) return signals;
 
-    const auto& consensusParams{Params().GetConsensus()};
 
     const uint256& blockHash = pindex->GetBlockHash();
     {
@@ -328,7 +327,7 @@ std::optional<CMNHFManager::Signals> CMNHFManager::GetFromCache(const CBlockInde
     }
     {
         LOCK(cs_cache);
-        if (pindex->nHeight < consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_V20)) {
+        if (!DeploymentActiveAt(*pindex, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V20)) {
             mnhfCache.insert(blockHash, signals);
             return signals;
         }
@@ -338,7 +337,7 @@ std::optional<CMNHFManager::Signals> CMNHFManager::GetFromCache(const CBlockInde
         mnhfCache.insert(blockHash, signals);
         return signals;
     }
-    if (pindex->nHeight < consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_MN_RR)) {
+    if (!DeploymentActiveAt(*pindex, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_MN_RR)) {
         // before mn_rr activation we are safe
         if (m_evoDb.Read(std::make_pair(DB_SIGNALS, blockHash), signals)) {
             LOCK(cs_cache);
@@ -357,7 +356,7 @@ void CMNHFManager::AddToCache(const Signals& signals, const CBlockIndex* const p
         LOCK(cs_cache);
         mnhfCache.insert(blockHash, signals);
     }
-    if (pindex->nHeight < Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V20)) return;
+    if (!DeploymentActiveAt(*pindex, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V20)) return;
 
     m_evoDb.Write(std::make_pair(DB_SIGNALS_v2, blockHash), signals);
 }

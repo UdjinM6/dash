@@ -61,7 +61,7 @@ static std::optional<CreditPoolDataPerBlock> GetCreditDataFromBlock(const gsl::n
                                                                     const Consensus::Params& consensusParams)
 {
     // There's no CbTx before DIP0003 activation
-    if (block_index->nHeight < consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
+    if (!DeploymentActiveAt(*block_index, consensusParams, Consensus::DEPLOYMENT_DIP0003)) {
         return std::nullopt;
     }
 
@@ -117,8 +117,7 @@ std::string CCreditPool::ToString() const
 
 std::optional<CCreditPool> CCreditPoolManager::GetFromCache(const CBlockIndex& block_index)
 {
-    if (block_index.nHeight < m_chainman.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V20))
-        return CCreditPool{};
+    if (!DeploymentActiveAt(block_index, Params().GetConsensus(), Consensus::DEPLOYMENT_V20)) return CCreditPool{};
 
     const uint256 block_hash = block_index.GetBlockHash();
     CCreditPool pool;
@@ -192,7 +191,7 @@ CCreditPool CCreditPoolManager::ConstructCreditPool(const gsl::not_null<const CB
     const CAmount latelyUnlocked = prev.latelyUnlocked + blockData.unlocked - distantUnlocked;
     if (DeploymentActiveAt(*block_index, m_chainman, Consensus::DEPLOYMENT_V24)) {
         currentLimit = std::max(CAmount(0), std::min(currentLimit, LimitAmountV24 - latelyUnlocked));
-    } else if (DeploymentActiveAt(*block_index, m_chainman, Consensus::DEPLOYMENT_WITHDRAWALS)) {
+    } else if (DeploymentActiveAt(*block_index, m_chainman.GetConsensus(), Consensus::DEPLOYMENT_WITHDRAWALS)) {
         currentLimit = std::min(currentLimit, LimitAmountV22);
     } else {
         // Unlock limits in pre-v22 are max(100, min(.10 * assetlockpool, 1000)) inside window
@@ -254,10 +253,9 @@ CCreditPoolDiff::CCreditPoolDiff(CCreditPool starter, const CBlockIndex* pindexP
 {
     assert(pindexPrev);
 
-    const int nHeight{pindexPrev->nHeight + 1};
-    if (nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_MN_RR)) {
+    if (DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_MN_RR)) {
         // If credit pool exists, it means v20 is activated
-        platformReward = PlatformShare(GetMasternodePayment(nHeight, blockSubsidy, /*fV20Active=*/true));
+        platformReward = PlatformShare(GetMasternodePayment(pindexPrev->nHeight + 1, blockSubsidy, /*fV20Active=*/true));
     }
 }
 

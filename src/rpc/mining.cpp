@@ -919,7 +919,7 @@ static RPCHelpMan getblocktemplate()
     result.pushKV("vbrequired", int(0));
 
     const int nHeight{pindexPrev->nHeight+1};
-    const bool fDIP0001Active_context{nHeight >= consensusParams.DeploymentHeight(Consensus::DEPLOYMENT_DIP0001)};
+    const bool fDIP0001Active_context{DeploymentActiveAfter(pindexPrev, consensusParams, Consensus::DEPLOYMENT_DIP0001)};
     result.pushKV("previousblockhash", pblock->hashPrevBlock.GetHex());
     result.pushKV("transactions", transactions);
     result.pushKV("coinbaseaux", aux);

@@ -1079,8 +1079,8 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
 
     FundSpecialTx(*wallet, tx, ptx, feeSource);
 
-    const bool isV19active = WITH_LOCK(::cs_main, return chainman.ActiveChain().Height() + 1) >=
-                             Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19);
+    const bool isV19active = DeploymentActiveAfter(WITH_LOCK(::cs_main, return chainman.ActiveChain().Tip()),
+                                                   chainman.GetConsensus(), Consensus::DEPLOYMENT_V19);
     SignSpecialTxPayloadByHash(tx, ptx, keyOperator, !isV19active);
     SetTxPayload(tx, ptx);
 

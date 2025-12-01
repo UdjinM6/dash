@@ -180,7 +180,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, gsl::not_null<cons
 
     const auto blockHash = pindex->GetBlockHash();
 
-    if (pindex->nHeight < Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_DIP0003)) {
+    if (!DeploymentActiveAt(*pindex, m_chainstate.m_chainman.GetConsensus(), Consensus::DEPLOYMENT_DIP0003)) {
         m_evoDb.Write(DB_BEST_BLOCK_UPGRADE, blockHash);
         return true;
     }
@@ -466,7 +466,7 @@ bool CQuorumBlockProcessor::GetCommitmentsFromBlock(const CBlock& block, gsl::no
         }
     }
 
-    if (pindex->nHeight < consensus.DeploymentHeight(Consensus::DEPLOYMENT_DIP0003) && !ret.empty()) {
+    if (!DeploymentActiveAt(*pindex, consensus, Consensus::DEPLOYMENT_DIP0003) && !ret.empty()) {
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-qc-premature");
     }
 
@@ -749,7 +749,7 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
     const auto *const pindex = m_chainstate.m_chain.Height() < nHeight ? m_chainstate.m_chain.Tip() : m_chainstate.m_chain.Tip()->GetAncestor(nHeight);
 
     bool rotation_enabled = IsQuorumRotationEnabled(llmqParams, pindex);
-    bool basic_bls_enabled{pindex->nHeight + 1 >= Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19)};
+    bool basic_bls_enabled{DeploymentActiveAfter(pindex, m_chainstate.m_chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)};
     size_t quorums_num = rotation_enabled ? llmqParams.signingActiveQuorumCount : 1;
 
     std::stringstream ss;

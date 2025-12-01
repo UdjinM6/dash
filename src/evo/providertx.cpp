@@ -22,7 +22,8 @@ template <typename T>
 {
     constexpr bool is_extaddr_eligible{std::is_same_v<std::decay_t<T>, CProRegTx> || std::is_same_v<std::decay_t<T>, CProUpServTx>};
     return ProTxVersion::GetMax(
-        is_basic_override ? *is_basic_override : DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V19),
+        is_basic_override ? *is_basic_override
+                          : DeploymentActiveAfter(pindexPrev, chainman.GetConsensus(), Consensus::DEPLOYMENT_V19),
         is_extaddr_eligible ? DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24) : false);
 }
 template uint16_t GetMaxFromDeployment<CProRegTx>(gsl::not_null<const CBlockIndex*> pindexPrev,

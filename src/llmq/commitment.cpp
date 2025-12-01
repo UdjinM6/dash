@@ -109,8 +109,8 @@ bool CFinalCommitment::Verify(CDeterministicMNManager& dmnman, CQuorumSnapshotMa
 
     const uint16_t expected_nversion{
         CFinalCommitment::GetVersion(IsQuorumRotationEnabled(llmq_params, pQuorumBaseBlockIndex),
-                                     pQuorumBaseBlockIndex->nHeight + 1 >=
-                                         Params().GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19))};
+                                     DeploymentActiveAfter(pQuorumBaseBlockIndex, chainman.GetConsensus(),
+                                                           Consensus::DEPLOYMENT_V19))};
     if (nVersion == 0 || nVersion != expected_nversion) {
         LogPrint(BCLog::LLMQ, "CFinalCommitment -- q[%s] invalid nVersion=%d expected=%d\n", quorumHash.ToString(), nVersion, expected_nversion);
         return false;
