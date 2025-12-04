@@ -1181,6 +1181,31 @@ QDialog#CoinControlDialog .CoinControlTreeWidget#treeWidget::separator {
 }
 
 /******************************************************
+CreateWalletDialog
+******************************************************/
+
+QDialog#CreateWalletDialog QToolButton#advanced_toggle_button {
+    border: 0px;
+    border-radius: 8px;
+    max-height: 26px;
+    min-height: 26px;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+QDialog#CreateWalletDialog QGroupBox#groupBox {
+    border-radius: 8px;
+    padding: 2px 12px 12px 12px;
+    margin-top: 0px;
+}
+
+QDialog#CreateWalletDialog QGroupBox#groupBox::title {
+    padding: 0px;
+}
+
+/******************************************************
 EditAddressDialog
 ******************************************************/
 
@@ -1220,6 +1245,47 @@ MasternodeList
 MasternodeList QLabel#label_filter_2,
 MasternodeList QLabel#label_count_2,
 MasternodeList QLabel#countLabelDIP3 {
+}
+
+/******************************************************
+MnemonicVerificationDialog
+******************************************************/
+
+QDialog#MnemonicVerificationDialog QLabel#warningLabel {
+    font-size: 17px;
+    font-weight: 700;
+}
+
+QDialog#MnemonicVerificationDialog QLabel#instructionLabel {
+    font-size: 14px;
+}
+
+QDialog#MnemonicVerificationDialog QLabel#verificationLabel {
+    margin-top: 0px;
+    margin-bottom: 4px;
+}
+
+QDialog#MnemonicVerificationDialog QLabel#word1Status,
+QDialog#MnemonicVerificationDialog QLabel#word2Status,
+QDialog#MnemonicVerificationDialog QLabel#word3Status {
+    font-weight: 700;
+    min-width: 18px;
+}
+
+QDialog#MnemonicVerificationDialog QScrollArea#mnemonicScroll {
+    border-radius: 8px;
+    border: 1px solid;
+}
+
+QDialog#MnemonicVerificationDialog QScrollArea#mnemonicScroll QWidget#mnemonicGridWidget QLabel {
+    font-family: monospace;
+    font-size: 13pt;
+}
+
+QDialog#MnemonicVerificationDialog QLineEdit#word1Edit,
+QDialog#MnemonicVerificationDialog QLineEdit#word2Edit,
+QDialog#MnemonicVerificationDialog QLineEdit#word3Edit {
+    max-width: 320px;
 }
 
 /******************************************************
@@ -1985,54 +2051,3 @@ QDialog#HelpMessageDialog QScrollBar:horizontal {
 }
 
 </os>
-
-/**
- * CreateWalletDialog (Layout)
- */
-
-QDialog#CreateWalletDialog QGroupBox#groupBox {
-    border-radius: 8px;
-    padding: 2px 12px 12px 12px;
-    margin-top: 0px;
-}
-
-QDialog#CreateWalletDialog QGroupBox#groupBox::title {
-    padding: 0px;
-}
-
-/**
- * MnemonicVerificationDialog (Layout)
- */
-
-QDialog#MnemonicVerificationDialog QLabel#warningLabel {
-    font-size: 17px;
-    font-weight: 700;
-}
-
-QDialog#MnemonicVerificationDialog QLabel#instructionLabel {
-    font-size: 14px;
-}
-
-QDialog#MnemonicVerificationDialog QLabel#verificationLabel {
-    margin-top: 0px;
-    margin-bottom: 4px;
-}
-
-QDialog#MnemonicVerificationDialog QLabel#word1Status,
-QDialog#MnemonicVerificationDialog QLabel#word2Status,
-QDialog#MnemonicVerificationDialog QLabel#word3Status {
-    font-weight: 700;
-    min-width: 18px;
-}
-
-QDialog#MnemonicVerificationDialog QScrollArea#mnemonicScroll QWidget#mnemonicGridWidget QLabel {
-    font-family: monospace;
-    font-size: 13pt;
-}
-
-QDialog#MnemonicVerificationDialog QLineEdit#word1Edit,
-QDialog#MnemonicVerificationDialog QLineEdit#word2Edit,
-QDialog#MnemonicVerificationDialog QLineEdit#word3Edit {
-    max-width: 320px;
-}
-

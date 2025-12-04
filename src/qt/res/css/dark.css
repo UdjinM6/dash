@@ -397,6 +397,7 @@ QWidget#AddressBookPage QPushButton#newAddress,
 QWidget#AddressBookPage QPushButton#copyAddress,
 QWidget#AddressBookPage QPushButton#showAddressQRCode,
 QWidget#AddressBookPage QPushButton#deleteAddress,
+QDialog#CreateWalletDialog QToolButton#advanced_toggle_button,
 QDialog#OpenURIDialog QPushButton#selectFileButton,
 QDialog#OptionsDialog QPushButton#resetButton,
 QDialog#SendCoinsDialog .QPushButton#addButton,
@@ -414,6 +415,7 @@ QWidget#AddressBookPage QPushButton#newAddress:hover,
 QWidget#AddressBookPage QPushButton#copyAddress:hover,
 QWidget#AddressBookPage QPushButton#showAddressQRCode:hover,
 QWidget#AddressBookPage QPushButton#deleteAddress:hover,
+QDialog#CreateWalletDialog QToolButton#advanced_toggle_button:hover,
 QDialog#OpenURIDialog QPushButton#selectFileButton:hover,
 QDialog#OptionsDialog QPushButton#resetButton:hover,
 QDialog#SendCoinsDialog .QPushButton#addButton:hover,
@@ -431,6 +433,7 @@ QWidget#AddressBookPage QPushButton#newAddress:pressed,
 QWidget#AddressBookPage QPushButton#copyAddress:pressed,
 QWidget#AddressBookPage QPushButton#showAddressQRCode:pressed,
 QWidget#AddressBookPage QPushButton#deleteAddress:pressed,
+QDialog#CreateWalletDialog QToolButton#advanced_toggle_button:pressed,
 QDialog#OpenURIDialog QPushButton#selectFileButton:pressed,
 QDialog#OptionsDialog QPushButton#resetButton:pressed,
 QDialog#SendCoinsDialog .QPushButton#addButton:pressed,
@@ -448,6 +451,7 @@ QWidget#AddressBookPage QPushButton#newAddress:disabled,
 QWidget#AddressBookPage QPushButton#copyAddress:disabled,
 QWidget#AddressBookPage QPushButton#showAddressQRCode:disabled,
 QWidget#AddressBookPage QPushButton#deleteAddress:disabled,
+QDialog#CreateWalletDialog QToolButton#advanced_toggle_button:disabled,
 QDialog#OpenURIDialog QPushButton#selectFileButton:disabled,
 QDialog#OptionsDialog QPushButton#resetButton:disabled,
 QDialog#SendCoinsDialog .QPushButton#addButton:disabled,
@@ -840,6 +844,18 @@ MasternodeList
 ******************************************************/
 
 /***** No dark.css specific coloring here yet *****/
+
+/******************************************************
+MnemonicVerificationDialog
+******************************************************/
+
+QDialog#MnemonicVerificationDialog QScrollArea#mnemonicScroll {
+    border-color: #3c3c3c;
+}
+
+QDialog#MnemonicVerificationDialog QWidget#mnemonicGridWidget {
+    background-color: #2d2d2e;
+}
 
 /******************************************************
 ModalOverlay
