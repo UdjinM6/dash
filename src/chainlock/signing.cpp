@@ -30,12 +30,12 @@ ChainLockSigner::ChainLockSigner(CChainState& chainstate, ChainLockSignerParent&
 
 ChainLockSigner::~ChainLockSigner() = default;
 
-void ChainLockSigner::Start()
+void ChainLockSigner::RegisterAsRecoveredSigsListener()
 {
     m_sigman.RegisterRecoveredSigsListener(this);
 }
 
-void ChainLockSigner::Stop()
+void ChainLockSigner::UnregisterAsRecoveredSigsListener()
 {
     m_sigman.UnregisterRecoveredSigsListener(this);
 }
