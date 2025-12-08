@@ -18,7 +18,8 @@
 LLMQContext::LLMQContext(ChainstateManager& chainman, CDeterministicMNManager& dmnman, CEvoDB& evo_db,
                          CMasternodeMetaMan& mn_metaman, CMNHFManager& mnhfman, CSporkManager& sporkman,
                          CTxMemPool& mempool, const CActiveMasternodeManager* const mn_activeman,
-                         const CMasternodeSync& mn_sync, const util::DbWrapperParams& db_params, bool quorums_watch) :
+                         const CMasternodeSync& mn_sync, const util::DbWrapperParams& db_params, bool quorums_recovery,
+                         bool quorums_watch) :
     bls_worker{std::make_shared<CBLSWorker>()},
     dkg_debugman{std::make_unique<llmq::CDKGDebugManager>()},
     qsnapman{std::make_unique<llmq::CQuorumSnapshotManager>(evo_db)},
@@ -29,7 +30,7 @@ LLMQContext::LLMQContext(ChainstateManager& chainman, CDeterministicMNManager& d
                                                         sporkman, db_params, quorums_watch)},
     qman{std::make_unique<llmq::CQuorumManager>(*bls_worker, chainman.ActiveChainstate(), dmnman, *qdkgsman, evo_db,
                                                 *quorum_block_processor, *qsnapman, mn_activeman, mn_sync, sporkman,
-                                                db_params, quorums_watch)},
+                                                db_params, quorums_recovery, quorums_watch)},
     sigman{std::make_unique<llmq::CSigningManager>(*qman, db_params)},
     clhandler{std::make_unique<llmq::CChainLocksHandler>(chainman.ActiveChainstate(), *qman, sporkman, mempool, mn_sync)},
     isman{std::make_unique<llmq::CInstantSendManager>(*clhandler, chainman.ActiveChainstate(), *sigman, sporkman,

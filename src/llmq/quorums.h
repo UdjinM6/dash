@@ -241,6 +241,7 @@ private:
     const CActiveMasternodeManager* const m_mn_activeman;
     const CMasternodeSync& m_mn_sync;
     const CSporkManager& m_sporkman;
+    const bool m_quorums_recovery{false};
     const bool m_quorums_watch{false};
 
 private:
@@ -270,10 +271,10 @@ public:
     CQuorumManager(const CQuorumManager&) = delete;
     CQuorumManager& operator=(const CQuorumManager&) = delete;
     explicit CQuorumManager(CBLSWorker& _blsWorker, CChainState& chainstate, CDeterministicMNManager& dmnman,
-                            CDKGSessionManager& _dkgManager, CEvoDB& _evoDb,
-                            CQuorumBlockProcessor& _quorumBlockProcessor, CQuorumSnapshotManager& qsnapman,
-                            const CActiveMasternodeManager* const mn_activeman, const CMasternodeSync& mn_sync,
-                            const CSporkManager& sporkman, const util::DbWrapperParams& db_params, bool quorums_watch);
+                            CDKGSessionManager& _dkgManager, CEvoDB& _evoDb, CQuorumBlockProcessor& _quorumBlockProcessor,
+                            CQuorumSnapshotManager& qsnapman, const CActiveMasternodeManager* const mn_activeman,
+                            const CMasternodeSync& mn_sync, const CSporkManager& sporkman,
+                            const util::DbWrapperParams& db_params, bool quorums_recovery, bool quorums_watch);
     ~CQuorumManager();
 
     void Start();
