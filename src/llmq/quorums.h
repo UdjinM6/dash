@@ -9,6 +9,7 @@
 #include <bls/bls_worker.h>
 #include <ctpl_stl.h>
 #include <evo/types.h>
+#include <llmq/options.h>
 #include <llmq/params.h>
 #include <llmq/types.h>
 #include <msg_result.h>
@@ -241,6 +242,7 @@ private:
     const CActiveMasternodeManager* const m_mn_activeman;
     const CMasternodeSync& m_mn_sync;
     const CSporkManager& m_sporkman;
+    const llmq::QvvecSyncModeMap m_sync_map;
     const bool m_quorums_recovery{false};
     const bool m_quorums_watch{false};
 
@@ -271,9 +273,10 @@ public:
     CQuorumManager(const CQuorumManager&) = delete;
     CQuorumManager& operator=(const CQuorumManager&) = delete;
     explicit CQuorumManager(CBLSWorker& _blsWorker, CChainState& chainstate, CDeterministicMNManager& dmnman,
-                            CDKGSessionManager& _dkgManager, CEvoDB& _evoDb, CQuorumBlockProcessor& _quorumBlockProcessor,
-                            CQuorumSnapshotManager& qsnapman, const CActiveMasternodeManager* const mn_activeman,
-                            const CMasternodeSync& mn_sync, const CSporkManager& sporkman,
+                            CDKGSessionManager& _dkgManager, CEvoDB& _evoDb,
+                            CQuorumBlockProcessor& _quorumBlockProcessor, CQuorumSnapshotManager& qsnapman,
+                            const CActiveMasternodeManager* const mn_activeman, const CMasternodeSync& mn_sync,
+                            const CSporkManager& sporkman, const llmq::QvvecSyncModeMap& sync_map,
                             const util::DbWrapperParams& db_params, bool quorums_recovery, bool quorums_watch);
     ~CQuorumManager();
 
