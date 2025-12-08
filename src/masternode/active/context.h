@@ -29,9 +29,13 @@ namespace instantsend {
 class InstantSendSigner;
 } // namespace instantsend
 namespace llmq {
+class CDKGSessionManager;
 class CEHFSignalsHandler;
 class CSigSharesManager;
 } // namespace llmq
+namespace util {
+struct DbWrapperParams;
+} // namespace util
 
 struct ActiveContext {
 private:
@@ -46,7 +50,7 @@ public:
                            CDSTXManager& dstxman, CGovernanceManager& govman, CMasternodeMetaMan& mn_metaman,
                            CMNHFManager& mnhfman, CSporkManager& sporkman, CTxMemPool& mempool, LLMQContext& llmq_ctx,
                            PeerManager& peerman, const CActiveMasternodeManager& mn_activeman,
-                           const CMasternodeSync& mn_sync);
+                           const CMasternodeSync& mn_sync, const util::DbWrapperParams& db_params, bool quorums_watch);
     ~ActiveContext();
 
     void Interrupt();
@@ -60,6 +64,7 @@ public:
      */
     const std::unique_ptr<CCoinJoinServer> cj_server;
     const std::unique_ptr<GovernanceSigner> gov_signer;
+    const std::unique_ptr<llmq::CDKGSessionManager> qdkgsman;
     const std::unique_ptr<llmq::CSigSharesManager> shareman;
     const std::unique_ptr<llmq::CEHFSignalsHandler> ehf_sighandler;
 

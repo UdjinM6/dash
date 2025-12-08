@@ -2220,14 +2220,17 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     assert(!g_active_notification_interface);
     assert(!node.observer_ctx);
 
+    const util::DbWrapperParams dash_db_params{.path = args.GetDataDirNet(), .memory = false, .wipe = (fReindex || fReindexChainState)};
     if (node.mn_activeman) {
         node.active_ctx = std::make_unique<ActiveContext>(chainman, *node.connman, *node.dmnman, *node.dstxman, *node.govman, *node.mn_metaman,
                                                           *node.mnhf_manager, *node.sporkman, *node.mempool, *node.llmq_ctx, *node.peerman,
-                                                          *node.mn_activeman, *node.mn_sync);
+                                                          *node.mn_activeman, *node.mn_sync, dash_db_params, quorums_watch);
         g_active_notification_interface = std::make_unique<ActiveNotificationInterface>(*node.active_ctx, *node.mn_activeman);
         RegisterValidationInterface(g_active_notification_interface.get());
     } else if (quorums_watch) {
-        node.observer_ctx = std::make_unique<llmq::ObserverContext>();
+        node.observer_ctx = std::make_unique<llmq::ObserverContext>(*node.llmq_ctx->bls_worker, chainman.ActiveChainstate(), *node.dmnman, *node.mn_metaman,
+                                                                    *node.llmq_ctx->dkg_debugman, *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qman,
+                                                                    *node.llmq_ctx->qsnapman, *node.sporkman, dash_db_params);
         RegisterValidationInterface(node.observer_ctx.get());
     }
     node.peerman->AddExtraHandler(std::make_unique<NetInstantSend>(node.peerman.get(), *node.llmq_ctx->isman, *node.llmq_ctx->qman, chainman.ActiveChainstate()));
@@ -2339,7 +2342,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     if (node.mn_activeman) {
         node.scheduler->scheduleEvery(std::bind(&CCoinJoinServer::DoMaintenance, std::ref(*node.active_ctx->cj_server)), std::chrono::seconds{1});
-        node.scheduler->scheduleEvery(std::bind(&llmq::CDKGSessionManager::CleanupOldContributions, std::ref(*node.llmq_ctx->qdkgsman)), std::chrono::hours{1});
+        node.scheduler->scheduleEvery(std::bind(&llmq::CDKGSessionManager::CleanupOldContributions, std::ref(*node.active_ctx->qdkgsman)), std::chrono::hours{1});
     }
 
     if (node.cj_walletman) {
