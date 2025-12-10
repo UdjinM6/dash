@@ -29,7 +29,7 @@ CDKGSessionHandler::CDKGSessionHandler(CBLSWorker& _blsWorker, CChainState& chai
                                        CMasternodeMetaMan& mn_metaman, CQuorumBlockProcessor& _quorumBlockProcessor,
                                        CQuorumSnapshotManager& qsnapman,
                                        const CActiveMasternodeManager* const mn_activeman, const CSporkManager& sporkman,
-                                       const Consensus::LLMQParams& _params, int _quorumIndex) :
+                                       const Consensus::LLMQParams& _params, bool quorums_watch, int _quorumIndex) :
     blsWorker(_blsWorker),
     m_chainstate(chainstate),
     m_dmnman(dmnman),
@@ -41,6 +41,7 @@ CDKGSessionHandler::CDKGSessionHandler(CBLSWorker& _blsWorker, CChainState& chai
     m_mn_activeman(mn_activeman),
     m_sporkman(sporkman),
     params(_params),
+    m_quorums_watch(quorums_watch),
     quorumIndex(_quorumIndex),
     curSession(std::make_unique<CDKGSession>(nullptr, _params, _blsWorker, dmnman, _dkgManager, _dkgDebugManager,
                                              m_mn_metaman, m_qsnapman, m_mn_activeman, sporkman)),
@@ -564,7 +565,7 @@ void CDKGSessionHandler::HandleDKGRound(CConnman& connman, PeerManager& peerman)
 
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
     utils::EnsureQuorumConnections(params, connman, m_dmnman, m_sporkman, m_qsnapman, tip_mn_list, pQuorumBaseBlockIndex,
-                                   curSession->myProTxHash, /* is_masternode = */ m_mn_activeman != nullptr);
+                                   curSession->myProTxHash, /*is_masternode=*/m_mn_activeman != nullptr, m_quorums_watch);
     if (curSession->AreWeMember()) {
         utils::AddQuorumProbeConnections(params, connman, m_dmnman, m_mn_metaman, m_qsnapman, m_sporkman, tip_mn_list,
                                          pQuorumBaseBlockIndex, curSession->myProTxHash);
