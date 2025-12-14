@@ -66,6 +66,11 @@ ThresholdState AbstractThresholdConditionChecker::GetStateFor(const CBlockIndex*
             cache[pindexPrev] = ThresholdState::DEFINED;
             break;
         }
+        if (pindexPrev->nHeight < params.MinBIP9WarningHeight) {
+            // Optimization: don't compute below MinBIP9WarningHeight, consider it defined.
+            cache[pindexPrev] = ThresholdState::DEFINED;
+            break;
+        }
         vToCompute.push_back(pindexPrev);
         pindexPrev = pindexPrev->GetAncestor(pindexPrev->nHeight - nPeriod);
     }
