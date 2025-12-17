@@ -46,12 +46,12 @@ InstantSendSigner::InstantSendSigner(CChainState& chainstate, llmq::CChainLocksH
 
 InstantSendSigner::~InstantSendSigner() = default;
 
-void InstantSendSigner::Start()
+void InstantSendSigner::RegisterAsRecoveredSigsListener()
 {
     m_sigman.RegisterRecoveredSigsListener(this);
 }
 
-void InstantSendSigner::Stop()
+void InstantSendSigner::UnregisterAsRecoveredSigsListener()
 {
     m_sigman.UnregisterRecoveredSigsListener(this);
 }

@@ -82,8 +82,8 @@ public:
                                CTxMemPool& mempool, const CMasternodeSync& mn_sync);
     ~InstantSendSigner();
 
-    void Start();
-    void Stop();
+    void RegisterAsRecoveredSigsListener();
+    void UnregisterAsRecoveredSigsListener();
 
     void ClearInputsFromQueue(const Uint256HashSet& ids) EXCLUSIVE_LOCKS_REQUIRED(!cs_input_requests);
 

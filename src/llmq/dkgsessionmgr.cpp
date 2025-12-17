@@ -32,8 +32,8 @@ static const std::string DB_ENC_CONTRIB = "qdkg_E";
 CDKGSessionManager::CDKGSessionManager(CBLSWorker& _blsWorker, CChainState& chainstate, CDeterministicMNManager& dmnman,
                                        CDKGDebugManager& _dkgDebugManager, CMasternodeMetaMan& mn_metaman,
                                        CQuorumBlockProcessor& _quorumBlockProcessor, CQuorumSnapshotManager& qsnapman,
-                                       const CActiveMasternodeManager* const mn_activeman,
-                                       const CSporkManager& sporkman, const util::DbWrapperParams& db_params) :
+                                       const CActiveMasternodeManager* const mn_activeman, const CSporkManager& sporkman,
+                                       const util::DbWrapperParams& db_params, bool quorums_watch) :
     db{util::MakeDbWrapper({db_params.path / "llmq" / "dkgdb", db_params.memory, db_params.wipe, /*cache_size=*/1 << 20})},
     blsWorker{_blsWorker},
     m_chainstate{chainstate},
@@ -41,13 +41,9 @@ CDKGSessionManager::CDKGSessionManager(CBLSWorker& _blsWorker, CChainState& chai
     dkgDebugManager{_dkgDebugManager},
     quorumBlockProcessor{_quorumBlockProcessor},
     m_qsnapman{qsnapman},
-    spork_manager{sporkman}
+    spork_manager{sporkman},
+    m_quorums_watch{quorums_watch}
 {
-    if (mn_activeman == nullptr && !IsWatchQuorumsEnabled()) {
-        // Regular nodes do not care about any DKG internals, bail out
-        return;
-    }
-
     const Consensus::Params& consensus_params = Params().GetConsensus();
     for (const auto& params : consensus_params.llmqs) {
         auto session_count = (params.useRotation) ? params.signingActiveQuorumCount : 1;
@@ -55,7 +51,7 @@ CDKGSessionManager::CDKGSessionManager(CBLSWorker& _blsWorker, CChainState& chai
             dkgSessionHandlers.emplace(std::piecewise_construct, std::forward_as_tuple(params.type, i),
                                        std::forward_as_tuple(blsWorker, m_chainstate, dmnman, dkgDebugManager, *this,
                                                              mn_metaman, quorumBlockProcessor, m_qsnapman, mn_activeman,
-                                                             spork_manager, params, i));
+                                                             spork_manager, params, m_quorums_watch, i));
         }
     }
 }
@@ -118,7 +114,7 @@ MessageProcessingResult CDKGSessionManager::ProcessMessage(CNode& pfrom, bool is
         return {};
     }
 
-    if ((!is_masternode && !IsWatchQuorumsEnabled())) {
+    if (!is_masternode && !m_quorums_watch) {
         // regular non-watching nodes should never receive any of these
         return MisbehavingError{10};
     }

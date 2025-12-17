@@ -57,6 +57,7 @@ private:
     CQuorumBlockProcessor& quorumBlockProcessor;
     CQuorumSnapshotManager& m_qsnapman;
     const CSporkManager& spork_manager;
+    const bool m_quorums_watch{false};
 
     //TODO name struct instead of std::pair
     std::map<std::pair<Consensus::LLMQType, int>, CDKGSessionHandler> dkgSessionHandlers;
@@ -88,7 +89,7 @@ public:
                                 CDKGDebugManager& _dkgDebugManager, CMasternodeMetaMan& mn_metaman,
                                 CQuorumBlockProcessor& _quorumBlockProcessor, CQuorumSnapshotManager& qsnapman,
                                 const CActiveMasternodeManager* const mn_activeman, const CSporkManager& sporkman,
-                                const util::DbWrapperParams& db_params);
+                                const util::DbWrapperParams& db_params, bool quorums_watch);
     ~CDKGSessionManager();
 
     void StartThreads(CConnman& connman, PeerManager& peerman);
