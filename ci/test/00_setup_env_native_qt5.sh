@@ -16,3 +16,4 @@ export RUN_UNIT_TESTS="false"
 export GOAL="install"
 export DOWNLOAD_PREVIOUS_RELEASES="true"
 export BITCOIN_CONFIG="--enable-zmq --with-libs=no --enable-reduce-exports LDFLAGS=-static-libstdc++"
+export CCACHE_MAXSIZE=600M
