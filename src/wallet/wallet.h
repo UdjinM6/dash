@@ -250,11 +250,12 @@ struct WalletTxHasher
     }
 };
 
+/** Status of a wallet rescan operation */
 enum class RescanStatus : uint8_t {
-    BUSY,
-    FAILURE,
-    SUCCESS,
-    USER_ABORT,
+    BUSY,        //!< Wallet is already rescanning
+    FAILURE,     //!< Rescan failed due to corrupted data
+    SUCCESS,     //!< Rescan completed successfully
+    USER_ABORT,  //!< User aborted the rescan
 };
 
 class WalletRescanReserver; //forward declarations for ScanForWalletTransactions/RescanFromTime

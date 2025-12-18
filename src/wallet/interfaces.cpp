@@ -4,6 +4,7 @@
 
 #include <interfaces/wallet.h>
 
+#include <chain.h>
 #include <coinjoin/client.h>
 #include <consensus/amount.h>
 #include <interfaces/chain.h>
@@ -173,7 +174,8 @@ public:
     {
         return m_wallet->ChangeWalletPassphrase(old_wallet_passphrase, new_wallet_passphrase);
     }
-    wallet::RescanStatus startRescan(bool from_genesis) override {
+    wallet::RescanStatus startRescan(bool from_genesis) override
+    {
         int rescan_height{0};
         if (!from_genesis) {
             std::optional<int64_t> time_first_key;
