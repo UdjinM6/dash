@@ -200,7 +200,8 @@ public:
         case CWallet::ScanResult::USER_ABORT:
             return wallet::RescanStatus::USER_ABORT;
         }
-        return wallet::RescanStatus::SUCCESS;
+        Assume(false); // unreachable
+        return wallet::RescanStatus::FAILURE; // fallback for release builds
     }
     void abortRescan() override { m_wallet->AbortRescan(); }
     void autoLockMasternodeCollaterals() override { m_wallet->AutoLockMasternodeCollaterals(); }
