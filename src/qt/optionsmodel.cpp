@@ -126,15 +126,24 @@ void OptionsModel::Init(bool resetSettings)
     if (!settings.contains("fontWeightNormal")) {
         settings.setValue("fontWeightNormal", GUIUtil::weightToArg(GUIUtil::FontRegistry::TARGET_WEIGHT_NORMAL));
     }
-    if (!gArgs.SoftSetArg("-font-weight-normal", settings.value("fontWeightNormal").toString().toStdString())) {
-        addOverriddenOption("-font-weight-normal");
+    // Only set gArgs if weight is explicitly provided via CLI, otherwise let it remain unset
+    // so the validation code in bitcoin.cpp won't overwrite font-specific defaults
+    if (gArgs.IsArgSet("-font-weight-normal")) {
+        if (!gArgs.SoftSetArg("-font-weight-normal", settings.value("fontWeightNormal").toString().toStdString())) {
+            addOverriddenOption("-font-weight-normal");
+        }
     }
     if (GUIUtil::fontsLoaded()) {
         QFont::Weight weight;
-        GUIUtil::weightFromArg(gArgs.GetIntArg("-font-weight-normal", settings.value("fontWeightNormal").toInt()), weight);
-        if (!GUIUtil::g_font_registry.IsValidWeight(weight)) {
-            // If the currently selected weight is not supported fallback to the lightest weight for normal font.
-            weight = GUIUtil::g_font_registry.GetSupportedWeights().front();
+        if (isOptionOverridden("-font-family") && !isOptionOverridden("-font-weight-normal")) {
+            // If font was overridden by CLI but weight wasn't, use the font's default weight
+            weight = GUIUtil::g_font_registry.GetWeightNormalDefault();
+        } else {
+            GUIUtil::weightFromArg(gArgs.GetIntArg("-font-weight-normal", settings.value("fontWeightNormal").toInt()), weight);
+            if (!GUIUtil::g_font_registry.IsValidWeight(weight)) {
+                // If the currently selected weight is not supported fallback to the lightest weight for normal font.
+                weight = GUIUtil::g_font_registry.GetSupportedWeights().front();
+            }
         }
         GUIUtil::g_font_registry.SetWeightNormal(weight);
     }
@@ -143,23 +152,34 @@ void OptionsModel::Init(bool resetSettings)
     if (!settings.contains("fontWeightBold")) {
         settings.setValue("fontWeightBold", GUIUtil::weightToArg(GUIUtil::FontRegistry::TARGET_WEIGHT_BOLD));
     }
-    if (!gArgs.SoftSetArg("-font-weight-bold", settings.value("fontWeightBold").toString().toStdString())) {
-        addOverriddenOption("-font-weight-bold");
+    // Only set gArgs if weight is explicitly provided via CLI, otherwise let it remain unset
+    // so the validation code in bitcoin.cpp won't overwrite font-specific defaults
+    if (gArgs.IsArgSet("-font-weight-bold")) {
+        if (!gArgs.SoftSetArg("-font-weight-bold", settings.value("fontWeightBold").toString().toStdString())) {
+            addOverriddenOption("-font-weight-bold");
+        }
     }
     if (GUIUtil::fontsLoaded()) {
         QFont::Weight weight;
-        GUIUtil::weightFromArg(gArgs.GetIntArg("-font-weight-bold", settings.value("fontWeightBold").toInt()), weight);
-        if (!GUIUtil::g_font_registry.IsValidWeight(weight)) {
-            // If the currently selected weight is not supported fallback to the second lightest weight for bold font
-            // or the lightest if there is only one.
-            auto vecSupported = GUIUtil::g_font_registry.GetSupportedWeights();
-            weight = vecSupported[vecSupported.size() > 1 ? 1 : 0];
+        if (isOptionOverridden("-font-family") && !isOptionOverridden("-font-weight-bold")) {
+            // If font was overridden by CLI but weight wasn't, use the font's default weight
+            weight = GUIUtil::g_font_registry.GetWeightBoldDefault();
+        } else {
+            GUIUtil::weightFromArg(gArgs.GetIntArg("-font-weight-bold", settings.value("fontWeightBold").toInt()), weight);
+            if (!GUIUtil::g_font_registry.IsValidWeight(weight)) {
+                // If the currently selected weight is not supported fallback to the second lightest weight for bold font
+                // or the lightest if there is only one.
+                auto vecSupported = GUIUtil::g_font_registry.GetSupportedWeights();
+                weight = vecSupported[vecSupported.size() > 1 ? 1 : 0];
+            }
         }
         GUIUtil::g_font_registry.SetWeightBold(weight);
     }
 
     // Apply font changes
-    GUIUtil::updateFonts();
+    GUIUtil::setApplicationFont();
+    // Don't call updateFonts() here - there are no widgets created yet during initialization.
+    // updateFonts() will be called later when widgets are actually created.
 
 #ifdef ENABLE_WALLET
     if (!settings.contains("fCoinControlFeatures"))

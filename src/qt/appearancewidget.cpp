@@ -78,6 +78,7 @@ AppearanceWidget::~AppearanceWidget()
         if (prevWeightBold != GUIUtil::g_font_registry.GetWeightBold()) {
             GUIUtil::g_font_registry.SetWeightBold(prevWeightBold);
         }
+        GUIUtil::setApplicationFont();
         GUIUtil::updateFonts();
     }
     delete ui;
@@ -119,10 +120,22 @@ void AppearanceWidget::setModel(OptionsModel* _model)
         if (const auto idx{GUIUtil::g_font_registry.WeightToIdx(GUIUtil::g_font_registry.GetWeightNormal())}; idx != -1) {
             ui->fontWeightNormalSlider->setValue(idx);
         }
+    } else if (_model->isOptionOverridden("-font-family")) {
+        // If font-family is overridden but weight is not, update slider to show the runtime weight
+        // (which is the font's default, not the QSettings weight from a different font)
+        if (const auto idx{GUIUtil::g_font_registry.WeightToIdx(GUIUtil::g_font_registry.GetWeightNormal())}; idx != -1) {
+            ui->fontWeightNormalSlider->setValue(idx);
+        }
     }
 
     if (_model->isOptionOverridden("-font-weight-bold")) {
         ui->fontWeightBoldSlider->setEnabled(false);
+        if (const auto idx{GUIUtil::g_font_registry.WeightToIdx(GUIUtil::g_font_registry.GetWeightBold())}; idx != -1) {
+            ui->fontWeightBoldSlider->setValue(idx);
+        }
+    } else if (_model->isOptionOverridden("-font-family")) {
+        // If font-family is overridden but weight is not, update slider to show the runtime weight
+        // (which is the font's default, not the QSettings weight from a different font)
         if (const auto idx{GUIUtil::g_font_registry.WeightToIdx(GUIUtil::g_font_registry.GetWeightBold())}; idx != -1) {
             ui->fontWeightBoldSlider->setValue(idx);
         }
@@ -170,6 +183,7 @@ void AppearanceWidget::updateFontWeightNormal(int nValue, bool fForce)
     const QSignalBlocker blocker(ui->fontWeightNormalSlider);
     ui->fontWeightNormalSlider->setValue(nSliderValue);
     GUIUtil::g_font_registry.SetWeightNormal(GUIUtil::g_font_registry.IdxToWeight(ui->fontWeightNormalSlider->value()));
+    GUIUtil::setApplicationFont();
     GUIUtil::updateFonts();
 }
 
@@ -182,6 +196,7 @@ void AppearanceWidget::updateFontWeightBold(int nValue, bool fForce)
     const QSignalBlocker blocker(ui->fontWeightBoldSlider);
     ui->fontWeightBoldSlider->setValue(nSliderValue);
     GUIUtil::g_font_registry.SetWeightBold(GUIUtil::g_font_registry.IdxToWeight(ui->fontWeightBoldSlider->value()));
+    GUIUtil::setApplicationFont();
     GUIUtil::updateFonts();
 }
 
