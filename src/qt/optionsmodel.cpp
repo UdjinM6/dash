@@ -12,6 +12,7 @@
 #include <qt/bitcoinunits.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
+#include <qt/guiutil_font.h>
 
 #include <interfaces/node.h>
 #include <mapport.h>
@@ -96,61 +97,69 @@ void OptionsModel::Init(bool resetSettings)
     if (!settings.contains("theme"))
         settings.setValue("theme", GUIUtil::getDefaultTheme());
 
-    if (!settings.contains("fontFamily"))
-        settings.setValue("fontFamily", GUIUtil::fontFamilyToString(GUIUtil::getFontFamilyDefault()));
-    if (gArgs.SoftSetArg("-font-family", settings.value("fontFamily").toString().toStdString())) {
-        if (GUIUtil::fontsLoaded()) {
-            GUIUtil::setFontFamily(GUIUtil::fontFamilyFromString(settings.value("fontFamily").toString()));
-        }
-    } else {
+    // Font Family
+    if (!settings.contains("fontFamily")) {
+        settings.setValue("fontFamily", GUIUtil::FontRegistry::DEFAULT_FONT.toUtf8());
+    }
+    if (!gArgs.SoftSetArg("-font-family", settings.value("fontFamily").toString().toStdString())) {
         addOverriddenOption("-font-family");
     }
-
-    if (!settings.contains("fontScale"))
-        settings.setValue("fontScale", GUIUtil::getFontScaleDefault());
-    if (gArgs.SoftSetArg("-font-scale", settings.value("fontScale").toString().toStdString())) {
-        if (GUIUtil::fontsLoaded()) {
-            GUIUtil::setFontScale(settings.value("fontScale").toInt());
+    if (GUIUtil::fontsLoaded()) {
+        if (auto font_name = QString::fromStdString(gArgs.GetArg("-font-family", settings.value("fontFamily").toString().toStdString()));
+            GUIUtil::g_font_registry.RegisterFont(font_name) && GUIUtil::g_font_registry.SetFont(font_name)) {
+            GUIUtil::setApplicationFont();
         }
-    } else {
+    }
+
+    // Font Scale
+    if (!settings.contains("fontScale")) {
+        settings.setValue("fontScale", GUIUtil::FontRegistry::DEFAULT_FONT_SCALE);
+    }
+    if (!gArgs.SoftSetArg("-font-scale", settings.value("fontScale").toString().toStdString())) {
         addOverriddenOption("-font-scale");
     }
+    if (GUIUtil::fontsLoaded()) {
+        GUIUtil::g_font_registry.SetFontScale(gArgs.GetIntArg("-font-scale", settings.value("fontScale").toString().toInt()));
+    }
 
-    if (!settings.contains("fontWeightNormal"))
-        settings.setValue("fontWeightNormal", GUIUtil::weightToArg(GUIUtil::getFontWeightNormalDefault()));
-    if (gArgs.SoftSetArg("-font-weight-normal", settings.value("fontWeightNormal").toString().toStdString())) {
-        if (GUIUtil::fontsLoaded()) {
-            QFont::Weight weight;
-            GUIUtil::weightFromArg(settings.value("fontWeightNormal").toInt(), weight);
-            if (!GUIUtil::isSupportedWeight(weight)) {
-                // If the currently selected weight is not supported fallback to the lightest weight for normal font.
-                weight = GUIUtil::getSupportedWeights().front();
-                settings.setValue("fontWeightNormal", GUIUtil::weightToArg(weight));
-            }
-            GUIUtil::setFontWeightNormal(weight);
-        }
-    } else {
+    // Font Weight (Normal)
+    if (!settings.contains("fontWeightNormal")) {
+        settings.setValue("fontWeightNormal", GUIUtil::weightToArg(GUIUtil::FontRegistry::TARGET_WEIGHT_NORMAL));
+    }
+    if (!gArgs.SoftSetArg("-font-weight-normal", settings.value("fontWeightNormal").toString().toStdString())) {
         addOverriddenOption("-font-weight-normal");
     }
-
-    if (!settings.contains("fontWeightBold"))
-        settings.setValue("fontWeightBold", GUIUtil::weightToArg(GUIUtil::getFontWeightBoldDefault()));
-    if (gArgs.SoftSetArg("-font-weight-bold", settings.value("fontWeightBold").toString().toStdString())) {
-        if (GUIUtil::fontsLoaded()) {
-            QFont::Weight weight;
-            GUIUtil::weightFromArg(settings.value("fontWeightBold").toInt(), weight);
-            if (!GUIUtil::isSupportedWeight(weight)) {
-                // If the currently selected weight is not supported fallback to the second lightest weight for bold font
-                // or the lightest if there is only one.
-                auto vecSupported = GUIUtil::getSupportedWeights();
-                weight = vecSupported[vecSupported.size() > 1 ? 1 : 0];
-                settings.setValue("fontWeightBold", GUIUtil::weightToArg(weight));
-            }
-            GUIUtil::setFontWeightBold(weight);
+    if (GUIUtil::fontsLoaded()) {
+        QFont::Weight weight;
+        GUIUtil::weightFromArg(gArgs.GetIntArg("-font-weight-normal", settings.value("fontWeightNormal").toInt()), weight);
+        if (!GUIUtil::g_font_registry.IsValidWeight(weight)) {
+            // If the currently selected weight is not supported fallback to the lightest weight for normal font.
+            weight = GUIUtil::g_font_registry.GetSupportedWeights().front();
         }
-    } else {
+        GUIUtil::g_font_registry.SetWeightNormal(weight);
+    }
+
+    // Font Weight (Bold)
+    if (!settings.contains("fontWeightBold")) {
+        settings.setValue("fontWeightBold", GUIUtil::weightToArg(GUIUtil::FontRegistry::TARGET_WEIGHT_BOLD));
+    }
+    if (!gArgs.SoftSetArg("-font-weight-bold", settings.value("fontWeightBold").toString().toStdString())) {
         addOverriddenOption("-font-weight-bold");
     }
+    if (GUIUtil::fontsLoaded()) {
+        QFont::Weight weight;
+        GUIUtil::weightFromArg(gArgs.GetIntArg("-font-weight-bold", settings.value("fontWeightBold").toInt()), weight);
+        if (!GUIUtil::g_font_registry.IsValidWeight(weight)) {
+            // If the currently selected weight is not supported fallback to the second lightest weight for bold font
+            // or the lightest if there is only one.
+            auto vecSupported = GUIUtil::g_font_registry.GetSupportedWeights();
+            weight = vecSupported[vecSupported.size() > 1 ? 1 : 0];
+        }
+        GUIUtil::g_font_registry.SetWeightBold(weight);
+    }
+
+    // Apply font changes
+    GUIUtil::updateFonts();
 
 #ifdef ENABLE_WALLET
     if (!settings.contains("fCoinControlFeatures"))
@@ -549,14 +558,20 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
         case FontWeightNormal: {
             QFont::Weight weight;
             GUIUtil::weightFromArg(settings.value("fontWeightNormal").toInt(), weight);
-            int nIndex = GUIUtil::supportedWeightToIndex(weight);
+            int nIndex = GUIUtil::g_font_registry.WeightToIdx(weight);
+            if (nIndex == -1) {
+                nIndex = GUIUtil::g_font_registry.WeightToIdx(GUIUtil::g_font_registry.GetWeightNormalDefault());
+            }
             assert(nIndex != -1);
             return nIndex;
         }
         case FontWeightBold: {
             QFont::Weight weight;
             GUIUtil::weightFromArg(settings.value("fontWeightBold").toInt(), weight);
-            int nIndex = GUIUtil::supportedWeightToIndex(weight);
+            int nIndex = GUIUtil::g_font_registry.WeightToIdx(weight);
+            if (nIndex == -1) {
+                nIndex = GUIUtil::g_font_registry.WeightToIdx(GUIUtil::g_font_registry.GetWeightBoldDefault());
+            }
             assert(nIndex != -1);
             return nIndex;
         }
@@ -797,14 +812,14 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             }
             break;
         case FontWeightNormal: {
-            int nWeight = GUIUtil::weightToArg(GUIUtil::supportedWeightFromIndex(value.toInt()));
+            int nWeight = GUIUtil::weightToArg(GUIUtil::g_font_registry.IdxToWeight(value.toInt()));
             if (settings.value("fontWeightNormal") != nWeight) {
                 settings.setValue("fontWeightNormal", nWeight);
             }
             break;
         }
         case FontWeightBold: {
-            int nWeight = GUIUtil::weightToArg(GUIUtil::supportedWeightFromIndex(value.toInt()));
+            int nWeight = GUIUtil::weightToArg(GUIUtil::g_font_registry.IdxToWeight(value.toInt()));
             if (settings.value("fontWeightBold") != nWeight) {
                 settings.setValue("fontWeightBold", nWeight);
             }
