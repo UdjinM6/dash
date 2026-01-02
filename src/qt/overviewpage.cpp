@@ -382,6 +382,13 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
 
 void OverviewPage::setMonospacedFont(const QFont& f)
 {
+    // Labels that should be bold with size 14 (matching constructor setup)
+    GUIUtil::setFont({
+        ui->labelTotal,
+        ui->labelWatchTotal
+    }, {f.family(), GUIUtil::g_font_registry.GetWeightBold(), 14});
+
+    // Labels that should use normal weight (not explicitly styled in constructor)
     GUIUtil::setFont({
         ui->labelAmountRounds,
         ui->labelAnonymized,
@@ -389,12 +396,10 @@ void OverviewPage::setMonospacedFont(const QFont& f)
         ui->labelUnconfirmed,
         ui->labelImmature,
         ui->labelSubmittedDenom,
-        ui->labelTotal,
         ui->labelWatchAvailable,
         ui->labelWatchPending,
-        ui->labelWatchImmature,
-        ui->labelWatchTotal
-    }, {f.family(), GUIUtil::g_font_registry.GetWeightBold()});
+        ui->labelWatchImmature
+    }, {f.family(), GUIUtil::g_font_registry.GetWeightNormal()});
 
     GUIUtil::updateFonts();
 }
