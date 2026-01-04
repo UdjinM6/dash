@@ -430,6 +430,9 @@ static void BackupSettings(const fs::path& filename, const QSettings& src)
 
 void OptionsModel::Reset()
 {
+    // Backup settings.json
+    gArgs.WriteSettingsFile(/*errors=*/nullptr, /*backup=*/true);
+
     // Clear only GUI-managed settings from settings.json
     // (Don't use node().resetSettings() as that clears ALL settings including non-GUI ones)
     for (int i = 0; i < OptionIDRowCount; ++i) {
