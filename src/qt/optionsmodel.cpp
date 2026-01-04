@@ -430,8 +430,18 @@ static void BackupSettings(const fs::path& filename, const QSettings& src)
 
 void OptionsModel::Reset()
 {
-    // Backup and reset settings.json
-    node().resetSettings();
+    // Clear only GUI-managed settings from settings.json
+    // (Don't use node().resetSettings() as that clears ALL settings including non-GUI ones)
+    for (int i = 0; i < OptionIDRowCount; ++i) {
+        OptionID option = static_cast<OptionID>(i);
+        try {
+            const char* setting_name = SettingName(option);
+            node().updateRwSetting(setting_name, {});
+            node().updateRwSetting(std::string(setting_name) + "-prev", {});
+        } catch (const std::logic_error&) {
+            // Option doesn't have a corresponding node setting, skip it
+        }
+    }
 
     QSettings settings;
 
