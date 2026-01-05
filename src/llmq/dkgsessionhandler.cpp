@@ -23,8 +23,6 @@ CDKGSessionHandler::CDKGSessionHandler(CBLSWorker& _blsWorker, CDeterministicMNM
                                        CDKGDebugManager& _dkgDebugManager, CDKGSessionManager& _dkgManager,
                                        CQuorumSnapshotManager& qsnapman, const ChainstateManager& chainman,
                                        const Consensus::LLMQParams& _params, bool quorums_watch, int _quorumIndex) :
-    curSession{std::make_unique<CDKGSession>(_blsWorker, dmnman, _dkgDebugManager, _dkgManager, qsnapman, chainman,
-                                             /*pQuorumBaseBlockIndex=*/nullptr, _params)},
     params{_params},
     quorumIndex{_quorumIndex},
     // we allow size*2 messages as we need to make sure we see bad behavior (double messages)
@@ -124,6 +122,9 @@ MessageProcessingResult CDKGSessionHandler::ProcessMessage(NodeId from, std::str
 
 bool CDKGSessionHandler::GetContribution(const uint256& hash, CDKGContribution& ret) const
 {
+    if (!curSession) {
+        return false;
+    }
     LOCK(curSession->invCs);
     auto it = curSession->contributions.find(hash);
     if (it != curSession->contributions.end()) {
@@ -135,6 +136,9 @@ bool CDKGSessionHandler::GetContribution(const uint256& hash, CDKGContribution& 
 
 bool CDKGSessionHandler::GetComplaint(const uint256& hash, CDKGComplaint& ret) const
 {
+    if (!curSession) {
+        return false;
+    }
     LOCK(curSession->invCs);
     auto it = curSession->complaints.find(hash);
     if (it != curSession->complaints.end()) {
@@ -146,6 +150,9 @@ bool CDKGSessionHandler::GetComplaint(const uint256& hash, CDKGComplaint& ret) c
 
 bool CDKGSessionHandler::GetJustification(const uint256& hash, CDKGJustification& ret) const
 {
+    if (!curSession) {
+        return false;
+    }
     LOCK(curSession->invCs);
     auto it = curSession->justifications.find(hash);
     if (it != curSession->justifications.end()) {
@@ -157,6 +164,9 @@ bool CDKGSessionHandler::GetJustification(const uint256& hash, CDKGJustification
 
 bool CDKGSessionHandler::GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const
 {
+    if (!curSession) {
+        return false;
+    }
     LOCK(curSession->invCs);
     auto it = curSession->prematureCommitments.find(hash);
     if (it != curSession->prematureCommitments.end() && curSession->validCommitments.count(hash)) {

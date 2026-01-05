@@ -38,11 +38,6 @@ ActiveDKGSessionHandler::ActiveDKGSessionHandler(
     m_sporkman{sporkman},
     m_quorums_watch{quorums_watch}
 {
-    // Overwrite session initialized in parent
-    curSession.reset();
-    curSession = std::make_unique<ActiveDKGSession>(m_bls_worker, m_dmnman, m_dkgdbgman, m_qdkgsman, m_mn_metaman,
-                                                    m_qsnapman, m_mn_activeman, m_chainman, m_sporkman,
-                                                    /*pQuorumBaseBlockIndex=*/nullptr, llmq_params);
 }
 
 ActiveDKGSessionHandler::~ActiveDKGSessionHandler() = default;
@@ -99,7 +94,7 @@ std::pair<QuorumPhase, uint256> ActiveDKGSessionHandler::GetPhaseAndQuorumHash()
     return std::make_pair(phase, quorumHash);
 }
 
-bool ActiveDKGSessionHandler::InitNewQuorum(const CBlockIndex* pQuorumBaseBlockIndex)
+bool ActiveDKGSessionHandler::InitNewQuorum(gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex)
 {
     if (!DeploymentDIP0003Enforced(pQuorumBaseBlockIndex->nHeight, Params().GetConsensus())) {
         return false;
