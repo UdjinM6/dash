@@ -149,10 +149,10 @@ public:
 
     [[nodiscard]] MessageProcessingResult ProcessMessage(NodeId from, std::string_view msg_type, CDataStream& vRecv);
 
-    bool GetContribution(const uint256& hash, CDKGContribution& ret) const;
-    bool GetComplaint(const uint256& hash, CDKGComplaint& ret) const;
-    bool GetJustification(const uint256& hash, CDKGJustification& ret) const;
-    bool GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const;
+    virtual bool GetContribution(const uint256& hash, CDKGContribution& ret) const { return false; }
+    virtual bool GetComplaint(const uint256& hash, CDKGComplaint& ret) const { return false; }
+    virtual bool GetJustification(const uint256& hash, CDKGJustification& ret) const { return false; }
+    virtual bool GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const { return false; }
 
 public:
     virtual QuorumPhase GetPhase() const { return QuorumPhase::Idle; }

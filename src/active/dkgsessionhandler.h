@@ -59,6 +59,10 @@ public:
     void StartThread(CConnman& connman, PeerManager& peerman) override;
     void StopThread() override;
     void UpdatedBlockTip(const CBlockIndex* pindexNew) override EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);
+    bool GetContribution(const uint256& hash, CDKGContribution& ret) const override;
+    bool GetComplaint(const uint256& hash, CDKGComplaint& ret) const override;
+    bool GetJustification(const uint256& hash, CDKGJustification& ret) const override;
+    bool GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const override;
 
 private:
     std::pair<QuorumPhase, uint256> GetPhaseAndQuorumHash() const EXCLUSIVE_LOCKS_REQUIRED(!cs_phase_qhash);

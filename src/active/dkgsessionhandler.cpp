@@ -88,6 +88,62 @@ void ActiveDKGSessionHandler::StopThread()
     }
 }
 
+bool ActiveDKGSessionHandler::GetContribution(const uint256& hash, CDKGContribution& ret) const
+{
+    if (!curSession) {
+        return false;
+    }
+    LOCK(curSession->invCs);
+    auto it = curSession->contributions.find(hash);
+    if (it != curSession->contributions.end()) {
+        ret = it->second;
+        return true;
+    }
+    return false;
+}
+
+bool ActiveDKGSessionHandler::GetComplaint(const uint256& hash, CDKGComplaint& ret) const
+{
+    if (!curSession) {
+        return false;
+    }
+    LOCK(curSession->invCs);
+    auto it = curSession->complaints.find(hash);
+    if (it != curSession->complaints.end()) {
+        ret = it->second;
+        return true;
+    }
+    return false;
+}
+
+bool ActiveDKGSessionHandler::GetJustification(const uint256& hash, CDKGJustification& ret) const
+{
+    if (!curSession) {
+        return false;
+    }
+    LOCK(curSession->invCs);
+    auto it = curSession->justifications.find(hash);
+    if (it != curSession->justifications.end()) {
+        ret = it->second;
+        return true;
+    }
+    return false;
+}
+
+bool ActiveDKGSessionHandler::GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const
+{
+    if (!curSession) {
+        return false;
+    }
+    LOCK(curSession->invCs);
+    auto it = curSession->prematureCommitments.find(hash);
+    if (it != curSession->prematureCommitments.end() && curSession->validCommitments.count(hash)) {
+        ret = it->second;
+        return true;
+    }
+    return false;
+}
+
 std::pair<QuorumPhase, uint256> ActiveDKGSessionHandler::GetPhaseAndQuorumHash() const
 {
     LOCK(cs_phase_qhash);
