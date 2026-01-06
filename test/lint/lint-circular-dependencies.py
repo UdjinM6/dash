@@ -53,7 +53,6 @@ EXPECTED_CIRCULAR_DEPENDENCIES = (
     "instantsend/instantsend -> txmempool -> instantsend/instantsend",
     "llmq/blockprocessor -> llmq/utils -> llmq/snapshot -> llmq/blockprocessor",
     "llmq/commitment -> llmq/utils -> llmq/snapshot -> llmq/commitment",
-    "llmq/dkgsession -> llmq/dkgsessionmgr -> llmq/dkgsessionhandler -> llmq/dkgsession",
     "llmq/dkgsessionhandler -> net_processing -> llmq/dkgsessionmgr -> llmq/dkgsessionhandler",
     "llmq/signing_shares -> net_processing -> llmq/signing_shares",
     "masternode/payments -> validation -> masternode/payments",

@@ -9,7 +9,34 @@
 
 #include <gsl/pointers.h>
 
+#include <atomic>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <string>
+#include <thread>
+
+class CActiveMasternodeManager;
+class CBLSWorker;
+class CBlockIndex;
+class CConnman;
+class ChainstateManager;
+class CDeterministicMNManager;
+class CMasternodeMetaMan;
+class CSporkManager;
+class PeerManager;
+
+namespace Consensus {
+struct LLMQParams;
+} // namespace Consensus
+
 namespace llmq {
+class CDKGSession;
+class CDKGDebugManager;
+class CDKGSessionManager;
+class CQuorumBlockProcessor;
+class CQuorumSnapshotManager;
+
 class ActiveDKGSessionHandler final : public llmq::CDKGSessionHandler
 {
     using StartPhaseFunc = std::function<void()>;
@@ -27,6 +54,8 @@ private:
     const ChainstateManager& m_chainman;
     const CSporkManager& m_sporkman;
     const bool m_quorums_watch{false};
+    std::unique_ptr<CDKGSession> curSession{nullptr};
+    const int quorumIndex;
 
 private:
     std::atomic<bool> stopRequested{false};
