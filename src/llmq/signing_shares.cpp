@@ -14,7 +14,7 @@
 #include <llmq/signing.h>
 #include <spork.h>
 #include <util/irange.h>
-#include <util/underlying.h>
+#include <util/std23.h>
 
 #include <chainparams.h>
 #include <net_processing.h>
@@ -36,7 +36,7 @@ void CSigShare::UpdateKey()
 std::string CSigSesAnn::ToString() const
 {
     return strprintf("sessionId=%d, llmqType=%d, quorumHash=%s, id=%s, msgHash=%s",
-                     sessionId, ToUnderlying(getLlmqType()), getQuorumHash().ToString(), getId().ToString(), getMsgHash().ToString());
+                     sessionId, std23::to_underlying(getLlmqType()), getQuorumHash().ToString(), getId().ToString(), getMsgHash().ToString());
 }
 
 void CSigSharesInv::Merge(const CSigSharesInv& inv2)
@@ -662,7 +662,7 @@ bool CSigSharesManager::CollectPendingSigSharesToVerify(
             // nothing instead of reporting flawed data.
             if (!quorum) {
                 LogPrintf("%s: ERROR! Unexpected missing quorum with llmqType=%d, quorumHash=%s\n", __func__,
-                          ToUnderlying(llmqType), sigShare.getQuorumHash().ToString());
+                          std23::to_underlying(llmqType), sigShare.getQuorumHash().ToString());
                 return false;
             }
             retQuorums.try_emplace(k, quorum);
@@ -1762,7 +1762,7 @@ std::optional<CSigShare> CSigSharesManager::CreateSigShareForSingleMember(const 
              "CSigSharesManager::%s -- created sigShare. signHash=%s, id=%s, msgHash=%s, llmqType=%d, quorum=%s, "
              "time=%s\n",
              __func__, signHash.ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(),
-             ToUnderlying(quorum.params.type), quorum.qc->quorumHash.ToString(), t.count());
+             std23::to_underlying(quorum.params.type), quorum.qc->quorumHash.ToString(), t.count());
 
     return sigShare;
 }
@@ -1805,7 +1805,7 @@ std::optional<CSigShare> CSigSharesManager::CreateSigShare(const CQuorum& quorum
     sigShare.UpdateKey();
 
     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- created sigShare. signHash=%s, id=%s, msgHash=%s, llmqType=%d, quorum=%s, time=%s\n", __func__,
-              signHash.ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(), ToUnderlying(quorum.params.type), quorum.qc->quorumHash.ToString(), t.count());
+              signHash.ToString(), sigShare.getId().ToString(), sigShare.getMsgHash().ToString(), std23::to_underlying(quorum.params.type), quorum.qc->quorumHash.ToString(), t.count());
 
     return sigShare;
 }

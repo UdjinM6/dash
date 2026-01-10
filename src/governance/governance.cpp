@@ -284,7 +284,7 @@ void CGovernanceManager::AddGovernanceObjectInternal(CGovernanceObject& insert_o
     }
 
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- Adding object: hash = %s, type = %d\n", nHash.ToString(),
-             ToUnderlying(insert_obj.GetObjectType()));
+             std23::to_underlying(insert_obj.GetObjectType()));
 
     // INSERT INTO OUR GOVERNANCE OBJECT MEMORY
     // IF WE HAVE THIS OBJECT ALREADY, WE DON'T WANT ANOTHER COPY
@@ -299,7 +299,7 @@ void CGovernanceManager::AddGovernanceObjectInternal(CGovernanceObject& insert_o
 
     auto& [_, govobj] = *emplace_ret;
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- Before trigger block, GetDataAsPlainString = %s, nObjectType = %d\n",
-                Assert(govobj)->GetDataAsPlainString(), ToUnderlying(govobj->GetObjectType()));
+                Assert(govobj)->GetDataAsPlainString(), std23::to_underlying(govobj->GetObjectType()));
 
     if (govobj->GetObjectType() == GovernanceObject::TRIGGER && !AddNewTrigger(nHash)) {
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- undo adding invalid trigger object: hash = %s\n", nHash.ToString());
@@ -1289,7 +1289,7 @@ void CGovernanceManager::CleanAndRemoveTriggers()
             }
 
             LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s -- superblock status = %d\n", __func__,
-                     ToUnderlying(pSuperblock->GetStatus()));
+                     std23::to_underlying(pSuperblock->GetStatus()));
             switch (pSuperblock->GetStatus()) {
             case SeenObjectStatus::ErrorInvalid:
             case SeenObjectStatus::Unknown:

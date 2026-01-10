@@ -28,7 +28,7 @@
 #include <util/string.h>
 #include <util/system.h>
 #include <util/threadnames.h>
-#include <util/underlying.h>
+#include <util/std23.h>
 
 #include <univalue.h>
 
@@ -608,7 +608,7 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent, Qt::WindowFlags 
     connect(pageButtons, QOverload<int>::of(&QButtonGroup::buttonClicked), this, &RPCConsole::showPage);
 #endif
 
-    showPage(ToUnderlying(TabTypes::INFO));
+    showPage(std23::to_underlying(TabTypes::INFO));
 
     reloadThemedWidgets();
 
@@ -1569,12 +1569,12 @@ void RPCConsole::showOrHideBanTableIfRequired()
 
 void RPCConsole::setTabFocus(enum TabTypes tabType)
 {
-    showPage(ToUnderlying(tabType));
+    showPage(std23::to_underlying(tabType));
 }
 
 QString RPCConsole::tabTitle(TabTypes tab_type) const
 {
-    return pageButtons->button(ToUnderlying(tab_type))->text();
+    return pageButtons->button(std23::to_underlying(tab_type))->text();
 }
 
 QKeySequence RPCConsole::tabShortcut(TabTypes tab_type) const
