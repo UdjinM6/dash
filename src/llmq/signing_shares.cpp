@@ -313,10 +313,9 @@ void CSigSharesManager::ProcessMessage(const CNode& pfrom, const std::string& ms
     } else if (msg_type == NetMsgType::QBSIGSHARES) {
         std::vector<CBatchedSigShares> msgs;
         vRecv >> msgs;
-        size_t totalSigsCount = 0;
-        for (const auto& bs : msgs) {
-            totalSigsCount += bs.sigShares.size();
-        }
+        const size_t totalSigsCount = std23::ranges::fold_left(msgs, size_t{0}, [](size_t s, const auto& bs) {
+            return s + bs.sigShares.size();
+        });
         if (totalSigsCount > MAX_MSGS_TOTAL_BATCHED_SIGS) {
             LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- too many sigs in QBSIGSHARES message. cnt=%d, max=%d, node=%d\n", __func__, msgs.size(), MAX_MSGS_TOTAL_BATCHED_SIGS, pfrom.GetId());
             BanNode(pfrom.GetId());

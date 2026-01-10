@@ -11,6 +11,7 @@
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <msg_result.h>
+#include <util/std23.h>
 
 #include <random.h>
 #include <saltedhasher.h>
@@ -231,11 +232,8 @@ public:
 
     [[nodiscard]] size_t Size() const
     {
-        size_t s = 0;
-        for (auto& p : internalMap) {
-            s += p.second.size();
-        }
-        return s;
+        return std23::ranges::fold_left(internalMap, size_t{0},
+                                        [](size_t s, const auto& p) { return s + p.second.size(); });
     }
 
     [[nodiscard]] size_t CountForSignHash(const uint256& signHash) const
