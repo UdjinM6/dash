@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <functional>
 #include <iterator>
+#include <numeric>
 #include <ranges>
 #include <type_traits>
 #include <utility>
@@ -30,6 +31,7 @@ template <typename E>
 namespace ranges {
 #if __cplusplus >= 202302L
 using std::ranges::contains;
+using std::ranges::fold_left;
 #else
 /**
  * @tparam R range type, automatically deduced
@@ -46,6 +48,21 @@ inline constexpr bool contains(R&& range, const T& value, Proj proj = {})
     return std::ranges::any_of(std::forward<R>(range), [&value, &proj](auto&& elem) {
         return std::invoke(proj, std::forward<decltype(elem)>(elem)) == value;
     });
+}
+
+/**
+ * @tparam R range type, automatically deduced
+ * @tparam T initial value type, automatically deduced
+ * @tparam F binary operation type, automatically deduced
+ * @param range the range to fold
+ * @param init the initial value
+ * @param f binary operation to apply
+ * @return the result of folding the range
+ */
+template <typename R, typename T, typename F>
+inline constexpr auto fold_left(R&& range, T init, F f)
+{
+    return std::accumulate(std::ranges::begin(range), std::ranges::end(range), std::move(init), std::move(f));
 }
 #endif // __cplusplus >= 202302L
 namespace views {
