@@ -5,6 +5,10 @@
 
 #include <rpc/blockchain.h>
 
+#include <instantsend/instantsend.h>
+#include <llmq/context.h>
+#include <util/helpers.h>
+
 #include <core_io.h>
 #include <fs.h>
 #include <policy/settings.h>
@@ -18,9 +22,6 @@
 #include <validation.h>
 #include <util/system.h>
 #include <util/time.h>
-
-#include <instantsend/instantsend.h>
-#include <llmq/context.h>
 
 using node::DEFAULT_MAX_RAW_TX_FEE_RATE;
 using node::NodeContext;
@@ -325,7 +326,7 @@ static void entryToJSON(const CTxMemPool& pool, UniValue& info, const CTxMemPool
     }
 
     info.pushKV("spentby", spent);
-    info.pushKV("instantlock", isman ? (isman->IsLocked(tx.GetHash()) ? "true" : "false") : "unknown");
+    info.pushKV("instantlock", isman ? util::to_string(isman->IsLocked(tx.GetHash())) : "unknown");
     info.pushKV("unbroadcast", pool.IsUnbroadcastTx(tx.GetHash()));
 }
 
