@@ -13,7 +13,7 @@
 #include <llmq/signhash.h>
 #include <llmq/signing.h>
 #include <spork.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 #include <util/std23.h>
 
 #include <chainparams.h>

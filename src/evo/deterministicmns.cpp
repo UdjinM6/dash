@@ -13,8 +13,7 @@
 #include <masternode/meta.h>
 #include <messagesigner.h>
 #include <stats/client.h>
-#include <util/pointer.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <chainparams.h>
 #include <coins.h>

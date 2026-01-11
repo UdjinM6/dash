@@ -399,6 +399,7 @@ BITCOIN_CORE_H = \
   util/golombrice.h \
   util/hasher.h \
   util/hash_type.h \
+  util/helpers.h \
   util/asmap.h \
   util/getuniquepath.h \
   util/macros.h \
@@ -406,8 +407,6 @@ BITCOIN_CORE_H = \
   util/moneystr.h \
   util/overflow.h \
   util/overloaded.h \
-  util/pointer.h \
-  util/ranges.h \
   util/readwritefile.h \
   util/result.h \
   util/serfloat.h \

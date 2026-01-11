@@ -5,7 +5,7 @@
 #include <bench/bench.h>
 
 #include <bls/bls_worker.h>
-#include <util/ranges.h>
+#include <util/helpers.h>
 
 #include <random.h>
 
