@@ -4,10 +4,6 @@
 
 #include <governance/governance.h>
 
-#include <chain.h>
-#include <chainparams.h>
-#include <common/bloom.h>
-#include <deploymentstatus.h>
 #include <evo/deterministicmns.h>
 #include <flat-database.h>
 #include <governance/classes.h>
@@ -15,16 +11,23 @@
 #include <governance/validators.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
+#include <spork.h>
+#include <util/std23.h>
+
+#include <chain.h>
+#include <chainparams.h>
+#include <common/bloom.h>
+#include <deploymentstatus.h>
 #include <netfulfilledman.h>
 #include <netmessagemaker.h>
 #include <protocol.h>
 #include <shutdown.h>
-#include <spork.h>
 #include <timedata.h>
-#include <util/ranges.h>
 #include <util/thread.h>
 #include <util/time.h>
 #include <validationinterface.h>
+
+#include <ranges>
 
 const std::string GovernanceStore::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-16";
 

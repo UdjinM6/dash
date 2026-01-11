@@ -21,9 +21,11 @@
 #include <gsl/pointers.h>
 #include <immer/map.hpp>
 
+#include <algorithm>
 #include <atomic>
 #include <limits>
 #include <numeric>
+#include <ranges>
 #include <unordered_map>
 #include <utility>
 
@@ -262,17 +264,17 @@ public:
 
     [[nodiscard]] size_t GetValidMNsCount() const
     {
-        return ranges::count_if(mnMap, [](const auto& p) { return !p.second->pdmnState->IsBanned(); });
+        return std::ranges::count_if(mnMap, [](const auto& p) { return !p.second->pdmnState->IsBanned(); });
     }
 
     [[nodiscard]] size_t GetAllEvoCount() const
     {
-        return ranges::count_if(mnMap, [](const auto& p) { return p.second->nType == MnType::Evo; });
+        return std::ranges::count_if(mnMap, [](const auto& p) { return p.second->nType == MnType::Evo; });
     }
 
     [[nodiscard]] size_t GetValidEvoCount() const
     {
-        return ranges::count_if(mnMap, [](const auto& p) {
+        return std::ranges::count_if(mnMap, [](const auto& p) {
             return p.second->nType == MnType::Evo && !p.second->pdmnState->IsBanned();
         });
     }

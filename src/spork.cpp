@@ -4,8 +4,10 @@
 
 #include <spork.h>
 
-#include <chainparams.h>
 #include <flat-database.h>
+#include <util/ranges.h>
+
+#include <chainparams.h>
 #include <key_io.h>
 #include <logging.h>
 #include <messagesigner.h>
@@ -15,10 +17,10 @@
 #include <script/standard.h>
 #include <timedata.h>
 #include <util/message.h> // for MESSAGE_MAGIC
-#include <util/ranges.h>
 #include <util/string.h>
 #include <validation.h>
 
+#include <ranges>
 #include <string>
 
 const std::string SporkStore::SERIALIZATION_VERSION_STRING = "CSporkManager-Version-2";
@@ -277,8 +279,8 @@ SporkValue CSporkManager::GetSporkValue(SporkId nSporkID) const
     }
 
 
-    if (auto optSpork = ranges::find_if_opt(sporkDefs,
-                                            [&nSporkID](const auto& sporkDef){return sporkDef.sporkId == nSporkID;})) {
+    if (auto optSpork = util::find_if_opt(sporkDefs,
+                                          [&nSporkID](const auto& sporkDef) { return sporkDef.sporkId == nSporkID; })) {
         return optSpork->defaultValue;
     } else {
         LogPrint(BCLog::SPORK, "CSporkManager::GetSporkValue -- Unknown Spork ID %d\n", nSporkID);
@@ -288,8 +290,8 @@ SporkValue CSporkManager::GetSporkValue(SporkId nSporkID) const
 
 SporkId CSporkManager::GetSporkIDByName(std::string_view strName)
 {
-    if (auto optSpork = ranges::find_if_opt(sporkDefs,
-                                            [&strName](const auto& sporkDef){return sporkDef.name == strName;})) {
+    if (auto optSpork = util::find_if_opt(sporkDefs,
+                                          [&strName](const auto& sporkDef) { return sporkDef.name == strName; })) {
         return optSpork->sporkId;
     }
 

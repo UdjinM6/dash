@@ -14,8 +14,9 @@
 #include <util/system.h>
 #include <validation.h>
 
-#include <string>
+#include <ranges>
 #include <stdexcept>
+#include <string>
 
 namespace llmq
 {
@@ -71,8 +72,9 @@ QvvecSyncModeMap GetEnabledQuorumVvecSyncEntries(const ArgsManager& args)
             throw std::invalid_argument(strprintf("Invalid format in -llmq-qvvec-sync: %s", strEntry));
         }
 
-        if (auto optLLMQParams = ranges::find_if_opt(Params().GetConsensus().llmqs,
-                                                     [&strLLMQType](const auto& params){return params.name == strLLMQType;})) {
+        if (auto optLLMQParams = util::find_if_opt(Params().GetConsensus().llmqs, [&strLLMQType](const auto& params) {
+                return params.name == strLLMQType;
+            })) {
             llmqType = optLLMQParams->type;
         } else {
             throw std::invalid_argument(strprintf("Invalid llmqType in -llmq-qvvec-sync: %s", strEntry));

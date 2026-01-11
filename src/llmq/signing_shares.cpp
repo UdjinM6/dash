@@ -25,6 +25,8 @@
 
 #include <cxxtimer.hpp>
 
+#include <ranges>
+
 namespace llmq
 {
 void CSigShare::UpdateKey()
@@ -280,8 +282,7 @@ void CSigSharesManager::ProcessMessage(const CNode& pfrom, const std::string& ms
             BanNode(pfrom.GetId());
             return;
         }
-        if (!ranges::all_of(msgs,
-                            [this, &pfrom](const auto& ann){ return ProcessMessageSigSesAnn(pfrom, ann); })) {
+        if (!std::ranges::all_of(msgs, [this, &pfrom](const auto& ann) { return ProcessMessageSigSesAnn(pfrom, ann); })) {
             BanNode(pfrom.GetId());
             return;
         }
@@ -293,8 +294,7 @@ void CSigSharesManager::ProcessMessage(const CNode& pfrom, const std::string& ms
             BanNode(pfrom.GetId());
             return;
         }
-        if (!ranges::all_of(msgs,
-                            [this, &pfrom](const auto& inv){ return ProcessMessageSigSharesInv(pfrom, inv); })) {
+        if (!std::ranges::all_of(msgs, [this, &pfrom](const auto& inv) { return ProcessMessageSigSharesInv(pfrom, inv); })) {
             BanNode(pfrom.GetId());
             return;
         }
@@ -306,8 +306,7 @@ void CSigSharesManager::ProcessMessage(const CNode& pfrom, const std::string& ms
             BanNode(pfrom.GetId());
             return;
         }
-        if (!ranges::all_of(msgs,
-                            [this, &pfrom](const auto& inv){ return ProcessMessageGetSigShares(pfrom, inv); })) {
+        if (!std::ranges::all_of(msgs, [this, &pfrom](const auto& inv) { return ProcessMessageGetSigShares(pfrom, inv); })) {
             BanNode(pfrom.GetId());
             return;
         }
@@ -323,8 +322,8 @@ void CSigSharesManager::ProcessMessage(const CNode& pfrom, const std::string& ms
             BanNode(pfrom.GetId());
             return;
         }
-        if (!ranges::all_of(msgs,
-                            [this, &pfrom](const auto& bs){ return ProcessMessageBatchedSigShares(pfrom, bs); })) {
+        if (!std::ranges::all_of(msgs,
+                                 [this, &pfrom](const auto& bs) { return ProcessMessageBatchedSigShares(pfrom, bs); })) {
             BanNode(pfrom.GetId());
             return;
         }
@@ -1273,8 +1272,8 @@ bool CSigSharesManager::SendMessages()
         assert(session);
         while (session->sendSessionId == UNINITIALIZED_SESSION_ID) {
             const uint32_t session_id{GetRand<uint32_t>()};
-            if (ranges::all_of(nodeState.sessions,
-                               [&session_id](const auto& s) { return s.second.sendSessionId != session_id; })) {
+            if (std::ranges::all_of(nodeState.sessions,
+                                    [&session_id](const auto& s) { return s.second.sendSessionId != session_id; })) {
                 // No session is using this id yet
                 session->sendSessionId = session_id;
                 sigSessionAnnouncements[nodeId].emplace_back(
