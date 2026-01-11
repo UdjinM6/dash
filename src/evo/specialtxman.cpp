@@ -10,7 +10,6 @@
 #include <deploymentstatus.h>
 #include <hash.h>
 #include <primitives/block.h>
-#include <util/irange.h>
 #include <util/system.h>
 #include <validation.h>
 

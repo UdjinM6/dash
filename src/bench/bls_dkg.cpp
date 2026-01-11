@@ -3,9 +3,11 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <bench/bench.h>
+
 #include <bls/bls_worker.h>
+#include <util/ranges.h>
+
 #include <random.h>
-#include <util/irange.h>
 
 struct Member {
     CBLSId id;
@@ -45,7 +47,7 @@ private:
     void VerifyContributionShares(size_t whoAmI, const std::set<size_t>& invalidIndexes, bool aggregated)
     {
         auto result = blsWorker.VerifyContributionShares(members[whoAmI].id, receivedVvecs, receivedSkShares, aggregated);
-        for (const size_t i : irange::range(receivedVvecs.size())) {
+        for (const size_t i : util::irange(receivedVvecs.size())) {
             if (invalidIndexes.count(i)) {
                 assert(!result[i]);
             } else {
@@ -60,7 +62,7 @@ public:
         members.reserve(quorumSize);
         ids.reserve(quorumSize);
 
-        for (const int i : irange::range(quorumSize)) {
+        for (const int i : util::irange(quorumSize)) {
             uint256 id;
             WriteLE64(id.begin(), i + 1);
             members.push_back({CBLSId(id), {}, {}});
@@ -94,7 +96,7 @@ public:
             ReceiveShares(memberIdx);
 
             std::set<size_t> invalidIndexes;
-            for ([[maybe_unused]] const auto _ : irange::range(invalidCount)) {
+            for ([[maybe_unused]] const auto _ : util::irange(invalidCount)) {
                 size_t shareIdx = GetRand<size_t>(receivedSkShares.size());
                 receivedSkShares[shareIdx].MakeNewKey();
                 invalidIndexes.emplace(shareIdx);
@@ -117,7 +119,7 @@ static void BLSDKG_GenerateContributions(benchmark::Bench& bench, uint32_t epoch
         epoch_iters = 1;
         quorumSize = 1;
     }
-    for (const int i : irange::range(quorumSize)) {
+    for (const int i : util::irange(quorumSize)) {
         uint256 id;
         WriteLE64(id.begin(), i + 1);
         members.push_back({CBLSId(id), {}, {}});

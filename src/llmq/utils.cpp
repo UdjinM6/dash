@@ -10,7 +10,7 @@
 #include <llmq/snapshot.h>
 #include <llmq/types.h>
 #include <masternode/meta.h>
-#include <util/irange.h>
+#include <util/ranges.h>
 #include <util/std23.h>
 
 #include <chainparams.h>
@@ -236,7 +236,7 @@ std::vector<QuorumMembers> GetQuorumQuarterMembersBySnapshot(const Consensus::LL
     switch (snapshot.mnSkipListMode) {
     case SnapshotSkipMode::MODE_NO_SKIPPING: {
         auto itm = sortedCombinedMns.begin();
-        for (const size_t i : irange::range(numQuorums)) {
+        for (const size_t i : util::irange(numQuorums)) {
             while (quarterQuorumMembers[i].size() < quarterSize) {
                 quarterQuorumMembers[i].push_back(*itm);
                 itm++;
@@ -262,7 +262,7 @@ std::vector<QuorumMembers> GetQuorumQuarterMembersBySnapshot(const Consensus::LL
 
         int idx = 0;
         auto itsk = processesdSkipList.begin();
-        for (const size_t i : irange::range(numQuorums)) {
+        for (const size_t i : util::irange(numQuorums)) {
             while (quarterQuorumMembers[i].size() < quarterSize) {
                 if (itsk != processesdSkipList.end() && idx == *itsk) {
                     itsk++;
@@ -363,7 +363,7 @@ std::vector<QuorumMembers> BuildNewQuorumQuarterMembers(const Consensus::LLMQPar
                                                 Consensus::DEPLOYMENT_V19) ||
                           (util_params.m_chainman.GetParams().NetworkIDString() == CBaseChainParams::TESTNET);
 
-    for (const size_t idx : irange::range(nQuorums)) {
+    for (const size_t idx : util::irange(nQuorums)) {
         for (auto* prev_cycle : previousQuarters.GetCycles()) {
             for (const auto& mn : prev_cycle->m_members[idx]) {
                 if (skipRemovedMNs && !allMns.HasMN(mn->proTxHash)) {
@@ -407,7 +407,7 @@ std::vector<QuorumMembers> BuildNewQuorumQuarterMembers(const Consensus::LLMQPar
     std::vector<int> skipList;
     size_t firstSkippedIndex = 0;
     size_t idx{0};
-    for (const size_t i : irange::range(nQuorums)) {
+    for (const size_t i : util::irange(nQuorums)) {
         auto usedMNsCount = MnsUsedAtHIndexed[i].GetAllMNsCount();
         bool updated{false};
         size_t initial_loop_idx = idx;
@@ -495,7 +495,7 @@ std::vector<QuorumMembers> ComputeQuorumMembersByQuarterRotation(const Consensus
     // assert (!newQuarterMembers.empty());
 
     if (LogAcceptDebug(BCLog::LLMQ)) {
-        for (const size_t i : irange::range(nQuorums)) {
+        for (const size_t i : util::irange(nQuorums)) {
             std::stringstream ss;
             for (size_t idx = prev_cycles.size(); idx-- > 0;) {
                 ss << strprintf(" %dCmns[%s]", idx, ToString(prev_cycles[idx]->m_members[i]));
@@ -506,7 +506,7 @@ std::vector<QuorumMembers> ComputeQuorumMembersByQuarterRotation(const Consensus
     }
 
     std::vector<QuorumMembers> quorumMembers(nQuorums);
-    for (const size_t i : irange::range(nQuorums)) {
+    for (const size_t i : util::irange(nQuorums)) {
         // Move elements from previous quarters into quorumMembers
         for (auto* prev_cycle : prev_cycles | std::views::reverse) {
             std::move(prev_cycle->m_members[i].begin(), prev_cycle->m_members[i].end(),
@@ -632,7 +632,7 @@ QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParame
         quorumMembers = q[quorumIndex];
 
         LOCK(cs_indexed_members);
-        for (const size_t i : irange::range(q.size())) {
+        for (const size_t i : util::irange(q.size())) {
             mapIndexedQuorumMembers[llmqType].emplace(std::make_pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), i),
                                                       std::move(q[i]));
         }
@@ -738,7 +738,7 @@ Uint256HashSet GetQuorumRelayMembers(const Consensus::LLMQParams& llmqParams, co
         return r;
     };
 
-    for (const auto i : irange::range(mns.size())) {
+    for (const auto i : util::irange(mns.size())) {
         const auto& dmn = mns[i];
         if (dmn->proTxHash == forMember) {
             auto r = calcOutbound(i, dmn->proTxHash);
@@ -768,7 +768,7 @@ std::set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType llmqType,
 
     std::set<size_t> result;
     uint256 rnd = qwatchConnectionSeed;
-    for ([[maybe_unused]] const auto _ : irange::range(connectionCount)) {
+    for ([[maybe_unused]] const auto _ : util::irange(connectionCount)) {
         rnd = ::SerializeHash(std::make_pair(rnd, std::make_pair(llmqType, pQuorumBaseBlockIndex->GetBlockHash())));
         result.emplace(rnd.GetUint64(0) % memberCount);
     }
