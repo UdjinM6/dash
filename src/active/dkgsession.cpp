@@ -13,7 +13,6 @@
 #include <llmq/utils.h>
 #include <masternode/meta.h>
 #include <util/helpers.h>
-#include <util/std23.h>
 
 #include <chain.h>
 #include <deploymentstatus.h>
@@ -356,7 +355,7 @@ void ActiveDKGSession::SendJustification(CDKGPendingMessages& pendingMessages, P
 
     for (const uint32_t i : util::irange(members.size())) {
         const auto& m = members[i];
-        if (!std23::ranges::contains(forMembers, m->dmn->proTxHash)) {
+        if (!forMembers.contains(m->dmn->proTxHash)) {
             continue;
         }
         logger.Batch("justifying for %s", m->dmn->proTxHash.ToString());
@@ -561,7 +560,7 @@ std::vector<CFinalCommitment> ActiveDKGSession::FinalizeCommitments()
 
         for (const auto& p : prematureCommitments) {
             const auto& qc = p.second;
-            if (!std23::ranges::contains(validCommitments, p.first)) {
+            if (!validCommitments.contains(p.first)) {
                 continue;
             }
 
