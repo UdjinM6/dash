@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <functional>
 #include <iterator>
-#include <numeric>
 #include <ranges>
 #include <type_traits>
 #include <utility>
@@ -41,13 +40,14 @@ using std::ranges::fold_left;
  * @param value the value to search for
  * @param proj optional projection to apply to elements before comparison
  * @return true if the range contains the value, false otherwise
+ *
+ * @see https://github.com/llvm/llvm-project/blob/main/libcxx/include/__algorithm/ranges_contains.h
  */
 template <typename R, typename T, typename Proj = std::identity>
 inline constexpr bool contains(R&& range, const T& value, Proj proj = {})
 {
-    return std::ranges::any_of(std::forward<R>(range), [&value, &proj](auto&& elem) {
-        return std::invoke(proj, std::forward<decltype(elem)>(elem)) == value;
-    });
+    return std::ranges::find(std::ranges::begin(range), std::ranges::end(range), value, proj)
+           != std::ranges::end(range);
 }
 
 /**
@@ -57,12 +57,26 @@ inline constexpr bool contains(R&& range, const T& value, Proj proj = {})
  * @param range the range to fold
  * @param init the initial value
  * @param f binary operation to apply
- * @return the result of folding the range
+ * @return the result of left-folding the range with f
+ *
+ * @see https://github.com/llvm/llvm-project/blob/main/libcxx/include/__algorithm/ranges_fold.h
  */
 template <typename R, typename T, typename F>
 inline constexpr auto fold_left(R&& range, T init, F f)
 {
-    return std::accumulate(std::ranges::begin(range), std::ranges::end(range), std::move(init), std::move(f));
+    using I = decltype(std::ranges::begin(range));
+    using U = std::decay_t<std::invoke_result_t<F&, T, std::iter_reference_t<I>>>;
+
+    auto first = std::ranges::begin(range);
+    auto last = std::ranges::end(range);
+
+    if (first == last)
+        return U(std::move(init));
+
+    U accum = std::invoke(f, std::move(init), *first);
+    for (++first; first != last; ++first)
+        accum = std::invoke(f, std::move(accum), *first);
+    return accum;
 }
 #endif // __cplusplus >= 202302L
 namespace views {
