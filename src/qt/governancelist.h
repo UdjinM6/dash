@@ -76,6 +76,8 @@ private:
     int queryCollateralDepth(const uint256& collateralHash) const;
     std::vector<Governance::Object> getWalletProposals(std::optional<bool> pending) const;
     void refreshColumnWidths();
+    void updateEmptyPagePalette();
+    void updateEmptyState();
     void updateVotingCapability();
     void voteForProposal(vote_outcome_enum_t outcome);
 
