@@ -25,9 +25,13 @@ private:
     const CGovernanceObject govObj;
 
     CAmount m_paymentAmount{0};
+    QDateTime m_date_collateral{};
     QDateTime m_endDate{};
     QDateTime m_startDate{};
-    QString m_hash{};
+    QString m_address{};
+    QString m_hash_collateral{};
+    QString m_hash_object{};
+    QString m_hash_parent{};
     QString m_title{};
     QString m_url{};
 
@@ -36,9 +40,14 @@ public:
 
     bool isActive() const;
     CAmount paymentAmount() const { return m_paymentAmount; }
+    int paymentsRequested() const;
+    QDateTime collateralDate() const { return m_date_collateral; }
     QDateTime endDate() const { return m_endDate; }
     QDateTime startDate() const { return m_startDate; }
-    QString hash() const { return m_hash; }
+    QString collateralHash() const { return m_hash_collateral; }
+    QString hash() const { return m_hash_object; }
+    QString parentHash() const { return m_hash_parent; }
+    QString paymentAddress() const { return m_address; }
     QString title() const { return m_title; }
     QString toHtml(const BitcoinUnit& unit) const;
     QString toJson() const;
