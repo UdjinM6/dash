@@ -13,6 +13,7 @@
 #include <QTimer>
 #include <QWidget>
 
+#include <atomic>
 #include <map>
 #include <memory>
 
@@ -52,17 +53,25 @@ private:
     QMenu* proposalContextMenu;
     QTimer* timer;
 
+    std::atomic<bool> m_col_refresh{false};
+
     // Voting-related members
     std::map<uint256, CKeyID> votableMasternodes; // proTxHash -> voting keyID
 
-    void updateVotingCapability();
+private:
     bool canVote() const { return !votableMasternodes.empty(); }
+    void refreshColumnWidths();
+    void updateVotingCapability();
     void voteForProposal(vote_outcome_enum_t outcome);
+
+protected:
+    void showEvent(QShowEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
 private Q_SLOTS:
     void updateDisplayUnit();
     void updateProposalList();
-    void updateProposalCount() const;
+    void updateProposalCount();
     void updateMasternodeCount() const;
     void showProposalContextMenu(const QPoint& pos);
     void showAdditionalInfo(const QModelIndex& index);
