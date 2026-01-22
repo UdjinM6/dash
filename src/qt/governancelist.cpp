@@ -13,9 +13,9 @@
 #include <qt/descriptiondialog.h>
 #include <qt/governancelist.h>
 #include <qt/guiutil_font.h>
+#include <qt/proposalcreate.h>
 #include <qt/proposalmodel.h>
 #include <qt/proposalresume.h>
-#include <qt/proposalwizard.h>
 
 #include <chainparams.h>
 #include <interfaces/node.h>
@@ -286,16 +286,16 @@ void GovernanceList::showCreateProposalDialog()
         QMessageBox::warning(this, tr("Unavailable"), tr("A synced node and an unlocked wallet are required."));
         return;
     }
-    ProposalWizard* proposalWizard = new ProposalWizard(this->walletModel, this);
+    ProposalCreate* proposalCreate = new ProposalCreate(this->walletModel, this);
     // Ensure closing the dialog actually destroys it so a fresh flow starts next time
-    proposalWizard->setAttribute(Qt::WA_DeleteOnClose, true);
+    proposalCreate->setAttribute(Qt::WA_DeleteOnClose, true);
     // Modeless window that does not block the parent
-    proposalWizard->setWindowModality(Qt::NonModal);
-    proposalWizard->setModal(false);
-    proposalWizard->setWindowFlag(Qt::Window, true);
+    proposalCreate->setWindowModality(Qt::NonModal);
+    proposalCreate->setModal(false);
+    proposalCreate->setWindowFlag(Qt::Window, true);
     // Auto-open Resume dialog after successful creation
-    connect(proposalWizard, &QDialog::accepted, this, &GovernanceList::showResumeProposalDialog);
-    proposalWizard->show();
+    connect(proposalCreate, &QDialog::accepted, this, &GovernanceList::showResumeProposalDialog);
+    proposalCreate->show();
 }
 
 void GovernanceList::showResumeProposalDialog()
