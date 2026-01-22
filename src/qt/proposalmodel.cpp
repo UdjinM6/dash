@@ -66,18 +66,19 @@ int Proposal::GetAbsoluteYesCount() const
     return clientModel->node().gov().getObjAbsYesCount(govObj, VOTE_SIGNAL_FUNDING);
 }
 
-QString Proposal::votingStatus(const int nAbsVoteReq) const
+int Proposal::GetAbstainCount() const
 {
-    // Voting status...
-    // TODO: determine if voting is in progress vs. funded or not funded for past proposals.
-    // see CSuperblock::GetNearestSuperblocksHeights(nBlockHeight, nLastSuperblock, nNextSuperblock);
-    const int absYesCount = clientModel->node().gov().getObjAbsYesCount(govObj, VOTE_SIGNAL_FUNDING);
-    if (absYesCount >= nAbsVoteReq) {
-        // Could use govObj.IsSetCachedFunding here, but need nAbsVoteReq to display numbers anyway.
-        return QObject::tr("Passing +%1").arg(absYesCount - nAbsVoteReq);
-    } else {
-        return QObject::tr("Needs additional %1 votes").arg(nAbsVoteReq - absYesCount);
-    }
+    return clientModel->node().gov().getObjAbstainCount(govObj, VOTE_SIGNAL_FUNDING);
+}
+
+int Proposal::GetYesCount() const
+{
+    return clientModel->node().gov().getObjYesCount(govObj, VOTE_SIGNAL_FUNDING);
+}
+
+int Proposal::GetNoCount() const
+{
+    return clientModel->node().gov().getObjNoCount(govObj, VOTE_SIGNAL_FUNDING);
 }
 
 void Proposal::openUrl() const
@@ -104,7 +105,7 @@ QVariant ProposalModel::data(const QModelIndex& index, int role) const
     if (!index.isValid() || !isValidRow(index.row())) {
         return {};
     }
-    if (role != Qt::DisplayRole && role != Qt::EditRole) {
+    if (role != Qt::DisplayRole && role != Qt::EditRole && role != Qt::ToolTipRole) {
         return {};
     }
 
@@ -127,8 +128,13 @@ QVariant ProposalModel::data(const QModelIndex& index, int role) const
         }
         case Column::IS_ACTIVE:
             return proposal->isActive() ? tr("Yes") : tr("No");
-        case Column::VOTING_STATUS:
-            return proposal->votingStatus(nAbsVoteReq);
+        case Column::VOTING_STATUS: {
+            const int margin = proposal->GetAbsoluteYesCount() - nAbsVoteReq;
+            return QString("%1Y, %2N, %3A (%4%5)").arg(proposal->GetYesCount()).arg(proposal->GetNoCount())
+                                                  .arg(proposal->GetAbstainCount()).arg(margin > 0 ? "+" : "")
+                                                  .arg(margin);
+
+        }
         default:
             return {};
         };
@@ -157,6 +163,16 @@ QVariant ProposalModel::data(const QModelIndex& index, int role) const
         };
         break;
     }
+    case Qt::ToolTipRole:
+    {
+        if (index.column() == Column::VOTING_STATUS) {
+            const int margin = proposal->GetAbsoluteYesCount() - nAbsVoteReq;
+            return tr("%1 Yes, %2 No, %3 Abstain, %4").arg(proposal->GetYesCount()).arg(proposal->GetNoCount())
+                                                      .arg(proposal->GetAbstainCount())
+                                                      .arg((margin >= 0 ? tr("passing with %1 votes") : tr("needs %1 more votes")).arg(std::abs(margin)));
+        }
+        return {};
+    }
     };
     return {};
 }
@@ -181,7 +197,7 @@ QVariant ProposalModel::headerData(int section, Qt::Orientation orientation, int
     case Column::IS_ACTIVE:
         return tr("Active");
     case Column::VOTING_STATUS:
-        return tr("Status");
+        return tr("Votes");
     default:
         return {};
     }

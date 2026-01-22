@@ -35,14 +35,17 @@ public:
 
     bool isActive() const;
     CAmount paymentAmount() const { return m_paymentAmount; }
-    int GetAbsoluteYesCount() const;
     QDateTime endDate() const { return m_endDate; }
     QDateTime startDate() const { return m_startDate; }
     QString hash() const { return m_hash; }
     QString title() const { return m_title; }
     QString toJson() const;
     QString url() const { return m_url; }
-    QString votingStatus(int nAbsVoteReq) const;
+
+    int GetAbsoluteYesCount() const;
+    int GetAbstainCount() const;
+    int GetYesCount() const;
+    int GetNoCount() const;
 
     void openUrl() const;
 };

@@ -236,6 +236,27 @@ public:
         }
         return 0;
     }
+    int32_t getObjAbstainCount(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) override
+    {
+        if (context().govman != nullptr && context().dmnman != nullptr) {
+            return obj.GetAbstainCount(context().dmnman->GetListAtChainTip(), vote_signal);
+        }
+        return 0;
+    }
+    int32_t getObjYesCount(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) override
+    {
+        if (context().govman != nullptr && context().dmnman != nullptr) {
+            return obj.GetYesCount(context().dmnman->GetListAtChainTip(), vote_signal);
+        }
+        return 0;
+    }
+    int32_t getObjNoCount(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) override
+    {
+        if (context().govman != nullptr && context().dmnman != nullptr) {
+            return obj.GetNoCount(context().dmnman->GetListAtChainTip(), vote_signal);
+        }
+        return 0;
+    }
     bool getObjLocalValidity(const CGovernanceObject& obj, std::string& error, bool check_collateral) override
     {
         if (context().govman != nullptr && context().chainman != nullptr && context().dmnman != nullptr) {
