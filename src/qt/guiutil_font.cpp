@@ -113,6 +113,69 @@ QString qstrprintf(const std::string& fmt, const Args&... args)
 {
     return QString::fromStdString(tfm::format(fmt, args...));
 }
+
+//! Returns a properly weighted QFont object with the selected font
+QFont getFont(const GUIUtil::FontAttrib& font_attrib)
+{
+    QFont font;
+    if (!GUIUtil::fontsLoaded()) {
+        return font;
+    }
+
+    if (font_attrib.m_font == GUIUtil::MONTSERRAT_FONT_STR) {
+        assert(mapMontserrat.count(font_attrib.m_weight));
+#ifdef Q_OS_MACOS
+        font.setFamily(font_attrib.m_font);
+        font.setStyleName([&]() {
+            std::string ret{mapMontserrat.at(font_attrib.m_weight).first};
+            if (font_attrib.m_is_italic) {
+                if (ret == "Regular") {
+                    ret = "Italic";
+                } else {
+                    ret += " Italic";
+                }
+            }
+            return QString::fromStdString(ret);
+        }());
+#else
+        if (font_attrib.m_weight == QFont::Normal || font_attrib.m_weight == QFont::Bold) {
+            font.setFamily(font_attrib.m_font);
+        } else {
+            font.setFamily(qstrprintf("%s %s", font_attrib.m_font.toStdString(), mapMontserrat.at(font_attrib.m_weight).first));
+        }
+#endif // Q_OS_MACOS
+    } else if (font_attrib.m_font == GUIUtil::OS_FONT_STR) {
+        font.setFamily(g_default_font->family());
+    } else if (font_attrib.m_font == GUIUtil::OS_MONO_FONT_STR) {
+        font.setFamily(QFontDatabase::systemFont(QFontDatabase::FixedFont).family());
+    } else {
+        font.setFamily(font_attrib.m_font);
+    }
+
+    if (font_attrib.m_font == GUIUtil::ROBOTO_MONO_FONT_STR || font_attrib.m_font == GUIUtil::OS_MONO_FONT_STR) {
+        font.setStyleHint(QFont::Monospace);
+    }
+
+#ifdef Q_OS_MACOS
+    if (font_attrib.m_font != GUIUtil::MONTSERRAT_FONT_STR)
+#endif // Q_OS_MACOS
+    {
+        font.setWeight(font_attrib.m_weight);
+        font.setStyle(font_attrib.m_is_italic ? QFont::StyleItalic : QFont::StyleNormal);
+    }
+
+    if (font_attrib.m_point_size != -1) {
+        font.setPointSizeF(GUIUtil::g_font_registry.GetScaledFontSize(font_attrib.m_point_size));
+    }
+
+    if (gArgs.GetBoolArg("-debug-ui", false)) {
+        qDebug() << qstrprintf("%s: font size: %d, family: %s, style: %s, weight: %d match %s", __func__,
+                               font.pointSizeF(), font.family().toStdString(), font.styleName().toStdString(),
+                               font.weight(), font.exactMatch() ? "true" : "false");
+    }
+
+    return font;
+}
 } // anonymous namespace
 
 namespace GUIUtil {
@@ -462,68 +525,6 @@ void updateFonts()
     }
 }
 
-QFont getFont(const FontAttrib& font_attrib)
-{
-    QFont font;
-    if (!fontsLoaded()) {
-        return font;
-    }
-
-    if (font_attrib.m_font == MONTSERRAT_FONT_STR) {
-        assert(mapMontserrat.count(font_attrib.m_weight));
-#ifdef Q_OS_MACOS
-        font.setFamily(font_attrib.m_font);
-        font.setStyleName([&]() {
-            std::string ret{mapMontserrat.at(font_attrib.m_weight).first};
-            if (font_attrib.m_is_italic) {
-                if (ret == "Regular") {
-                    ret = "Italic";
-                } else {
-                    ret += " Italic";
-                }
-            }
-            return QString::fromStdString(ret);
-        }());
-#else
-        if (font_attrib.m_weight == QFont::Normal || font_attrib.m_weight == QFont::Bold) {
-            font.setFamily(font_attrib.m_font);
-        } else {
-            font.setFamily(qstrprintf("%s %s", font_attrib.m_font.toStdString(), mapMontserrat.at(font_attrib.m_weight).first));
-        }
-#endif // Q_OS_MACOS
-    } else if (font_attrib.m_font == OS_FONT_STR) {
-        font.setFamily(g_default_font->family());
-    } else if (font_attrib.m_font == OS_MONO_FONT_STR) {
-        font.setFamily(QFontDatabase::systemFont(QFontDatabase::FixedFont).family());
-    } else {
-        font.setFamily(font_attrib.m_font);
-    }
-
-    if (font_attrib.m_font == ROBOTO_MONO_FONT_STR || font_attrib.m_font == OS_MONO_FONT_STR) {
-        font.setStyleHint(QFont::Monospace);
-    }
-
-#ifdef Q_OS_MACOS
-    if (font_attrib.m_font != MONTSERRAT_FONT_STR)
-#endif // Q_OS_MACOS
-    {
-        font.setWeight(font_attrib.m_weight);
-        font.setStyle(font_attrib.m_is_italic ? QFont::StyleItalic : QFont::StyleNormal);
-    }
-
-    if (font_attrib.m_point_size != -1) {
-        font.setPointSizeF(g_font_registry.GetScaledFontSize(font_attrib.m_point_size));
-    }
-
-    if (gArgs.GetBoolArg("-debug-ui", false)) {
-        qDebug() << qstrprintf("%s: font size: %d, family: %s, style: %s, weight: %d match %s", __func__,
-                               font.pointSizeF(), font.family().toStdString(), font.styleName().toStdString(),
-                               font.weight(), font.exactMatch() ? "true" : "false");
-    }
-
-    return font;
-}
-
 std::vector<QString> getFonts(bool selectable_only)
 {
     std::vector<QString> ret;
@@ -533,14 +534,22 @@ std::vector<QString> getFonts(bool selectable_only)
     return ret;
 }
 
+QFont getFontBold()
+{
+    return getFont({g_font_registry.GetWeightBold()});
+}
+
 QFont getFontNormal()
 {
     return getFont({g_font_registry.GetWeightNormal()});
 }
 
-QFont getFontBold()
+QFont getScaledFont(double baseSize, bool bold, double multiplier)
 {
-    return getFont({g_font_registry.GetWeightBold()});
+    return getFont({
+        bold ? g_font_registry.GetWeightBold() : g_font_registry.GetWeightNormal(),
+        baseSize * multiplier
+    });
 }
 
 QFont::Weight FontRegistry::IdxToWeight(int index) const
