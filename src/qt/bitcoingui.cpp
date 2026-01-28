@@ -751,7 +751,7 @@ void BitcoinGUI::createToolBars()
         connect(tabGroup, qOverload<QAbstractButton *, bool>(&QButtonGroup::buttonToggled), this, &BitcoinGUI::highlightTabButton);
 
         for (auto button : tabGroup->buttons()) {
-            GUIUtil::setFont({button}, {GUIUtil::g_font_registry.GetWeightNormal(), 16});
+            GUIUtil::setFont({button}, {GUIUtil::FontWeight::Normal, 16});
             button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
             button->setToolTip(button->statusTip());
             button->setCheckable(true);
@@ -1244,7 +1244,7 @@ void BitcoinGUI::openClicked()
 
 void BitcoinGUI::highlightTabButton(QAbstractButton *button, bool checked)
 {
-    GUIUtil::setFont({button}, {checked ? GUIUtil::g_font_registry.GetWeightBold() : GUIUtil::g_font_registry.GetWeightNormal(), 16});
+    GUIUtil::setFont({button}, {checked ? GUIUtil::FontWeight::Bold : GUIUtil::FontWeight::Normal, 16});
     GUIUtil::updateFonts();
 }
 

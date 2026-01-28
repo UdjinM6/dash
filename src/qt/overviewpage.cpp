@@ -149,16 +149,16 @@ OverviewPage::OverviewPage(QWidget* parent) :
     GUIUtil::setFont({ui->label_4,
                       ui->label_5,
                       ui->labelCoinJoinHeader
-                     }, {GUIUtil::g_font_registry.GetWeightBold(), 16});
+                     }, {GUIUtil::FontWeight::Bold, 16});
 
-    GUIUtil::setFont({ui->labelTotalText}, {GUIUtil::g_font_registry.GetWeightBold(), 14});
+    GUIUtil::setFont({ui->labelTotalText}, {GUIUtil::FontWeight::Bold, 14});
 
     GUIUtil::setFont({ui->labelBalanceText,
                       ui->labelPendingText,
                       ui->labelImmatureText,
                       ui->labelWatchonly,
                       ui->labelSpendable
-                     }, {GUIUtil::g_font_registry.GetWeightBold()});
+                     }, {GUIUtil::FontWeight::Bold});
 
     GUIUtil::updateFonts();
 
@@ -379,7 +379,7 @@ void OverviewPage::setMonospacedFont(const QFont& f)
     GUIUtil::setFont({
         ui->labelTotal,
         ui->labelWatchTotal,
-    }, {f.family(), GUIUtil::g_font_registry.GetWeightBold(), 14});
+    }, {f.family(), GUIUtil::FontWeight::Bold, 14});
 
     GUIUtil::setFont({
         ui->labelAmountRounds,
@@ -391,7 +391,7 @@ void OverviewPage::setMonospacedFont(const QFont& f)
         ui->labelWatchAvailable,
         ui->labelWatchPending,
         ui->labelWatchImmature,
-    }, {f.family(), GUIUtil::g_font_registry.GetWeightBold()});
+    }, {f.family(), GUIUtil::FontWeight::Bold});
 
     GUIUtil::updateFonts();
 }
