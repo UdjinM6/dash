@@ -390,9 +390,6 @@ void FontInfo::CalcDefaultWeights(const QString& font_name)
 FontAttrib::FontAttrib(QString font, QFont::Weight weight, double point_size, bool is_italic) :
     m_font{font},
     m_weight{weight},
-    m_weight_type{weight == g_font_registry.GetWeightBold()    ? FontWeightType::Bold :
-                  weight == g_font_registry.GetWeightNormal()  ? FontWeightType::Normal :
-                                                                 FontWeightType::Explicit},
     m_point_size{point_size},
     m_is_italic{is_italic}
 {
@@ -401,9 +398,6 @@ FontAttrib::FontAttrib(QString font, QFont::Weight weight, double point_size, bo
 FontAttrib::FontAttrib(QFont::Weight weight, double point_size, bool is_italic) :
     m_font{g_font_registry.GetFont()},
     m_weight{weight},
-    m_weight_type{weight == g_font_registry.GetWeightBold()    ? FontWeightType::Bold :
-                  weight == g_font_registry.GetWeightNormal()  ? FontWeightType::Normal :
-                                                                 FontWeightType::Explicit},
     m_point_size{point_size},
     m_is_italic{is_italic}
 {
@@ -561,21 +555,7 @@ void updateFonts()
             if (nSize == -1) {
                 nSize = itDefault.first->second;
             }
-            // Resolve weight dynamically based on weight type
-            QFont::Weight resolved_weight;
-            switch (it->second.m_weight_type) {
-            case FontWeightType::Bold:
-                resolved_weight = g_font_registry.GetWeightBold();
-                break;
-            case FontWeightType::Normal:
-                resolved_weight = g_font_registry.GetWeightNormal();
-                break;
-            case FontWeightType::Explicit:
-            default:
-                resolved_weight = it->second.m_weight;
-                break;
-            }
-            font = getFont({it->second.m_font, resolved_weight, nSize, it->second.m_is_italic});
+            font = getFont({it->second.m_font, it->second.m_weight, nSize, it->second.m_is_italic});
         } else {
             font.setPointSizeF(g_font_registry.GetScaledFontSize(itDefault.first->second));
         }
