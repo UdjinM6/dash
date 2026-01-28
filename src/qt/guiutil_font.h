@@ -30,6 +30,13 @@ enum class FontWeight : uint8_t {
     Bold,
 };
 
+/** Specifies how font weight should be resolved during updates */
+enum class FontWeightType : uint8_t {
+    Explicit,  //!< Use the stored weight value as-is
+    Normal,    //!< Resolve to GetWeightNormal() at update time
+    Bold,      //!< Resolve to GetWeightBold() at update time
+};
+
 struct FontInfo {
     QFont::Weight m_bold;
     QFont::Weight m_bold_default;
@@ -125,6 +132,7 @@ extern FontRegistry g_font_registry;
 struct FontAttrib {
     QString m_font;
     QFont::Weight m_weight;
+    FontWeightType m_weight_type{FontWeightType::Explicit};
     double m_point_size{-1};
     bool m_is_italic{false};
 
