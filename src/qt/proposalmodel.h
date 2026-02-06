@@ -11,6 +11,7 @@
 
 #include <QAbstractTableModel>
 #include <QDateTime>
+#include <QString>
 
 #include <memory>
 #include <vector>
@@ -39,6 +40,7 @@ public:
     QDateTime startDate() const { return m_startDate; }
     QString hash() const { return m_hash; }
     QString title() const { return m_title; }
+    QString toHtml(const BitcoinUnit& unit) const;
     QString toJson() const;
     QString url() const { return m_url; }
 
