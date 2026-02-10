@@ -7,6 +7,8 @@
 
 #include <util/system.h>
 
+#include <qt/qstring.h>
+
 #include <QMenu>
 #include <QSortFilterProxyModel>
 #include <QString>
@@ -15,7 +17,7 @@
 
 #include <atomic>
 #include <memory>
-#include <set>
+#include <unordered_set>
 
 namespace interfaces {
 class MnList;
@@ -51,7 +53,7 @@ public:
 
     void forceInvalidateFilter() { invalidateFilter(); }
     void setHideBanned(bool hide) { m_hide_banned = hide; }
-    void setMyMasternodeHashes(std::set<QString> hashes) { m_my_mn_hashes = std::move(hashes); }
+    void setMyMasternodeHashes(std::unordered_set<QString, QStringHash> hashes) { m_my_mn_hashes = std::move(hashes); }
     void setShowOwnedOnly(bool show) { m_show_owned_only = show; }
     void setTypeFilter(TypeFilter type) { m_type_filter = type; }
 
@@ -61,7 +63,7 @@ protected:
 private:
     bool m_hide_banned{true};
     bool m_show_owned_only{false};
-    std::set<QString> m_my_mn_hashes;
+    std::unordered_set<QString, QStringHash> m_my_mn_hashes;
     TypeFilter m_type_filter{TypeFilter::All};
 };
 

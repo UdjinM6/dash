@@ -165,6 +165,7 @@ BITCOIN_QT_H = \
   qt/psbtoperationsdialog.h \
   qt/qrdialog.h \
   qt/qrimagewidget.h \
+  qt/qstring.h \
   qt/qvalidatedlineedit.h \
   qt/qvaluecombobox.h \
   qt/receivecoinsdialog.h \

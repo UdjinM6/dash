@@ -35,6 +35,7 @@ src/qt/masternodelist.*
 src/qt/masternodemodel.*
 src/qt/proposalmodel.*
 src/qt/proposalwizard.*
+src/qt/qstring.h
 src/rpc/coinjoin.cpp
 src/rpc/evo.cpp
 src/rpc/evo_util.*

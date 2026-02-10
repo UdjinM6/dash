@@ -20,6 +20,8 @@
 #include <QClipboard>
 #include <QHeaderView>
 
+#include <set>
+
 namespace {
 constexpr int MASTERNODELIST_UPDATE_SECONDS{3};
 } // anonymous namespace
@@ -275,7 +277,7 @@ void MasternodeList::updateMyMasternodeHashes(const interfaces::MnListPtr& mnLis
         setOutpts.emplace(outpt);
     }
 
-    std::set<QString> myHashes;
+    std::unordered_set<QString, QStringHash> myHashes;
     mnList->forEachMN(/*only_valid=*/false, [&](const auto& dmn) {
         bool fMyMasternode = setOutpts.count(dmn.getCollateralOutpoint()) ||
                              walletModel->wallet().isSpendable(PKHash(dmn.getKeyIdOwner())) ||

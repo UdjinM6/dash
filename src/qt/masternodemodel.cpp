@@ -13,14 +13,15 @@
 
 #include <qt/clientmodel.h>
 #include <qt/guiutil.h>
+#include <qt/qstring.h>
 
 #include <QObject>
 #include <QStringList>
 
 #include <univalue.h>
 
-#include <map>
 #include <set>
+#include <unordered_map>
 
 namespace {
 constexpr int64_t DAY_SECS{24 * 60 * 60};
@@ -354,7 +355,7 @@ void MasternodeModel::remove(int row)
 
 void MasternodeModel::reconcile(MasternodeEntryList&& entries)
 {
-    std::map<QString, int> existing;
+    std::unordered_map<QString, int, QStringHash> existing;
     for (int i = 0; i < static_cast<int>(m_data.size()); ++i) {
         existing[m_data[i]->proTxHash()] = i;
     }

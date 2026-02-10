@@ -4,10 +4,10 @@
 
 #include <qt/guiutil_font.h>
 
-#include <tinyformat.h>
 #include <util/system.h>
 
 #include <qt/guiutil.h>
+#include <qt/qstring.h>
 
 #include <QApplication>
 #include <QDebug>
@@ -116,13 +116,6 @@ const auto vecWeightConsider = []() {
     }
     return ret;
 }();
-
-//! Wrapper for tinyformat (strprintf) that converts to QString
-template <typename... Args>
-QString qstrprintf(const std::string& fmt, const Args&... args)
-{
-    return QString::fromStdString(tfm::format(fmt, args...));
-}
 
 //! Returns a properly weighted QFont object with the selected font
 QFont getFont(const GUIUtil::FontAttrib& font_attrib)
