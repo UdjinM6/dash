@@ -125,10 +125,18 @@ void GovernanceList::setClientModel(ClientModel* model)
     clientModel = model;
     if (!model) return;
     connect(model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &GovernanceList::updateDisplayUnit);
+    connect(model, &ClientModel::additionalDataSyncProgressChanged, this, &GovernanceList::refreshGovernanceParams);
     if (walletModel && ui->proposalSourceCombo->findData(ToUnderlying(ProposalSource::Local)) == -1) {
         ui->proposalSourceCombo->addItem(tr("My Proposals"), ToUnderlying(ProposalSource::Local));
     }
+    refreshGovernanceParams();
     updateProposalList();
+}
+
+void GovernanceList::refreshGovernanceParams()
+{
+    if (!clientModel) return;
+    m_gov_info = clientModel->node().gov().getGovernanceInfo();
 }
 
 std::vector<Governance::Object> GovernanceList::getWalletProposals(std::optional<bool> pending) const
@@ -199,6 +207,8 @@ int GovernanceList::queryCollateralDepth(const uint256& collateralHash) const
 void GovernanceList::updateProposalList()
 {
     if (this->clientModel) {
+        refreshGovernanceParams();
+
         // A proposal is considered passing if (YES votes - NO votes) >= (Total Weight of Masternodes / 10),
         // count total valid (ENABLED) masternodes to determine passing threshold.
         // Need to query number of masternodes here with access to clientModel.
@@ -206,31 +216,30 @@ void GovernanceList::updateProposalList()
         const int nAbsVoteReq = std::max(Params().GetConsensus().nGovernanceMinQuorum, nWeightedMnCount / 10);
         proposalModel->setVotingParams(nAbsVoteReq);
 
-        const auto gov_info = clientModel->node().gov().getGovernanceInfo();
-
         ProposalList newProposals;
         if (currentSource == ProposalSource::Active) {
+            // Network proposals are already confirmed on-chain; use requiredConfs.
             std::vector<CGovernanceObject> govObjList;
             clientModel->getAllGovernanceObjects(govObjList);
             for (const auto& govObj : govObjList) {
                 if (govObj.GetObjectType() != GovernanceObject::PROPOSAL) {
                     continue; // Skip triggers.
                 }
-                newProposals.emplace_back(std::make_unique<Proposal>(this->clientModel, govObj, gov_info, gov_info.requiredConfs));
+                newProposals.emplace_back(std::make_unique<Proposal>(this->clientModel, govObj, m_gov_info, m_gov_info.requiredConfs));
             }
-            // Include unrelayed wallet proposals (0 confs, not yet broadcast)
+            // Wallet-local proposals may still be confirming; query actual depth.
             for (const auto& obj : getWalletProposals(/*pending=*/true)) {
                 CGovernanceObject govObj(obj.hashParent, obj.revision, obj.time, obj.collateralHash, obj.GetDataAsHexString());
-                newProposals.emplace_back(std::make_unique<Proposal>(this->clientModel, govObj, gov_info, queryCollateralDepth(obj.collateralHash)));
+                newProposals.emplace_back(std::make_unique<Proposal>(this->clientModel, govObj, m_gov_info, queryCollateralDepth(obj.collateralHash)));
             }
         } else if (currentSource == ProposalSource::Local) {
             for (const auto& obj : getWalletProposals(/*pending=*/std::nullopt)) {
                 CGovernanceObject govObj(obj.hashParent, obj.revision, obj.time, obj.collateralHash, obj.GetDataAsHexString());
-                newProposals.emplace_back(std::make_unique<Proposal>(this->clientModel, govObj, gov_info, queryCollateralDepth(obj.collateralHash)));
+                newProposals.emplace_back(std::make_unique<Proposal>(this->clientModel, govObj, m_gov_info, queryCollateralDepth(obj.collateralHash)));
             }
         }
-        auto fundable = clientModel->node().gov().getFundableProposalHashes().hashes;
-        proposalModel->reconcile(std::move(newProposals), std::move(fundable));
+        auto fundable = clientModel->node().gov().getFundableProposalHashes();
+        proposalModel->reconcile(std::move(newProposals), std::move(fundable.hashes));
 
         // Update voting capability if we now have both client and wallet models
         if (walletModel) {

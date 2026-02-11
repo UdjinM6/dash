@@ -7,6 +7,7 @@
 
 #include <primitives/transaction.h>
 #include <pubkey.h>
+#include <qt/proposalmodel.h>
 
 #include <QMenu>
 #include <QSortFilterProxyModel>
@@ -26,7 +27,6 @@ class GovernanceList;
 }
 
 class ClientModel;
-class ProposalModel;
 class WalletModel;
 class ProposalWizard;
 
@@ -64,6 +64,7 @@ private:
     QMenu* proposalContextMenu;
     QTimer* timer;
 
+    interfaces::GOV::GovernanceInfo m_gov_info;
     std::atomic<bool> m_col_refresh{false};
 
     // Voting-related members
@@ -76,6 +77,7 @@ private:
     int queryCollateralDepth(const uint256& collateralHash) const;
     std::vector<Governance::Object> getWalletProposals(std::optional<bool> pending) const;
     void refreshColumnWidths();
+    void refreshGovernanceParams();
     void updateEmptyPagePalette();
     void updateEmptyState();
     void updateVotingCapability();
