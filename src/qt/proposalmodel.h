@@ -57,8 +57,6 @@ public:
     int GetAbstainCount() const;
     int GetYesCount() const;
     int GetNoCount() const;
-
-    void openUrl() const;
 };
 
 using ProposalList = std::vector<std::unique_ptr<Proposal>>;

@@ -15,9 +15,6 @@
 #include <qt/clientmodel.h>
 #include <qt/guiutil.h>
 
-#include <QDesktopServices>
-#include <QUrl>
-
 #include <univalue.h>
 
 #include <algorithm>
@@ -125,11 +122,6 @@ int Proposal::GetYesCount() const
 int Proposal::GetNoCount() const
 {
     return clientModel->node().gov().getObjNoCount(govObj, VOTE_SIGNAL_FUNDING);
-}
-
-void Proposal::openUrl() const
-{
-    QDesktopServices::openUrl(QUrl(m_url));
 }
 
 ///
