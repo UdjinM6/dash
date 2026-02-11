@@ -24,6 +24,7 @@
 #include <util/strencodings.h>
 #include <util/time.h>
 
+#include <qt/bitcoinunits.h>
 #include <qt/clientmodel.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
@@ -130,6 +131,7 @@ void GovernanceList::setClientModel(ClientModel* model)
         ui->proposalSourceCombo->addItem(tr("My Proposals"), ToUnderlying(ProposalSource::Local));
     }
     refreshGovernanceParams();
+    updateProposalButtons();
     updateProposalList();
 }
 
@@ -181,6 +183,7 @@ void GovernanceList::setWalletModel(WalletModel* model)
     if (clientModel && ui->proposalSourceCombo->findData(ToUnderlying(ProposalSource::Local)) == -1) {
         ui->proposalSourceCombo->addItem(tr("My Proposals"), ToUnderlying(ProposalSource::Local));
     }
+    updateProposalButtons();
     updateVotingCapability();
 }
 
@@ -241,6 +244,7 @@ void GovernanceList::updateProposalList()
         auto fundable = clientModel->node().gov().getFundableProposalHashes();
         proposalModel->reconcile(std::move(newProposals), std::move(fundable.hashes));
 
+        updateProposalButtons();
         // Update voting capability if we now have both client and wallet models
         if (walletModel) {
             updateVotingCapability();
@@ -384,6 +388,41 @@ void GovernanceList::updateMasternodeCount() const
 {
     if (ui && ui->mnCountLabel) {
         ui->mnCountLabel->setText(QString::number(votableMasternodes.size()));
+    }
+}
+
+void GovernanceList::updateProposalButtons()
+{
+    if (!ui || !clientModel) return;
+
+    // Governance data must be synced before interacting with proposals
+    if (!clientModel->masternodeSync().isGovernanceSynced()) {
+        const QString tooltip = tr("Cannot interact with governance before sync completes");
+        ui->btnCreateProposal->setEnabled(false);
+        ui->btnCreateProposal->setToolTip(tooltip);
+        ui->btnResumeProposal->setEnabled(false);
+        ui->btnResumeProposal->setToolTip(tooltip);
+        return;
+    }
+
+    // Using filler tooltips as tooltips once set cannot be disabled
+    ui->btnCreateProposal->setEnabled(true);
+    ui->btnCreateProposal->setToolTip(tr("Creates a new proposal"));
+    ui->btnResumeProposal->setEnabled(true);
+    ui->btnResumeProposal->setToolTip(tr("Resumes an existing proposal"));
+
+    // Wallets with insufficient balance cannot create proposals
+    if (walletModel) {
+        const auto proposal_fee = clientModel->node().gov().getGovernanceInfo().proposalfee;
+        if (walletModel->wallet().getBalance() < proposal_fee) {
+            const auto unit = walletModel->getOptionsModel() ? walletModel->getOptionsModel()->getDisplayUnit()
+                                                             : BitcoinUnit::DASH;
+            ui->btnCreateProposal->setEnabled(false);
+            ui->btnCreateProposal->setToolTip(
+                tr("Creating proposals costs %1, insufficient balance")
+                    .arg(BitcoinUnits::formatWithUnit(unit, proposal_fee, false,
+                                                      BitcoinUnits::SeparatorStyle::ALWAYS)));
+        }
     }
 }
 
