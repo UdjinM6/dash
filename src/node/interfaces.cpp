@@ -232,30 +232,53 @@ public:
     int32_t getObjAbsYesCount(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) override
     {
         if (context().govman != nullptr && context().dmnman != nullptr) {
-            return obj.GetAbsoluteYesCount(context().dmnman->GetListAtChainTip(), vote_signal);
+            const auto& tip_mn_list{context().dmnman->GetListAtChainTip()};
+            if (auto govobj{context().govman->FindGovernanceObject(obj.GetHash())}) {
+                return govobj->GetAbsoluteYesCount(tip_mn_list, vote_signal);
+            }
+            return obj.GetAbsoluteYesCount(tip_mn_list, vote_signal);
         }
         return 0;
     }
     int32_t getObjAbstainCount(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) override
     {
         if (context().govman != nullptr && context().dmnman != nullptr) {
-            return obj.GetAbstainCount(context().dmnman->GetListAtChainTip(), vote_signal);
+            const auto& tip_mn_list{context().dmnman->GetListAtChainTip()};
+            if (auto govobj{context().govman->FindGovernanceObject(obj.GetHash())}) {
+                return govobj->GetAbstainCount(tip_mn_list, vote_signal);
+            }
+            return obj.GetAbstainCount(tip_mn_list, vote_signal);
         }
         return 0;
     }
     int32_t getObjYesCount(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) override
     {
         if (context().govman != nullptr && context().dmnman != nullptr) {
-            return obj.GetYesCount(context().dmnman->GetListAtChainTip(), vote_signal);
+            const auto& tip_mn_list{context().dmnman->GetListAtChainTip()};
+            if (auto govobj{context().govman->FindGovernanceObject(obj.GetHash())}) {
+                return govobj->GetYesCount(tip_mn_list, vote_signal);
+            }
+            return obj.GetYesCount(tip_mn_list, vote_signal);
         }
         return 0;
     }
     int32_t getObjNoCount(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) override
     {
         if (context().govman != nullptr && context().dmnman != nullptr) {
-            return obj.GetNoCount(context().dmnman->GetListAtChainTip(), vote_signal);
+            const auto& tip_mn_list{context().dmnman->GetListAtChainTip()};
+            if (auto govobj{context().govman->FindGovernanceObject(obj.GetHash())}) {
+                return govobj->GetNoCount(tip_mn_list, vote_signal);
+            }
+            return obj.GetNoCount(tip_mn_list, vote_signal);
         }
         return 0;
+    }
+    bool existsObj(const uint256& hash) override
+    {
+        if (context().govman != nullptr) {
+            return context().govman->HaveObjectForHash(hash);
+        }
+        return false;
     }
     bool getObjLocalValidity(const CGovernanceObject& obj, std::string& error, bool check_collateral) override
     {
