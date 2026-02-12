@@ -21,6 +21,7 @@
 #include <vector>
 
 inline constexpr int GOVERNANCELIST_UPDATE_SECONDS = 10;
+inline constexpr int GOVERNANCELIST_UPDATE_SECONDS_IBD = 60;
 
 namespace Ui {
 class GovernanceList;

@@ -233,12 +233,13 @@ void GovernanceList::updateProposalList()
             // Wallet-local proposals may still be confirming; query actual depth.
             for (const auto& obj : getWalletProposals(/*pending=*/true)) {
                 CGovernanceObject govObj(obj.hashParent, obj.revision, obj.time, obj.collateralHash, obj.GetDataAsHexString());
-                newProposals.emplace_back(std::make_unique<Proposal>(this->clientModel, govObj, m_gov_info, queryCollateralDepth(obj.collateralHash)));
+                newProposals.emplace_back(std::make_unique<Proposal>(this->clientModel, govObj, m_gov_info, queryCollateralDepth(obj.collateralHash), /*is_broadcast=*/false));
             }
         } else if (currentSource == ProposalSource::Local) {
             for (const auto& obj : getWalletProposals(/*pending=*/std::nullopt)) {
                 CGovernanceObject govObj(obj.hashParent, obj.revision, obj.time, obj.collateralHash, obj.GetDataAsHexString());
-                newProposals.emplace_back(std::make_unique<Proposal>(this->clientModel, govObj, m_gov_info, queryCollateralDepth(obj.collateralHash)));
+                const bool is_broadcast{clientModel->node().gov().existsObj(obj.GetHash())};
+                newProposals.emplace_back(std::make_unique<Proposal>(this->clientModel, govObj, m_gov_info, queryCollateralDepth(obj.collateralHash), is_broadcast));
             }
         }
         auto fundable = clientModel->node().gov().getFundableProposalHashes();
@@ -249,10 +250,12 @@ void GovernanceList::updateProposalList()
         if (walletModel) {
             updateVotingCapability();
         }
-    }
 
-    // Schedule next update.
-    timer->start(GOVERNANCELIST_UPDATE_SECONDS * 1000);
+        // Reduce polling frequency during IBD to avoid contending with block processing.
+        const bool is_synced = clientModel->node().masternodeSync().isBlockchainSynced();
+        const int update_interval = (is_synced ? GOVERNANCELIST_UPDATE_SECONDS : GOVERNANCELIST_UPDATE_SECONDS_IBD) * 1000;
+        timer->start(update_interval);
+    }
 }
 
 void GovernanceList::updateProposalCount()

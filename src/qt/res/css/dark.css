@@ -841,7 +841,7 @@ GovernanceList QTableView {
 ProposalResume
 ******************************************************/
 
-QDialog#ProposalResume #scrollContainer {
+QDialog#ProposalResume #scrollContents {
     background-color: rgba(0, 0, 0, 0.15);
     border-color: rgba(128, 128, 128, 0.4);
 }

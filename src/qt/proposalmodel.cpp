@@ -21,11 +21,14 @@
 #include <cmath>
 
 Proposal::Proposal(ClientModel* _clientModel, const CGovernanceObject& _govObj,
-                   const interfaces::GOV::GovernanceInfo& govInfo, int collateral_confs) :
+                   const interfaces::GOV::GovernanceInfo& govInfo, int collateral_confs,
+                   bool is_broadcast) :
     clientModel{_clientModel},
     govObj{_govObj},
     m_gov_info{govInfo},
     m_collateral_confs{collateral_confs},
+    m_block_height{_clientModel ? _clientModel->getNumBlocks() : 0},
+    m_is_broadcast{is_broadcast},
     m_date_collateral{QDateTime::fromSecsSinceEpoch(govObj.GetCreationTime())},
     m_hash_collateral{QString::fromStdString(govObj.GetCollateralHash().ToString())},
     m_hash_object{QString::fromStdString(govObj.GetHash().ToString())},
@@ -104,7 +107,7 @@ QString Proposal::toJson() const
 
 int Proposal::blocksUntilSuperblock() const
 {
-    return m_gov_info.nextsuperblock - clientModel->getNumBlocks();
+    return m_gov_info.nextsuperblock - m_block_height;
 }
 
 int Proposal::collateralConfs() const
@@ -128,10 +131,13 @@ ProposalStatus Proposal::status(bool is_fundable) const
     if (m_collateral_confs < m_gov_info.requiredConfs) {
         return ProposalStatus::Confirming;
     }
+    if (!m_is_broadcast) {
+        return ProposalStatus::Pending;
+    }
     if (m_gov_info.superblockcycle <= 0) {
         return ProposalStatus::Voting;
     }
-    if (clientModel->getNumBlocks() % m_gov_info.superblockcycle >= m_gov_info.superblockcycle - m_gov_info.superblockmaturitywindow) {
+    if (m_block_height % m_gov_info.superblockcycle >= m_gov_info.superblockcycle - m_gov_info.superblockmaturitywindow) {
         return is_fundable ? ProposalStatus::Passing : ProposalStatus::Failing;
     }
     if (GetAbsoluteYesCount() < m_gov_info.fundingthreshold) {
@@ -194,6 +200,7 @@ void ProposalModel::refreshIcons()
     m_icon_failing = GUIUtil::getIcon("warning", GUIUtil::ThemedColor::RED);
     m_icon_lapsed = GUIUtil::getIcon("lock_closed", GUIUtil::ThemedColor::RED);
     m_icon_passing = GUIUtil::getIcon("synced", GUIUtil::ThemedColor::GREEN);
+    m_icon_pending = GUIUtil::getIcon("voting", GUIUtil::ThemedColor::BLUE);
     m_icon_unfunded = GUIUtil::getIcon("voting", GUIUtil::ThemedColor::RED);
     m_icon_voting = GUIUtil::getIcon("voting", GUIUtil::ThemedColor::ORANGE);
 }
@@ -308,6 +315,8 @@ QVariant ProposalModel::data(const QModelIndex& index, int role) const
             }
             case ProposalStatus::Lapsed:
                 return tr("Lapsed, past proposal end date");
+            case ProposalStatus::Pending:
+                return tr("Ready to broadcast, check Resume Proposal dialog");
             } // no default case, so the compiler can warn about missing cases
         }
         if (index.column() == Column::VOTING_STATUS) {
@@ -333,6 +342,8 @@ QVariant ProposalModel::data(const QModelIndex& index, int role) const
             case ProposalStatus::Passing:
             case ProposalStatus::Funded:
                 return m_icon_passing;
+            case ProposalStatus::Pending:
+                return m_icon_pending;
             case ProposalStatus::Lapsed:
                 return m_icon_lapsed;
             } // no default case, so the compiler can warn about missing cases
@@ -403,12 +414,10 @@ void ProposalModel::reconcile(ProposalList&& proposals, std::unordered_set<uint2
         if (it != m_data.end()) {
             const auto idx{static_cast<int>(std::distance(m_data.begin(), it))};
             keep_index[static_cast<size_t>(idx)] = true;
-            if ((*it)->GetAbsoluteYesCount() != proposal->GetAbsoluteYesCount() || (*it)->collateralConfs() != proposal->collateralConfs()) {
-                // Replace proposal to update vote count or confirmation depth
-                *it = std::move(proposal);
-                Q_EMIT dataChanged(createIndex(idx, Column::STATUS), createIndex(idx, Column::VOTING_STATUS));
-            }
-            // else: no changes, proposal unique_ptr goes out of scope and gets deleted
+            // Always replace: block height, vote breakdown, and broadcast status
+            // can all change between cycles without a single cheap sentinel.
+            *it = std::move(proposal);
+            Q_EMIT dataChanged(createIndex(idx, Column::STATUS), createIndex(idx, Column::VOTING_STATUS));
         } else {
             append(std::move(proposal));
         }
@@ -421,10 +430,6 @@ void ProposalModel::reconcile(ProposalList&& proposals, std::unordered_set<uint2
         }
     }
 
-    // Fundable set may have changed; refresh all status icons
-    if (!m_data.empty()) {
-        Q_EMIT dataChanged(createIndex(0, Column::STATUS), createIndex(rowCount() - 1, Column::STATUS));
-    }
 }
 
 void ProposalModel::setDisplayUnit(const BitcoinUnit& display_unit)

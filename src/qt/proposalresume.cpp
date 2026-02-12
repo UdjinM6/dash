@@ -43,10 +43,7 @@ ProposalResume::ProposalResume(interfaces::Node& node, ClientModel* client_model
 {
     m_ui->setupUi(this);
 
-    setObjectName("ProposalResume");
-
     m_ui->scrollArea->viewport()->setAutoFillBackground(false);
-    m_ui->scrollContents->setObjectName("scrollContainer");
     m_ui->scrollContents->setAttribute(Qt::WA_StyledBackground, true);
 
     m_emptyLabel = new QLabel(tr("No pending proposals to broadcast."), m_ui->scrollContents);

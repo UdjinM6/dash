@@ -31,6 +31,7 @@ enum class ProposalStatus : uint8_t {
     Funded,
     Lapsed,
     Passing,
+    Pending,
     Unfunded,
     Voting,
 };
@@ -42,6 +43,8 @@ private:
     const CGovernanceObject govObj;
     interfaces::GOV::GovernanceInfo m_gov_info;
     int m_collateral_confs{0};
+    int m_block_height{0};
+    bool m_is_broadcast{true};
 
     CAmount m_paymentAmount{0};
     QDateTime m_date_collateral{};
@@ -57,9 +60,11 @@ private:
 
 public:
     explicit Proposal(ClientModel* _clientModel, const CGovernanceObject& _govObj,
-                      const interfaces::GOV::GovernanceInfo& govInfo, int collateral_confs);
+                      const interfaces::GOV::GovernanceInfo& govInfo, int collateral_confs,
+                      bool is_broadcast = true);
 
     bool isActive() const;
+    bool isBroadcast() const { return m_is_broadcast; }
     CAmount paymentAmount() const { return m_paymentAmount; }
     const uint256& objHash() const { return m_objHash; }
     int blocksUntilSuperblock() const;
@@ -99,6 +104,7 @@ private:
     QIcon m_icon_failing;
     QIcon m_icon_lapsed;
     QIcon m_icon_passing;
+    QIcon m_icon_pending;
     QIcon m_icon_unfunded;
     QIcon m_icon_voting;
     std::array<QIcon, 6> m_icon_confirming;
