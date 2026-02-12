@@ -29,6 +29,7 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QDesktopServices>
+#include <QEvent>
 #include <QResizeEvent>
 #include <QShowEvent>
 #include <QMessageBox>
@@ -89,6 +90,14 @@ GovernanceList::GovernanceList(QWidget* parent) :
 
 GovernanceList::~GovernanceList() = default;
 
+void GovernanceList::changeEvent(QEvent* event)
+{
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::StyleChange) {
+        QTimer::singleShot(0, proposalModel, &ProposalModel::refreshIcons);
+    }
+}
+
 void GovernanceList::setClientModel(ClientModel* model)
 {
     this->clientModel = model;
@@ -125,6 +134,8 @@ void GovernanceList::updateProposalList()
         const int nAbsVoteReq = std::max(Params().GetConsensus().nGovernanceMinQuorum, nWeightedMnCount / 10);
         proposalModel->setVotingParams(nAbsVoteReq);
 
+        const auto gov_info = clientModel->node().gov().getGovernanceInfo();
+
         std::vector<CGovernanceObject> govObjList;
         clientModel->getAllGovernanceObjects(govObjList);
         ProposalList newProposals;
@@ -132,9 +143,10 @@ void GovernanceList::updateProposalList()
             if (govObj.GetObjectType() != GovernanceObject::PROPOSAL) {
                 continue; // Skip triggers.
             }
-            newProposals.emplace_back(std::make_unique<Proposal>(this->clientModel, govObj));
+            newProposals.emplace_back(std::make_unique<Proposal>(this->clientModel, govObj, gov_info, gov_info.requiredConfs));
         }
-        proposalModel->reconcile(std::move(newProposals));
+        auto fundable = clientModel->node().gov().getFundableProposalHashes().hashes;
+        proposalModel->reconcile(std::move(newProposals), std::move(fundable));
 
         // Update voting capability if we now have both client and wallet models
         if (walletModel) {
@@ -420,10 +432,10 @@ void GovernanceList::refreshColumnWidths()
 
     auto* header = ui->govTableView->horizontalHeader();
     header->setMinimumSectionSize(0);
+    header->setSectionResizeMode(ProposalModel::Column::STATUS, QHeaderView::ResizeToContents);
     header->setSectionResizeMode(ProposalModel::Column::PAYMENT_AMOUNT, QHeaderView::ResizeToContents);
     header->setSectionResizeMode(ProposalModel::Column::START_DATE, QHeaderView::ResizeToContents);
     header->setSectionResizeMode(ProposalModel::Column::END_DATE, QHeaderView::ResizeToContents);
-    header->setSectionResizeMode(ProposalModel::Column::IS_ACTIVE, QHeaderView::ResizeToContents);
     header->setSectionResizeMode(ProposalModel::Column::VOTING_STATUS, QHeaderView::ResizeToContents);
     header->setSectionResizeMode(ProposalModel::Column::HASH, QHeaderView::ResizeToContents);
 
