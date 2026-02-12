@@ -135,7 +135,8 @@ class GOV
 {
 public:
     virtual ~GOV() {}
-    virtual void getAllNewerThan(std::vector<CGovernanceObject> &objs, int64_t nMoreThanTime) = 0;
+    virtual void getAllNewerThan(std::vector<CGovernanceObject> &objs, int64_t nMoreThanTime,
+                                 bool include_postponed = false) = 0;
     virtual int32_t getObjAbsYesCount(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) = 0;
     virtual int32_t getObjYesCount(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) = 0;
     virtual int32_t getObjNoCount(const CGovernanceObject& obj, vote_signal_enum_t vote_signal) = 0;

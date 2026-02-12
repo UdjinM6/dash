@@ -5,6 +5,7 @@
 #include <qt/forms/ui_governancelist.h>
 
 #include <evo/deterministicmns.h>
+#include <governance/common.h>
 #include <governance/governance.h>
 #include <governance/vote.h>
 #include <util/underlying.h>
@@ -13,6 +14,7 @@
 #include <qt/governancelist.h>
 #include <qt/guiutil_font.h>
 #include <qt/proposalmodel.h>
+#include <qt/proposalresume.h>
 #include <qt/proposalwizard.h>
 
 #include <chainparams.h>
@@ -20,6 +22,7 @@
 #include <interfaces/wallet.h>
 #include <script/standard.h>
 #include <util/strencodings.h>
+#include <util/time.h>
 
 #include <qt/clientmodel.h>
 #include <qt/guiutil.h>
@@ -35,6 +38,8 @@
 #include <QShowEvent>
 #include <QMessageBox>
 #include <QUrl>
+
+#include <univalue.h>
 
 namespace {
 constexpr int TITLE_MIN_WIDTH{220};
@@ -85,8 +90,9 @@ GovernanceList::GovernanceList(QWidget* parent) :
     connect(proposalModelProxy, &QSortFilterProxyModel::rowsRemoved, this, &GovernanceList::updateProposalCount);
     connect(proposalModelProxy, &QSortFilterProxyModel::layoutChanged, this, &GovernanceList::updateProposalCount);
 
-    // Create Proposal button
+    // Connect buttons
     connect(ui->btnCreateProposal, &QPushButton::clicked, this, &GovernanceList::showCreateProposalDialog);
+    connect(ui->btnResumeProposal, &QPushButton::clicked, this, &GovernanceList::showResumeProposalDialog);
 
     connect(timer, &QTimer::timeout, this, &GovernanceList::updateProposalList);
 
@@ -212,6 +218,11 @@ void GovernanceList::updateProposalList()
                 }
                 newProposals.emplace_back(std::make_unique<Proposal>(this->clientModel, govObj, gov_info, gov_info.requiredConfs));
             }
+            // Include unrelayed wallet proposals (0 confs, not yet broadcast)
+            for (const auto& obj : getWalletProposals(/*pending=*/true)) {
+                CGovernanceObject govObj(obj.hashParent, obj.revision, obj.time, obj.collateralHash, obj.GetDataAsHexString());
+                newProposals.emplace_back(std::make_unique<Proposal>(this->clientModel, govObj, gov_info, queryCollateralDepth(obj.collateralHash)));
+            }
         } else if (currentSource == ProposalSource::Local) {
             for (const auto& obj : getWalletProposals(/*pending=*/std::nullopt)) {
                 CGovernanceObject govObj(obj.hashParent, obj.revision, obj.time, obj.collateralHash, obj.GetDataAsHexString());
@@ -269,7 +280,25 @@ void GovernanceList::showCreateProposalDialog()
     proposalWizard->setWindowModality(Qt::NonModal);
     proposalWizard->setModal(false);
     proposalWizard->setWindowFlag(Qt::Window, true);
+    // Auto-open Resume dialog after successful creation
+    connect(proposalWizard, &QDialog::accepted, this, &GovernanceList::showResumeProposalDialog);
     proposalWizard->show();
+}
+
+void GovernanceList::showResumeProposalDialog()
+{
+    if (!clientModel || !walletModel) {
+        QMessageBox::warning(this, tr("Resume proposal"), tr("A synced node and an unlocked wallet are required."));
+        return;
+    }
+
+    const auto proposals = getWalletProposals(/*pending=*/true);
+    ProposalResume* dialog = new ProposalResume(clientModel->node(), clientModel, walletModel, proposals, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose, true);
+    dialog->setWindowModality(Qt::NonModal);
+    dialog->setModal(false);
+    dialog->setWindowFlag(Qt::Window, true);
+    dialog->show();
 }
 
 void GovernanceList::showProposalContextMenu(const QPoint& pos)
