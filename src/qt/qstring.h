@@ -9,12 +9,7 @@
 
 #include <string>
 
-#include <QHash>
 #include <QString>
-
-struct QStringHash {
-    size_t operator()(const QString& s) const { return qHash(s); }
-};
 
 //! Wrapper for tinyformat (strprintf) that converts to QString
 template <typename... Args>

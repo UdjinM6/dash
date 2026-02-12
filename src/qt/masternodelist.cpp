@@ -62,7 +62,7 @@ bool MasternodeListSortFilterProxyModel::filterAcceptsRow(int source_row, const 
     if (m_show_owned_only) {
         QModelIndex idx = sourceModel()->index(source_row, MasternodeModel::PROTX_HASH, source_parent);
         QString proTxHash = sourceModel()->data(idx, Qt::DisplayRole).toString();
-        if (m_my_mn_hashes.find(proTxHash) == m_my_mn_hashes.end()) {
+        if (!m_my_mn_hashes.contains(proTxHash)) {
             return false;
         }
     }
@@ -277,7 +277,7 @@ void MasternodeList::updateMyMasternodeHashes(const interfaces::MnListPtr& mnLis
         setOutpts.emplace(outpt);
     }
 
-    std::unordered_set<QString, QStringHash> myHashes;
+    QSet<QString> myHashes;
     mnList->forEachMN(/*only_valid=*/false, [&](const auto& dmn) {
         bool fMyMasternode = setOutpts.count(dmn.getCollateralOutpoint()) ||
                              walletModel->wallet().isSpendable(PKHash(dmn.getKeyIdOwner())) ||
