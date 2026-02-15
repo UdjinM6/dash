@@ -208,18 +208,13 @@ void MasternodeFeed::fetch()
         nextPayments.emplace(dmn->getProTxHash(), ret->m_list_height + (int)i + 1);
     }
 
-    Uint256HashMap<CTxDestination> mapCollateralDests;
     dmn->forEachMN(/*only_valid=*/false, [&](const auto& dmn) {
         CTxDestination collateralDest;
         Coin coin;
+        QString collateralStr = QObject::tr("UNKNOWN");
         if (m_client_model.node().getUnspentOutput(dmn.getCollateralOutpoint(), coin) &&
             ExtractDestination(coin.out.scriptPubKey, collateralDest)) {
-            mapCollateralDests.emplace(dmn.getProTxHash(), collateralDest);
-        }
-
-        QString collateralStr = QObject::tr("UNKNOWN");
-        if (auto collateralDestIt = mapCollateralDests.find(dmn.getProTxHash()); collateralDestIt != mapCollateralDests.end()) {
-            collateralStr = QString::fromStdString(EncodeDestination(collateralDestIt->second));
+            collateralStr = QString::fromStdString(EncodeDestination(collateralDest));
         }
 
         int nNextPayment = 0;

@@ -10,12 +10,13 @@
 #include <qt/clientmodel.h>
 
 #include <qt/bantablemodel.h>
+#include <qt/clientfeeds.h>
 #include <qt/guiconstants.h>
 #include <qt/guiutil.h>
-#include <qt/masternodelist.h>
+#include <qt/masternodefeeds.h>
 #include <qt/peertablemodel.h>
 #include <qt/peertablesortproxy.h>
-#include <qt/proposallist.h>
+#include <qt/proposalfeeds.h>
 
 #include <clientversion.h>
 #include <evo/deterministicmns.h>

@@ -5,9 +5,8 @@
 #ifndef BITCOIN_QT_MASTERNODELIST_H
 #define BITCOIN_QT_MASTERNODELIST_H
 
+#include <qt/masternodefeeds.h>
 #include <qt/masternodemodel.h>
-
-#include <qt/clientfeeds.h>
 
 #include <QMenu>
 #include <QSet>
@@ -34,25 +33,6 @@ class WalletModel;
 QT_BEGIN_NAMESPACE
 class QModelIndex;
 QT_END_NAMESPACE
-
-struct MasternodeData {
-    int m_list_height{0};
-    MasternodeEntryList m_entries;
-    bool m_valid{false};
-};
-
-class MasternodeFeed : public Feed<MasternodeData> {
-    Q_OBJECT
-
-public:
-    explicit MasternodeFeed(QObject* parent, ClientModel& client_model);
-    ~MasternodeFeed();
-
-    void fetch() override;
-
-private:
-    ClientModel& m_client_model;
-};
 
 class MasternodeListSortFilterProxyModel : public QSortFilterProxyModel
 {
