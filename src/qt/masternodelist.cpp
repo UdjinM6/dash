@@ -10,7 +10,7 @@
 #include <evo/dmn_types.h>
 #include <saltedhasher.h>
 
-#include <qt/clientfeeds.h>
+#include <qt/clientdatafeeds.h>
 #include <qt/clientmodel.h>
 #include <qt/descriptiondialog.h>
 #include <qt/guiutil.h>

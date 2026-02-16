@@ -12,6 +12,9 @@
 #include <qt/bantablemodel.h>
 #include <qt/clientfeeds.h>
 #include <qt/guiconstants.h>
+#ifdef ENABLE_WALLET
+#include <qt/clientdatafeeds.h>
+#endif // ENABLE_WALLET
 #include <qt/guiutil.h>
 #include <qt/peertablemodel.h>
 #include <qt/peertablesortproxy.h>

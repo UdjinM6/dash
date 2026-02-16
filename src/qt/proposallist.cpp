@@ -15,7 +15,7 @@
 #include <util/strencodings.h>
 #include <util/underlying.h>
 
-#include <qt/clientfeeds.h>
+#include <qt/clientdatafeeds.h>
 #include <qt/descriptiondialog.h>
 #include <qt/guiutil_font.h>
 #include <qt/proposalcreate.h>
