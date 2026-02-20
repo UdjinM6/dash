@@ -17,6 +17,7 @@
 #include <qt/guiutil.h>
 #include <qt/informationwidget.h>
 #include <qt/masternodemodel.h>
+#include <qt/networkwidget.h>
 #include <qt/peertablesortproxy.h>
 #include <qt/util.h>
 #include <qt/walletcontroller.h>
@@ -572,6 +573,7 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent, Qt::WindowFlags 
 
     // Populate entries
     ui->comboBoxViewSelector->addItem(tr("General"), ToUnderlying(InfoView::General));
+    ui->comboBoxViewSelector->addItem(tr("Network"), ToUnderlying(InfoView::Network));
 
     // disable the wallet selector by default
     ui->WalletSelector->setVisible(false);
@@ -701,6 +703,7 @@ void RPCConsole::setClientModel(ClientModel *model, int bestblock_height, int64_
     }
 
     ui->informationWidget->setClientModel(model);
+    ui->networkWidget->setClientModel(model);
     ui->trafficGraph->setClientModel(model);
     if (model && clientModel->getPeerTableModel() && clientModel->getBanTableModel()) {
         // Keep up to date with client

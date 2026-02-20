@@ -109,6 +109,7 @@
           <number>0</number>
          </property>
          <widget class="InformationWidget" name="informationWidget" native="true"/>
+         <widget class="NetworkWidget" name="networkWidget" native="true"/>
         </widget>
        </item>
        <item>
@@ -1363,6 +1364,12 @@
    <class>InformationWidget</class>
    <extends>QWidget</extends>
    <header>qt/informationwidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>NetworkWidget</class>
+   <extends>QWidget</extends>
+   <header>qt/networkwidget.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>
