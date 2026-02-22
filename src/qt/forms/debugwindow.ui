@@ -104,25 +104,35 @@
      <widget class="QWidget" name="pageInfo">
       <layout class="QVBoxLayout" name="verticalLayoutInfo">
        <item>
-        <widget class="QStackedWidget" name="stackedWidgetInfo">
-         <property name="currentIndex">
+        <layout class="QHBoxLayout" name="horizontalLayoutInfoButtons">
+         <property name="spacing">
           <number>0</number>
          </property>
-         <widget class="InformationWidget" name="informationWidget" native="true"/>
-         <widget class="NetworkWidget" name="networkWidget" native="true"/>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayoutInfoFooter">
          <item>
-          <widget class="QComboBox" name="comboBoxViewSelector">
-           <property name="sizeAdjustPolicy">
-            <enum>QComboBox::AdjustToContents</enum>
+          <widget class="QPushButton" name="btnShowMainInfo">
+           <property name="text">
+            <string>&amp;Main</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
            </property>
           </widget>
          </item>
          <item>
-          <spacer name="horizontalSpacerInfoFooter">
+          <widget class="QPushButton" name="btnShowSubsystemsInfo">
+           <property name="text">
+            <string>&amp;Subsystems</string>
+           </property>
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacerInfoButtons">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
@@ -134,27 +144,16 @@
            </property>
           </spacer>
          </item>
-         <item>
-          <widget class="QLabel" name="labelDebugLogfile">
-           <property name="text">
-            <string>Debug log file</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="openDebugLogfileButton">
-           <property name="toolTip">
-            <string>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</string>
-           </property>
-           <property name="text">
-            <string>&amp;Open</string>
-           </property>
-           <property name="autoDefault">
-            <bool>false</bool>
-           </property>
-          </widget>
-         </item>
         </layout>
+       </item>
+       <item>
+        <widget class="QStackedWidget" name="stackedWidgetInfo">
+         <property name="currentIndex">
+          <number>0</number>
+         </property>
+         <widget class="InformationWidget" name="informationWidget" native="true"/>
+         <widget class="SubsystemsWidget" name="subsystemsWidget" native="true"/>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -1367,9 +1366,9 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>NetworkWidget</class>
+   <class>SubsystemsWidget</class>
    <extends>QWidget</extends>
-   <header>qt/networkwidget.h</header>
+   <header>qt/subsystemswidget.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>

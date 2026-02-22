@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_QT_NETWORKWIDGET_H
-#define BITCOIN_QT_NETWORKWIDGET_H
+#ifndef BITCOIN_QT_SUBSYSTEMSWIDGET_H
+#define BITCOIN_QT_SUBSYSTEMSWIDGET_H
 
 #include <qt/guiutil.h>
 
@@ -23,18 +23,18 @@ class MasternodeFeed;
 class OptionsModel;
 class QuorumFeed;
 namespace Ui {
-class NetworkWidget;
+class SubsystemsWidget;
 } // namespace Ui
 
-class NetworkWidget : public QWidget
+class SubsystemsWidget : public QWidget
 {
     Q_OBJECT
 
-    Ui::NetworkWidget* ui;
+    Ui::SubsystemsWidget* ui;
 
 public:
-    explicit NetworkWidget(QWidget* parent = nullptr);
-    ~NetworkWidget() override;
+    explicit SubsystemsWidget(QWidget* parent = nullptr);
+    ~SubsystemsWidget() override;
 
     void setClientModel(ClientModel* model);
 
@@ -65,4 +65,4 @@ private:
     QuorumFeed* m_feed_quorum{nullptr};
 };
 
-#endif // BITCOIN_QT_NETWORKWIDGET_H
+#endif // BITCOIN_QT_SUBSYSTEMSWIDGET_H

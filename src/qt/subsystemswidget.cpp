@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <qt/networkwidget.h>
-#include <qt/forms/ui_networkwidget.h>
+#include <qt/subsystemswidget.h>
+#include <qt/forms/ui_subsystemswidget.h>
 
 #include <chainparams.h>
 
@@ -32,9 +32,9 @@ QString FormatQuorumStr(const std::string& name)
 }
 } // anonymous namespace
 
-NetworkWidget::NetworkWidget(QWidget* parent) :
+SubsystemsWidget::SubsystemsWidget(QWidget* parent) :
     QWidget(parent),
-    ui(new Ui::NetworkWidget)
+    ui(new Ui::SubsystemsWidget)
 {
     ui->setupUi(this);
 
@@ -50,12 +50,12 @@ NetworkWidget::NetworkWidget(QWidget* parent) :
     }
 }
 
-NetworkWidget::~NetworkWidget()
+SubsystemsWidget::~SubsystemsWidget()
 {
     delete ui;
 }
 
-void NetworkWidget::showEvent(QShowEvent* event)
+void SubsystemsWidget::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
 
@@ -74,7 +74,7 @@ void NetworkWidget::showEvent(QShowEvent* event)
     }
 }
 
-void NetworkWidget::setClientModel(ClientModel* model)
+void SubsystemsWidget::setClientModel(ClientModel* model)
 {
     clientModel = model;
     if (!clientModel) {
@@ -83,42 +83,42 @@ void NetworkWidget::setClientModel(ClientModel* model)
 
     m_feed_chainlock = model->feedChainLock();
     if (m_feed_chainlock) {
-        connect(m_feed_chainlock, &ChainLockFeed::dataReady, this, &NetworkWidget::handleClDataChanged);
+        connect(m_feed_chainlock, &ChainLockFeed::dataReady, this, &SubsystemsWidget::handleClDataChanged);
         handleClDataChanged();
     }
 
     m_feed_creditpool = model->feedCreditPool();
     if (m_feed_creditpool) {
-        connect(m_feed_creditpool, &CreditPoolFeed::dataReady, this, &NetworkWidget::handleCrDataChanged);
+        connect(m_feed_creditpool, &CreditPoolFeed::dataReady, this, &SubsystemsWidget::handleCrDataChanged);
         handleCrDataChanged();
     }
 
     m_feed_instantsend = model->feedInstantSend();
     if (m_feed_instantsend) {
-        connect(m_feed_instantsend, &InstantSendFeed::dataReady, this, &NetworkWidget::handleIsDataChanged);
+        connect(m_feed_instantsend, &InstantSendFeed::dataReady, this, &SubsystemsWidget::handleIsDataChanged);
         handleIsDataChanged();
     }
 
     m_feed_masternode = model->feedMasternode();
     if (m_feed_masternode) {
-        connect(m_feed_masternode, &MasternodeFeed::dataReady, this, &NetworkWidget::handleMnDataChanged);
+        connect(m_feed_masternode, &MasternodeFeed::dataReady, this, &SubsystemsWidget::handleMnDataChanged);
         handleMnDataChanged();
     }
 
     m_feed_quorum = model->feedQuorum();
     if (m_feed_quorum) {
-        connect(m_feed_quorum, &QuorumFeed::dataReady, this, &NetworkWidget::handleQrDataChanged);
-        connect(model, &ClientModel::additionalDataSyncProgressChanged, this, &NetworkWidget::handleQrDataChanged);
+        connect(m_feed_quorum, &QuorumFeed::dataReady, this, &SubsystemsWidget::handleQrDataChanged);
+        connect(model, &ClientModel::additionalDataSyncProgressChanged, this, &SubsystemsWidget::handleQrDataChanged);
         handleQrDataChanged();
     }
 
     if (clientModel->getOptionsModel()) {
         m_display_unit = clientModel->getOptionsModel()->getDisplayUnit();
-        connect(clientModel->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &NetworkWidget::updateDisplayUnit);
+        connect(clientModel->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &SubsystemsWidget::updateDisplayUnit);
     }
 }
 
-void NetworkWidget::handleCrDataChanged()
+void SubsystemsWidget::handleCrDataChanged()
 {
     if (!m_feed_creditpool) {
         return;
@@ -138,7 +138,7 @@ void NetworkWidget::handleCrDataChanged()
     ui->labelCrLimit->setText(GUIUtil::formatAmount(m_display_unit, m_creditpool_limit, /*is_signed=*/false, /*truncate=*/2));
 }
 
-void NetworkWidget::handleMnDataChanged()
+void SubsystemsWidget::handleMnDataChanged()
 {
     if (!m_feed_masternode) {
         return;
@@ -155,7 +155,7 @@ void NetworkWidget::handleMnDataChanged()
         .arg(QString::number(data->m_counts.m_valid_evo)));
 }
 
-void NetworkWidget::handleClDataChanged()
+void SubsystemsWidget::handleClDataChanged()
 {
     if (!m_feed_chainlock) {
         return;
@@ -169,7 +169,7 @@ void NetworkWidget::handleClDataChanged()
     ui->bestClTime->setText(QDateTime::fromSecsSinceEpoch(data->m_block_time).toString());
 }
 
-void NetworkWidget::handleIsDataChanged()
+void SubsystemsWidget::handleIsDataChanged()
 {
     if (!m_feed_instantsend) {
         return;
@@ -184,7 +184,7 @@ void NetworkWidget::handleIsDataChanged()
     ui->labelISUnprotected->setText(QString::number(data->m_counts.m_unprotected_tx));
 }
 
-void NetworkWidget::handleQrDataChanged()
+void SubsystemsWidget::handleQrDataChanged()
 {
     if (!clientModel || !m_feed_quorum) {
         return;
@@ -260,7 +260,7 @@ void NetworkWidget::handleQrDataChanged()
     }
 }
 
-void NetworkWidget::updateDisplayUnit(BitcoinUnit unit)
+void SubsystemsWidget::updateDisplayUnit(BitcoinUnit unit)
 {
     m_display_unit = unit;
     ui->labelCrLastBlock->setText(GUIUtil::formatAmount(m_display_unit, m_creditpool_diff, /*is_signed=*/true, /*truncate=*/2));

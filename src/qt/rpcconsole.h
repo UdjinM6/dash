@@ -82,8 +82,8 @@ public:
     };
 
     enum class InfoView : uint8_t {
-        General,
-        Network,
+        Main,
+        Subsystems,
     };
 
     std::vector<TabTypes> tabs() const { return {TabTypes::INFO, TabTypes::CONSOLE, TabTypes::GRAPH, TabTypes::PEERS, TabTypes::REPAIR}; }
@@ -100,8 +100,6 @@ private Q_SLOTS:
     void showPage(int index);
     void on_lineEdit_returnPressed();
     void on_stackedWidgetRPC_currentChanged(int index);
-    /** open the debug.log from the current datadir */
-    void on_openDebugLogfileButton_clicked();
     /** change the time range of the network traffic graph */
     void on_sldGraphRange_valueChanged(int value);
     void resizeEvent(QResizeEvent *event) override;
@@ -192,6 +190,7 @@ private:
     ClientModel *clientModel = nullptr;
     WalletController* m_wallet_controller{nullptr};
     QButtonGroup* pageButtons = nullptr;
+    QButtonGroup* infoSubpageButtons = nullptr;
     QStringList history;
     int historyPtr = 0;
     QString cmdBeforeBrowsing;

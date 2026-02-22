@@ -35,7 +35,7 @@ src/qt/informationwidget.*
 src/qt/masternodelist.*
 src/qt/masternodemodel.*
 src/qt/mnemonicverificationdialog.*
-src/qt/networkwidget.*
+src/qt/subsystemswidget.*
 src/qt/proposalcreate.*
 src/qt/proposallist.*
 src/qt/proposalmodel.*

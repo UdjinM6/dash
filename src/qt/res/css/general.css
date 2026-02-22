@@ -620,6 +620,9 @@ QPushButton - Special case, tabbar replacement buttons
 
 /* Debug window buttons */
 #btnInfo,
+#btnShowMainInfo,
+#btnShowSubsystemsInfo,
+#btnNetwork,
 #btnConsole,
 #btnNetTraffic,
 #btnPeers,
@@ -643,6 +646,9 @@ QPushButton - Special case, tabbar replacement buttons
 
 /* Debug window buttons */
 #btnInfo:hover:checked,
+#btnShowMainInfo:hover:checked,
+#btnShowSubsystemsInfo:hover:checked,
+#btnNetwork:hover:checked,
 #btnConsole:hover:checked,
 #btnNetTraffic:hover:checked,
 #btnPeers:hover:checked,
@@ -666,6 +672,9 @@ QPushButton - Special case, tabbar replacement buttons
 
 /* Debug window buttons */
 #btnInfo:hover:!checked,
+#btnShowMainInfo:hover:!checked,
+#btnShowSubsystemsInfo:hover:!checked,
+#btnNetwork:hover:!checked,
 #btnConsole:hover:!checked,
 #btnNetTraffic:hover:!checked,
 #btnPeers:hover:!checked,
@@ -689,8 +698,11 @@ QPushButton - Special case, tabbar replacement buttons
 
 /* Debug window buttons */
 #btnInfo:checked,
-#btnConsole:checked,
+#btnShowMainInfo:checked,
+#btnShowSubsystemsInfo:checked,
 #btnNetwork:checked,
+#btnConsole:checked,
+#btnNetTraffic:checked,
 #btnPeers:checked,
 #btnRepair:checked,
 /* Options dialog buttons */
@@ -711,7 +723,8 @@ QPushButton - Special case, tabbar replacement buttons
 }
 
 /* Debug window buttons */
-#btnShowInfo:hover:pressed,
+#btnShowMainInfo:hover:pressed,
+#btnShowSubsystemsInfo:hover:pressed,
 #btnShowConsole:hover:pressed,
 #btnShowNetwork:hover:pressed,
 #btnShowPeers:hover:pressed,
@@ -1696,11 +1709,11 @@ QWidget#RPCConsole QLabel#label_alerts {
 QWidget#InformationWidget QLabel#labelNetwork,
 QWidget#InformationWidget QLabel#label_10,
 QWidget#InformationWidget QLabel#labelMempoolTitle,
-QWidget#NetworkWidget QLabel#labelChainLocks,
-QWidget#NetworkWidget QLabel#labelCreditPool,
-QWidget#NetworkWidget QLabel#labelInstantSend,
-QWidget#NetworkWidget QLabel#labelMasternodes,
-QWidget#NetworkWidget QLabel#labelQuorums { /* Margin between Network and Block Chain headers */
+QWidget#SubsystemsWidget QLabel#labelChainLocks,
+QWidget#SubsystemsWidget QLabel#labelCreditPool,
+QWidget#SubsystemsWidget QLabel#labelInstantSend,
+QWidget#SubsystemsWidget QLabel#labelMasternodes,
+QWidget#SubsystemsWidget QLabel#labelQuorums { /* Margin between Network and Block Chain headers */
     qproperty-alignment: 'AlignLeft | AlignBottom';
     min-height: 25px;
 }

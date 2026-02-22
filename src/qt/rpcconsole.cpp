@@ -17,8 +17,8 @@
 #include <qt/guiutil.h>
 #include <qt/informationwidget.h>
 #include <qt/masternodemodel.h>
-#include <qt/networkwidget.h>
 #include <qt/peertablesortproxy.h>
+#include <qt/subsystemswidget.h>
 #include <qt/util.h>
 #include <qt/walletcontroller.h>
 #include <qt/walletmodel.h>
@@ -554,7 +554,6 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent, Qt::WindowFlags 
         + ts.from + "\" – " + tr("the peer selected us for high bandwidth relay") + "</li><li>\""
         + ts.no + "\" – " + tr("no high bandwidth relay selected") + "</li></ul>"};
     ui->peerHighBandwidthLabel->setToolTip(ui->peerHighBandwidthLabel->toolTip().arg(hb_list));
-    ui->openDebugLogfileButton->setToolTip(ui->openDebugLogfileButton->toolTip().arg(PACKAGE_NAME));
 
     setButtonIcons();
 
@@ -564,16 +563,9 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent, Qt::WindowFlags 
     ui->messagesWidget->installEventFilter(this);
 
     connect(ui->clearButton, &QAbstractButton::clicked, [this] { clear(); });
-    connect(ui->comboBoxViewSelector, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int index) {
-        ui->stackedWidgetInfo->setCurrentIndex(ui->comboBoxViewSelector->itemData(index).toInt());
-    });
     connect(ui->fontBiggerButton, &QAbstractButton::clicked, this, &RPCConsole::fontBigger);
     connect(ui->fontSmallerButton, &QAbstractButton::clicked, this, &RPCConsole::fontSmaller);
     connect(ui->btnClearTrafficGraph, &QPushButton::clicked, ui->trafficGraph, &TrafficGraphWidget::clear);
-
-    // Populate entries
-    ui->comboBoxViewSelector->addItem(tr("General"), ToUnderlying(InfoView::General));
-    ui->comboBoxViewSelector->addItem(tr("Network"), ToUnderlying(InfoView::Network));
 
     // disable the wallet selector by default
     ui->WalletSelector->setVisible(false);
@@ -611,6 +603,20 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent, Qt::WindowFlags 
     connect(pageButtons, &QButtonGroup::idClicked, this, &RPCConsole::showPage);
 #else
     connect(pageButtons, QOverload<int>::of(&QButtonGroup::buttonClicked), this, &RPCConsole::showPage);
+#endif
+
+    // Setup info subpage buttons (Main / Subsystems)
+    infoSubpageButtons = new QButtonGroup(this);
+    infoSubpageButtons->addButton(ui->btnShowMainInfo, infoSubpageButtons->buttons().size());
+    infoSubpageButtons->addButton(ui->btnShowSubsystemsInfo, infoSubpageButtons->buttons().size());
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+    connect(infoSubpageButtons, &QButtonGroup::idClicked, this, [this](int index) {
+        ui->stackedWidgetInfo->setCurrentIndex(index);
+    });
+#else
+    connect(infoSubpageButtons, QOverload<int>::of(&QButtonGroup::buttonClicked), this, [this](int index) {
+        ui->stackedWidgetInfo->setCurrentIndex(index);
+    });
 #endif
 
     showPage(ToUnderlying(TabTypes::INFO));
@@ -703,7 +709,7 @@ void RPCConsole::setClientModel(ClientModel *model, int bestblock_height, int64_
     }
 
     ui->informationWidget->setClientModel(model);
-    ui->networkWidget->setClientModel(model);
+    ui->subsystemsWidget->setClientModel(model);
     ui->trafficGraph->setClientModel(model);
     if (model && clientModel->getPeerTableModel() && clientModel->getBanTableModel()) {
         // Keep up to date with client
@@ -1194,11 +1200,6 @@ void RPCConsole::on_stackedWidgetRPC_currentChanged(int index)
     if (ui->stackedWidgetRPC->widget(index) == ui->pageConsole) {
         ui->lineEdit->setFocus();
     }
-}
-
-void RPCConsole::on_openDebugLogfileButton_clicked()
-{
-    GUIUtil::openDebugLogfile();
 }
 
 void RPCConsole::scrollToEnd()

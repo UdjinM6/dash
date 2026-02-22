@@ -15,6 +15,8 @@
 
 #include <QDateTime>
 
+#include <config/bitcoin-config.h>
+
 namespace {
 constexpr QChar nonbreaking_hyphen(8209);
 } // anonymous namespace
@@ -33,6 +35,9 @@ InformationWidget::InformationWidget(QWidget* parent) :
     for (auto* element : {ui->label_10, ui->labelNetwork, ui->labelMempoolTitle}) {
         element->setContentsMargins(0, 10, 0, 0);
     }
+
+    // Set tooltip for debug log file button
+    ui->openDebugLogfileButton->setToolTip(ui->openDebugLogfileButton->toolTip().arg(QString::fromStdString(PACKAGE_NAME)));
 }
 
 InformationWidget::~InformationWidget()
@@ -126,4 +131,9 @@ void InformationWidget::setMempoolSize(long numberOfTxs, size_t dynUsage, size_t
     const auto max_usage_str = QObject::tr("%1 MB").arg(maxUsage / 1000000.0, 0, 'f', 2);
 
     ui->mempoolSize->setText(cur_usage_str + " / " + max_usage_str);
+}
+
+void InformationWidget::on_openDebugLogfileButton_clicked()
+{
+    GUIUtil::openDebugLogfile();
 }

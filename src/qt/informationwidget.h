@@ -32,6 +32,8 @@ public Q_SLOTS:
     void setNumBlocks(int count, const QDateTime& blockDate, const QString& blockHash, double nVerificationProgress, bool headers);
     /** Set size (number of transactions and memory usage) of the mempool in the UI */
     void setMempoolSize(long numberOfTxs, size_t dynUsage, size_t maxUsage);
+    /** Handle debug log file button click */
+    void on_openDebugLogfileButton_clicked();
 
 private:
     /** Update UI with latest network info from model. */
