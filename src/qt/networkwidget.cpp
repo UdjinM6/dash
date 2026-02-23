@@ -132,10 +132,10 @@ void NetworkWidget::handleCrDataChanged()
     m_creditpool_limit = data->m_counts.m_limit;
     m_creditpool_locked = data->m_counts.m_locked;
 
-    ui->labelCrLastBlock->setText(GUIUtil::formatAmount(m_display_unit, m_creditpool_diff, /*is_signed=*/true, /*truncate=*/2));
-    ui->labelCrLocked->setText(GUIUtil::formatAmount(m_display_unit, m_creditpool_locked, /*is_signed=*/false, /*truncate=*/2));
+    ui->labelCrLastBlock->setText(BitcoinUnits::floorWithUnit(m_display_unit, m_creditpool_diff, /*plussign=*/true, BitcoinUnits::SeparatorStyle::ALWAYS));
+    ui->labelCrLocked->setText(BitcoinUnits::floorWithUnit(m_display_unit, m_creditpool_locked, /*plussign=*/false, BitcoinUnits::SeparatorStyle::ALWAYS));
     ui->labelCrPending->setText(QString::number(data->m_pending_unlocks));
-    ui->labelCrLimit->setText(GUIUtil::formatAmount(m_display_unit, m_creditpool_limit, /*is_signed=*/false, /*truncate=*/2));
+    ui->labelCrLimit->setText(BitcoinUnits::floorWithUnit(m_display_unit, m_creditpool_limit, /*plussign=*/false, BitcoinUnits::SeparatorStyle::ALWAYS));
 }
 
 void NetworkWidget::handleMnDataChanged()
@@ -273,7 +273,7 @@ void NetworkWidget::handleQrDataChanged()
 void NetworkWidget::updateDisplayUnit(BitcoinUnit unit)
 {
     m_display_unit = unit;
-    ui->labelCrLastBlock->setText(GUIUtil::formatAmount(m_display_unit, m_creditpool_diff, /*is_signed=*/true, /*truncate=*/2));
-    ui->labelCrLocked->setText(GUIUtil::formatAmount(m_display_unit, m_creditpool_locked, /*is_signed=*/false, /*truncate=*/2));
-    ui->labelCrLimit->setText(GUIUtil::formatAmount(m_display_unit, m_creditpool_limit, /*is_signed=*/false, /*truncate=*/2));
+    ui->labelCrLastBlock->setText(BitcoinUnits::floorWithUnit(m_display_unit, m_creditpool_diff, /*plussign=*/true, BitcoinUnits::SeparatorStyle::ALWAYS));
+    ui->labelCrLocked->setText(BitcoinUnits::floorWithUnit(m_display_unit, m_creditpool_locked, /*plussign=*/false, BitcoinUnits::SeparatorStyle::ALWAYS));
+    ui->labelCrLimit->setText(BitcoinUnits::floorWithUnit(m_display_unit, m_creditpool_limit, /*plussign=*/false, BitcoinUnits::SeparatorStyle::ALWAYS));
 }

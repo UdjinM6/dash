@@ -151,9 +151,6 @@ namespace GUIUtil
     // Returns true if given address+amount meets "dust" definition
     bool isDust(interfaces::Node& node, const QString& address, const CAmount& amount);
 
-    // Format a CAmount as a string with unit name (and truncate to a given number of decimal places).
-    QString formatAmount(BitcoinUnit unit, CAmount amount, bool is_signed = false, std::optional<uint8_t> truncate = std::nullopt);
-
     // HTML escaping for rich text controls
     QString HtmlEscape(const QString& str, bool fMultiLine=false);
     QString HtmlEscape(const std::string& str, bool fMultiLine=false);
