@@ -97,8 +97,10 @@ private:
     const std::unique_ptr<llmq::QuorumParticipant> qman_handler;
     const std::unique_ptr<chainlock::ChainLockSigner> cl_signer;
 
-public:
     const std::unique_ptr<instantsend::InstantSendSigner> is_signer;
+
+public:
+    instantsend::InstantSendSigner* GetISSigner() const { return is_signer.get(); }
 
     /** Owned by PeerManager, use GetCJServer() */
     CCoinJoinServer* m_cj_server{nullptr};
