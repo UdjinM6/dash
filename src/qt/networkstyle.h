@@ -25,14 +25,14 @@ public:
     const QIcon &getTrayAndWindowIcon() const { return trayAndWindowIcon; }
     const QString &getTitleAddText() const { return titleAddText; }
     const QColor &getBadgeColor() const { return badgeColor; }
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
     std::optional<QIcon> getMacIcon() const { return m_macos_icon; }
     std::optional<QIcon> getMacTray() const { return m_macos_tray; }
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 
 private:
     NetworkStyle(const QString &appName, const int iconColorHueShift, const int iconColorSaturationReduction,
-                 const char *macIconPath, const char *titleAddText, const std::string &networkId);
+                 const char *macIconPath, const char *titleAddText);
 
     QString appName;
     QIcon appIcon;
@@ -40,10 +40,10 @@ private:
     QIcon trayAndWindowIcon;
     QString titleAddText;
     QColor badgeColor;
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
     std::optional<QIcon> m_macos_icon;
     std::optional<QIcon> m_macos_tray;
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 
     void rotateColor(QColor& col, const int iconColorHueShift, const int iconColorSaturationReduction);
     void rotateColors(QImage& img, const int iconColorHueShift, const int iconColorSaturationReduction);
