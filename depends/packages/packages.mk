@@ -17,6 +17,7 @@ qt_mingw32_packages=qt
 
 bdb_packages=bdb
 sqlite_packages=sqlite
+rocksdb_packages=rocksdb
 
 zmq_packages=zeromq
 
