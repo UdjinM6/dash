@@ -11,6 +11,7 @@
 #include <httpserver.h>
 #include <index/blockfilterindex.h>
 #include <index/coinstatsindex.h>
+#include <index/merkrangeindex.h>
 #include <index/txindex.h>
 #include <init.h>
 #include <interfaces/chain.h>
@@ -1145,6 +1146,10 @@ static RPCHelpMan getindexinfo()
     }
 
     ForEachBlockFilterIndex([&result, &index_name](const BlockFilterIndex& index) {
+        result.pushKVs(SummaryToJSON(index.GetSummary(), index_name));
+    });
+
+    ForEachMerkRangeIndex([&result, &index_name](const MerkRangeIndex& index) {
         result.pushKVs(SummaryToJSON(index.GetSummary(), index_name));
     });
 

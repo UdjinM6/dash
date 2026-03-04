@@ -28,6 +28,7 @@
 #include <init/common.h>
 #include <interfaces/chain.h>
 #include <index/blockfilterindex.h>
+#include <index/merkrangeindex.h>
 #include <index/coinstatsindex.h>
 #include <index/txindex.h>
 #include <interfaces/init.h>
@@ -263,6 +264,7 @@ void Interrupt(NodeContext& node)
         g_txindex->Interrupt();
     }
     ForEachBlockFilterIndex([](BlockFilterIndex& index) { index.Interrupt(); });
+    ForEachMerkRangeIndex([](MerkRangeIndex& index) { index.Interrupt(); });
     if (g_coin_stats_index) {
         g_coin_stats_index->Interrupt();
     }
@@ -386,6 +388,8 @@ void PrepareShutdown(NodeContext& node)
     }
     ForEachBlockFilterIndex([](BlockFilterIndex& index) { index.Stop(); });
     DestroyAllBlockFilterIndexes();
+    ForEachMerkRangeIndex([](MerkRangeIndex& index) { index.Stop(); });
+    DestroyAllMerkRangeIndexes();
 
     // Any future callbacks will be dropped. This should absolutely be safe - if
     // missing a callback results in an unrecoverable situation, unclean shutdown
@@ -594,6 +598,10 @@ void SetupServerArgs(ArgsManager& argsman)
                  strprintf("Maintain an index of compact filters by block (default: %s, values: %s).", DEFAULT_BLOCKFILTERINDEX, ListBlockFilterTypes()) +
                  " If <type> is not supplied or if <type> = 1, indexes for all known types are enabled." +
                  " Automatically enabled for masternodes with value 'basic'.",
+                 ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-merkrangeindex=<type>",
+                 strprintf("Maintain an index of compact filter chunks by block height (default: %s, values: %s).", DEFAULT_MERKRANGEINDEX, ListBlockFilterTypes()) +
+                 " If <type> is not supplied or if <type> = 1, indexes for all known types are enabled.",
                  ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
 
     argsman.AddArg("-asmap=<file>", strprintf("Specify asn mapping used for bucketing of the peers (default: %s). Relative paths will be prefixed by the net-specific datadir location.", DEFAULT_ASMAP_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::CONNECTION);
@@ -1074,6 +1082,7 @@ int nFD;
 ServiceFlags nLocalServices = ServiceFlags(NODE_NETWORK_LIMITED | NODE_HEADERS_COMPRESSED);
 int64_t peer_connect_timeout;
 std::set<BlockFilterType> g_enabled_filter_types;
+std::set<BlockFilterType> g_enabled_merk_filter_types;
 
 } // namespace
 
@@ -1180,6 +1189,21 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         }
     }
 
+    // parse and validate enabled merk range filter types
+    std::string merkrangeindex_value = args.GetArg("-merkrangeindex", DEFAULT_MERKRANGEINDEX);
+    if (merkrangeindex_value == "" || merkrangeindex_value == "1") {
+        g_enabled_merk_filter_types = AllBlockFilterTypes();
+    } else if (merkrangeindex_value != "0") {
+        const std::vector<std::string> names = args.GetArgs("-merkrangeindex");
+        for (const auto& name : names) {
+            BlockFilterType filter_type;
+            if (!BlockFilterTypeByName(name, filter_type)) {
+                return InitError(strprintf(_("Unknown -merkrangeindex value %s."), name));
+            }
+            g_enabled_merk_filter_types.insert(filter_type);
+        }
+    }
+
     // Signal NODE_P2P_V2 if BIP324 v2 transport is enabled.
     if (args.GetBoolArg("-v2transport", DEFAULT_V2_TRANSPORT)) {
         nLocalServices = ServiceFlags(nLocalServices | NODE_P2P_V2);
@@ -1192,6 +1216,10 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         }
 
         nLocalServices = ServiceFlags(nLocalServices | NODE_COMPACT_FILTERS);
+    }
+
+    if (g_enabled_merk_filter_types.count(BlockFilterType::BASIC_FILTER) == 1) {
+        nLocalServices = ServiceFlags(nLocalServices | NODE_MERKRANGE);
     }
 
     if (args.GetIntArg("-prune", 0)) {
@@ -1392,6 +1420,9 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         }
         if (g_enabled_filter_types.count(BlockFilterType::BASIC_FILTER)) {
             return InitError(_("-reindex-chainstate option is not compatible with -blockfilterindex. Please temporarily disable blockfilterindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes."));
+        }
+        if (g_enabled_merk_filter_types.count(BlockFilterType::BASIC_FILTER)) {
+            return InitError(_("-reindex-chainstate option is not compatible with -merkrangeindex. Please temporarily disable merkrangeindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes."));
         }
         if (args.GetBoolArg("-txindex", DEFAULT_TXINDEX)) {
             return InitError(_("-reindex-chainstate option is not compatible with -txindex. Please temporarily disable txindex while using -reindex-chainstate, or replace -reindex-chainstate with -reindex to fully rebuild all indexes."));
@@ -1937,7 +1968,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     bool fReindexChainState = args.GetBoolArg("-reindex-chainstate", false);
 
     // cache size calculations
-    CacheSizes cache_sizes = CalculateCacheSizes(args, g_enabled_filter_types.size());
+    CacheSizes cache_sizes = CalculateCacheSizes(args, g_enabled_filter_types.size() + g_enabled_merk_filter_types.size());
 
     int64_t nMempoolSizeMax = args.GetIntArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
     LogPrintf("Cache configuration:\n");
@@ -1947,6 +1978,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
     for (BlockFilterType filter_type : g_enabled_filter_types) {
         LogPrintf("* Using %.1f MiB for %s block filter index database\n",
+                  cache_sizes.filter_index * (1.0 / 1024 / 1024), BlockFilterTypeName(filter_type));
+    }
+    for (BlockFilterType filter_type : g_enabled_merk_filter_types) {
+        LogPrintf("* Using %.1f MiB for %s merk range index database\n",
                   cache_sizes.filter_index * (1.0 / 1024 / 1024), BlockFilterTypeName(filter_type));
     }
     LogPrintf("* Using %.1f MiB for chain state database\n", cache_sizes.coins_db * (1.0 / 1024 / 1024));
@@ -2268,6 +2303,15 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     for (const auto& filter_type : g_enabled_filter_types) {
         InitBlockFilterIndex(filter_type, cache_sizes.filter_index, false, fReindex);
         if (!GetBlockFilterIndex(filter_type)->Start(chainman.ActiveChainstate())) {
+            return false;
+        }
+    }
+
+    for (const auto& filter_type : g_enabled_merk_filter_types) {
+        if (!InitMerkRangeIndex(filter_type, cache_sizes.filter_index, false, fReindex)) {
+            return InitError(strprintf(_("Failed to initialize -merkrangeindex for filter type %s"), BlockFilterTypeName(filter_type)));
+        }
+        if (!GetMerkRangeIndex(filter_type)->Start(chainman.ActiveChainstate())) {
             return false;
         }
     }

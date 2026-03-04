@@ -257,6 +257,7 @@ BITCOIN_CORE_H = \
   i2p.h \
   index/base.h \
   index/blockfilterindex.h \
+  index/merkrangeindex.h \
   index/coinstatsindex.h \
   index/disktxpos.h \
   index/txindex.h \
@@ -543,6 +544,7 @@ libbitcoin_node_a_SOURCES = \
   i2p.cpp \
   index/base.cpp \
   index/blockfilterindex.cpp \
+  index/merkrangeindex.cpp \
   index/coinstatsindex.cpp \
   index/txindex.cpp \
   init.cpp \

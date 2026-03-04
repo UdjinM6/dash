@@ -91,6 +91,8 @@ MAKE_MSG(HEADERS2, "headers2");
 MAKE_MSG(GETQUORUMROTATIONINFO, "getqrinfo");
 MAKE_MSG(QUORUMROTATIONINFO, "qrinfo");
 MAKE_MSG(PLATFORMBAN, "platformban");
+MAKE_MSG(GETMERKRANGE, "getmerkrange");
+MAKE_MSG(MERKRANGE, "merkrange");
 }; // namespace NetMsgType
 
 /** All known message types. Keep this in the same order as the list of
@@ -129,6 +131,8 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::CFHEADERS,
     NetMsgType::GETCFCHECKPT,
     NetMsgType::CFCHECKPT,
+    NetMsgType::GETMERKRANGE,
+    NetMsgType::MERKRANGE,
     NetMsgType::SENDTXRCNCL,
     // Dash message types
     // NOTE: do NOT include non-implmented here, we want them to be "Unknown command" in ProcessMessage()
@@ -350,6 +354,7 @@ static std::string serviceFlagToStr(size_t bit)
     case NODE_NETWORK_LIMITED: return "NETWORK_LIMITED";
     case NODE_HEADERS_COMPRESSED: return "HEADERS_COMPRESSED";
     case NODE_P2P_V2:          return "P2P_V2";
+    case NODE_MERKRANGE: return "MERKRANGE";
     // Not using default, so we get warned when a case is missing
     }
 

@@ -299,6 +299,20 @@ extern const char* HEADERS2;
 extern const char* GETQUORUMROTATIONINFO;
 extern const char* QUORUMROTATIONINFO;
 extern const char* PLATFORMBAN;
+/**
+ * getmerkrange requests a compact filter range proof for the requested block range.
+ * Only available with service bit NODE_MERKRANGE and
+ * protocol version >= MERKRANGE_P2P_VERSION.
+ */
+extern const char* GETMERKRANGE;
+/**
+ * merkrange is a response to a getmerkrange request containing the range proof bytes.
+ * Response includes both requested target_stop_hash and served_stop_hash,
+ * plus the merkrange index tip hash snapshot used to construct the proof,
+ * allowing multi-part proof retrieval without a separate error channel.
+ * Only available with protocol version >= MERKRANGE_P2P_VERSION.
+ */
+extern const char* MERKRANGE;
 };
 
 /* Get a vector of all valid message types (see above) */
@@ -329,6 +343,9 @@ enum ServiceFlags : uint64_t {
 
     // NODE_P2P_V2 means the node supports BIP324 transport
     NODE_P2P_V2 = (1 << 12),
+
+    // Experimental compact filter range proof support.
+    NODE_MERKRANGE = (1 << 25),
 
     // Bits 24-31 are reserved for temporary experiments. Just pick a bit that
     // isn't getting used, or one not being used much, and notify the

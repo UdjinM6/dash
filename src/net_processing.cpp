@@ -14,6 +14,7 @@
 #include <consensus/validation.h>
 #include <hash.h>
 #include <index/blockfilterindex.h>
+#include <index/merkrangeindex.h>
 #include <index/txindex.h>
 #include <merkleblock.h>
 #include <net_types.h>
@@ -23,6 +24,7 @@
 #include <node/txreconciliation.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
+#include <proof.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <random.h>
@@ -69,6 +71,7 @@
 #include <stats/client.h>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <future>
@@ -192,6 +195,14 @@ static_assert(INVENTORY_MAX_RECENT_RELAY >= INVENTORY_BROADCAST_PER_SECOND * UNC
 static constexpr uint32_t MAX_GETCFILTERS_SIZE = 1000;
 /** Maximum number of cf hashes that may be requested with one getcfheaders. See BIP 157. */
 static constexpr uint32_t MAX_GETCFHEADERS_SIZE = 2000;
+/** Maximum number of filters that may be requested with one getmerkrange message. */
+static constexpr uint32_t MAX_GETMERKRANGE_SIZE = 10000;
+/** Maximum payload accepted/sent for merkrange proof data. */
+static constexpr uint32_t MAX_MERKRANGE_PROOF_BYTES = 2 * 1024 * 1024;
+/** Estimated non-filter proof overhead charged per item during initial range sizing. */
+static constexpr uint32_t MERKRANGE_ESTIMATED_PER_FILTER_OVERHEAD = 48;
+/** Fixed-size fields in a merkrange response, excluding CompactSize(proof). */
+static constexpr uint32_t MERKRANGE_RESPONSE_HEADER_BYTES = 1 + 32 + 32 + 32 + 32 + 4 + 4;
 /** the maximum percentage of addresses from our addrman to return in response to a getaddr message. */
 static constexpr size_t MAX_PCT_ADDR_TO_SEND = 23;
 /** The maximum number of address records permitted in an ADDR message. */
@@ -410,6 +421,9 @@ struct Peer {
 
     /** Time of the last getheaders message to this peer */
     NodeClock::time_point m_last_getheaders_timestamp GUARDED_BY(NetEventsInterface::g_msgproc_mutex){};
+
+    /** Total number of getmerkrange requests processed from this peer. */
+    std::atomic<uint64_t> m_getmerkrange_requests{0};
 
     explicit Peer(NodeId id, ServiceFlags our_services)
         : m_id(id)
@@ -933,6 +947,14 @@ private:
      * @param[in]   vRecv           The raw message received
      */
     void ProcessGetCFCheckPt(CNode& node, Peer& peer, CDataStream& vRecv);
+
+    bool PrepareMerkRangeRequest(CNode& node,
+                                  Peer& peer,
+                                  BlockFilterType filter_type,
+                                  const uint256& stop_hash,
+                                  MerkRangeIndex*& merk_index,
+                                  const CBlockIndex** stop_index_out = nullptr) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
+    void ProcessGetMerkRange(CNode& node, Peer& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex);
 
     /** Checks if address relay is permitted with peer. If needed, initializes
      * the m_addr_known bloom filter and sets m_addr_relay_enabled to true.
@@ -1521,6 +1543,9 @@ void PeerManagerImpl::PushNodeVersion(CNode& pnode, const Peer& peer)
     int nProtocolVersion = PROTOCOL_VERSION;
     if (params.NetworkIDString() != CBaseChainParams::MAIN && gArgs.IsArgSet("-pushversion")) {
         nProtocolVersion = gArgs.GetIntArg("-pushversion", PROTOCOL_VERSION);
+    }
+    if (nProtocolVersion < MERKRANGE_P2P_VERSION) {
+        my_services &= ~static_cast<uint64_t>(NODE_MERKRANGE);
     }
 
     const bool tx_relay{!RejectIncomingTxs(pnode)};
@@ -3551,6 +3576,306 @@ void PeerManagerImpl::ProcessGetCFCheckPt(CNode& node, Peer& peer, CDataStream& 
     m_connman.PushMessage(&node, std::move(msg));
 }
 
+bool PeerManagerImpl::PrepareMerkRangeRequest(CNode& node,
+                                               Peer& peer,
+                                               BlockFilterType filter_type,
+                                               const uint256& stop_hash,
+                                               MerkRangeIndex*& merk_index,
+                                               const CBlockIndex** stop_index_out) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex)
+{
+    const bool supported_filter_type =
+        (filter_type == BlockFilterType::BASIC_FILTER &&
+         (peer.m_our_services & NODE_MERKRANGE) &&
+         (node.GetCommonVersion() >= MERKRANGE_P2P_VERSION));
+    if (!supported_filter_type) {
+        LogPrint(BCLog::NET, "peer %d requested unsupported merk filter type: %d\n",
+                 node.GetId(), static_cast<uint8_t>(filter_type));
+        node.fDisconnect = true;
+        return false;
+    }
+
+    {
+        LOCK(cs_main);
+        const CBlockIndex* stop_index = m_chainman.m_blockman.LookupBlockIndex(stop_hash);
+        if (!stop_index) {
+            LogPrint(BCLog::NET, "ignoring getmerkrange for unknown stop hash: peer=%d stop_hash=%s\n",
+                     node.GetId(), stop_hash.ToString());
+            return false;
+        }
+        if (stop_index_out) {
+            *stop_index_out = stop_index;
+        }
+    }
+
+    merk_index = GetMerkRangeIndex(filter_type);
+    if (!merk_index) {
+        LogPrint(BCLog::NET, "Merk filter index for supported type %s not found\n", BlockFilterTypeName(filter_type));
+        return false;
+    }
+
+    return true;
+}
+
+void PeerManagerImpl::ProcessGetMerkRange(CNode& node, Peer& peer, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!m_peer_mutex)
+{
+    if (!(peer.m_our_services & NODE_MERKRANGE) || node.GetCommonVersion() < MERKRANGE_P2P_VERSION) {
+        return;
+    }
+
+    ++peer.m_getmerkrange_requests;
+
+    uint8_t filter_type_ser;
+    uint32_t start_height_ser;
+    uint256 stop_hash;
+    vRecv >> filter_type_ser >> start_height_ser >> stop_hash;
+
+    if (start_height_ser > static_cast<uint32_t>(std::numeric_limits<int>::max())) {
+        Misbehaving(node.GetId(), 100, "getmerkrange start_height out of range");
+        return;
+    }
+    const int start_height = static_cast<int>(start_height_ser);
+    const BlockFilterType filter_type = static_cast<BlockFilterType>(filter_type_ser);
+
+    MerkRangeIndex* merk_index{nullptr};
+    const CBlockIndex* stop_index{nullptr};
+    if (!PrepareMerkRangeRequest(node, peer, filter_type, stop_hash, merk_index, &stop_index)) {
+        return;
+    }
+
+    int target_end_height{-1};
+    {
+        LOCK(cs_main);
+        if (!m_chainman.ActiveChain().Contains(stop_index)) {
+            LogPrint(BCLog::NET, "ignoring getmerkrange for non-active stop hash: stop_hash=%s peer=%d\n",
+                     stop_hash.ToString(), node.GetId());
+            return;
+        }
+        target_end_height = stop_index->nHeight;
+    }
+
+    if (start_height > target_end_height) {
+        Misbehaving(node.GetId(), 100, "getmerkrange start_height after stop_hash height");
+        return;
+    }
+    if (static_cast<uint64_t>(target_end_height - start_height + 1) > MAX_GETMERKRANGE_SIZE) {
+        Misbehaving(node.GetId(), 100, "getmerkrange range too large");
+        return;
+    }
+
+    const bool index_ready = merk_index->BlockUntilSyncedToCurrentChain();
+    const IndexSummary summary = merk_index->GetSummary();
+    const int max_indexed_height = summary.best_block_height;
+    const int max_end_height = index_ready ? target_end_height : std::min(target_end_height, max_indexed_height);
+    if (max_end_height < start_height) {
+        LogPrint(BCLog::NET, /* Continued */
+                 "unable to serve getmerkrange while index is syncing: range=[%d,%d] index_height=%d stop_hash=%s peer=%d\n",
+                 start_height, target_end_height, max_indexed_height, stop_hash.ToString(), node.GetId());
+        return;
+    }
+
+    int initial_end_height = start_height;
+    size_t approx_payload = MERKRANGE_RESPONSE_HEADER_BYTES;
+    bool start_size_lookup_failed = false;
+    auto proof_contains_height = [](const std::vector<uint8_t>& proof, int height) -> bool {
+        std::vector<grovedb::ProofNode> nodes;
+        std::string parse_error;
+        if (!grovedb::CollectKvNodes(proof, &nodes, &parse_error)) {
+            return false;
+        }
+        std::vector<uint8_t> key(4);
+        key[0] = static_cast<uint8_t>((height >> 24) & 0xFF);
+        key[1] = static_cast<uint8_t>((height >> 16) & 0xFF);
+        key[2] = static_cast<uint8_t>((height >> 8) & 0xFF);
+        key[3] = static_cast<uint8_t>(height & 0xFF);
+        for (const auto& node : nodes) {
+            if (node.key == key) {
+                return true;
+            }
+        }
+        return false;
+    };
+    for (int h = start_height; h <= max_end_height; ++h) {
+        size_t filter_size{0};
+        if (!merk_index->GetFilterSizeForHeight(h, filter_size)) {
+            // Estimation lookup may miss transiently (e.g. index catch-up window).
+            // Fall back to the best conservative estimate collected so far.
+            if (h == start_height) {
+                start_size_lookup_failed = true;
+                break;
+            }
+            LogPrint(BCLog::NET, /* Continued */
+                     "merkrange estimate fallback: unable to read filter size at height=%d using_initial_end=%d peer=%d\n",
+                     h, initial_end_height, node.GetId());
+            break;
+        }
+        const size_t estimated_item_bytes = filter_size + MERKRANGE_ESTIMATED_PER_FILTER_OVERHEAD;
+        if (h > start_height && approx_payload + estimated_item_bytes > MAX_MERKRANGE_PROOF_BYTES) {
+            break;
+        }
+        approx_payload += estimated_item_bytes;
+        initial_end_height = h;
+    }
+    if (start_size_lookup_failed) {
+        std::vector<uint8_t> start_probe_proof;
+        std::vector<uint8_t> start_probe_root_hash;
+        if (!merk_index->ProduceRangeProof(start_height, start_height, start_probe_proof, start_probe_root_hash) ||
+            start_probe_proof.empty() || start_probe_root_hash.size() != 32 ||
+            !proof_contains_height(start_probe_proof, start_height)) {
+            LogPrint(BCLog::NET, /* Continued */
+                     "unable to serve getmerkrange: start height proof unavailable or empty for requested key: range=[%d,%d] stop_hash=%s peer=%d\n",
+                     start_height, target_end_height, stop_hash.ToString(), node.GetId());
+            return;
+        }
+        approx_payload = MERKRANGE_RESPONSE_HEADER_BYTES + GetSizeOfCompactSize(start_probe_proof.size()) + start_probe_proof.size();
+        initial_end_height = start_height;
+        LogPrint(BCLog::NET, /* Continued */
+                 "merkrange estimate fallback recovered via start proof probe: range=[%d,%d] proof_bytes=%u peer=%d\n",
+                 start_height, target_end_height, static_cast<unsigned>(start_probe_proof.size()), node.GetId());
+    }
+    LogPrint(BCLog::NET, /* Continued */
+             "merkrange estimate: range=[%d,%d] initial_end=%d approx_bytes=%u index_ready=%d peer=%d\n",
+             start_height, max_end_height, initial_end_height, static_cast<unsigned>(approx_payload), index_ready, node.GetId());
+
+    auto payload_size_for_proof = [&](const std::vector<uint8_t>& proof) {
+        return MERKRANGE_RESPONSE_HEADER_BYTES + GetSizeOfCompactSize(proof.size()) + proof.size();
+    };
+
+    int served_end_height{-1};
+    std::vector<uint8_t> response_proof;
+    std::vector<uint8_t> response_root_hash;
+    uint256 response_snapshot_tip_hash;
+    uint256 served_stop_hash;
+    bool built_response{false};
+    for (int attempt = 0; attempt < 3 && !built_response; ++attempt) {
+        served_end_height = -1;
+        response_proof.clear();
+        response_root_hash.clear();
+        response_snapshot_tip_hash.SetNull();
+        served_stop_hash.SetNull();
+
+        int candidate_end = initial_end_height;
+        int first_failing_end = -1;
+        while (true) {
+            std::vector<uint8_t> proof;
+            std::vector<uint8_t> root_hash;
+            uint256 snapshot_tip_hash;
+            if (!merk_index->ProduceRangeProof(start_height, candidate_end, proof, root_hash, &snapshot_tip_hash)) {
+                LogPrint(BCLog::NET, "failed to produce merkrange proof: range=[%d,%d] stop_hash=%s peer=%d\n",
+                         start_height, candidate_end, stop_hash.ToString(), node.GetId());
+                return;
+            }
+            if (root_hash.size() != 32 || snapshot_tip_hash.IsNull()) {
+                LogPrint(BCLog::NET, "invalid merkrange proof snapshot/root: root_size=%u snapshot=%s range=[%d,%d] peer=%d\n",
+                         static_cast<unsigned>(root_hash.size()), snapshot_tip_hash.ToString(),
+                         start_height, candidate_end, node.GetId());
+                return;
+            }
+            const size_t payload_size = payload_size_for_proof(proof);
+            if (!proof.empty() && payload_size <= MAX_MERKRANGE_PROOF_BYTES) {
+                served_end_height = candidate_end;
+                response_proof = std::move(proof);
+                response_root_hash = std::move(root_hash);
+                response_snapshot_tip_hash = snapshot_tip_hash;
+                break;
+            }
+
+            first_failing_end = candidate_end;
+            if (candidate_end == start_height) {
+                break;
+            }
+            const int span = candidate_end - start_height;
+            candidate_end = start_height + span / 2;
+        }
+
+        if (served_end_height >= start_height && first_failing_end > served_end_height + 1) {
+            int low = served_end_height + 1;
+            int high = first_failing_end - 1;
+            while (low <= high) {
+                const int mid = low + (high - low) / 2;
+                std::vector<uint8_t> proof;
+                std::vector<uint8_t> root_hash;
+                uint256 snapshot_tip_hash;
+                if (!merk_index->ProduceRangeProof(start_height, mid, proof, root_hash, &snapshot_tip_hash)) {
+                    LogPrint(BCLog::NET, "failed to produce merkrange proof: range=[%d,%d] stop_hash=%s peer=%d\n",
+                             start_height, mid, stop_hash.ToString(), node.GetId());
+                    return;
+                }
+                if (root_hash.size() != 32 || snapshot_tip_hash.IsNull()) {
+                    LogPrint(BCLog::NET, "invalid merkrange proof snapshot/root: root_size=%u snapshot=%s range=[%d,%d] peer=%d\n",
+                             static_cast<unsigned>(root_hash.size()), snapshot_tip_hash.ToString(),
+                             start_height, mid, node.GetId());
+                    return;
+                }
+                const size_t payload_size = payload_size_for_proof(proof);
+                if (!proof.empty() && payload_size <= MAX_MERKRANGE_PROOF_BYTES) {
+                    served_end_height = mid;
+                    response_proof = std::move(proof);
+                    response_root_hash = std::move(root_hash);
+                    response_snapshot_tip_hash = snapshot_tip_hash;
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
+            }
+        }
+
+        if (served_end_height < start_height || response_proof.empty() || response_snapshot_tip_hash.IsNull()) {
+            continue;
+        }
+
+        bool coherent{false};
+        {
+            LOCK(cs_main);
+            const CChain& chain = m_chainman.ActiveChain();
+            const CBlockIndex* requested_stop_index = m_chainman.m_blockman.LookupBlockIndex(stop_hash);
+            const CBlockIndex* snapshot_index = m_chainman.m_blockman.LookupBlockIndex(response_snapshot_tip_hash);
+            const CBlockIndex* served_end_index = chain[served_end_height];
+            coherent = requested_stop_index != nullptr &&
+                       chain.Contains(requested_stop_index) &&
+                       snapshot_index != nullptr &&
+                       chain.Contains(snapshot_index) &&
+                       served_end_index != nullptr &&
+                       served_end_height <= snapshot_index->nHeight;
+            if (coherent) {
+                served_stop_hash = served_end_index->GetBlockHash();
+            }
+        }
+        if (coherent) {
+            built_response = true;
+            break;
+        }
+    }
+
+    if (!built_response) {
+        LogPrint(BCLog::NET, /* Continued */
+                 "unable to serve getmerkrange: failed to build coherent merkrange snapshot after retries: range=[%d,%d] stop_hash=%s peer=%d\n",
+                 start_height, target_end_height, stop_hash.ToString(), node.GetId());
+        return;
+    }
+
+    const uint256 root_hash_uint256{Span<const unsigned char>{response_root_hash.data(), response_root_hash.size()}};
+
+    CSerializedNetMsg msg = CNetMsgMaker(node.GetCommonVersion())
+        .Make(NetMsgType::MERKRANGE,
+              filter_type_ser,
+              stop_hash,
+              served_stop_hash,
+              response_snapshot_tip_hash,
+              root_hash_uint256,
+              start_height_ser,
+              static_cast<uint32_t>(served_end_height),
+              response_proof);
+    m_connman.PushMessage(&node, std::move(msg));
+    LogPrint(BCLog::NET, /* Continued */
+             "merkrange prepared: range=[%d,%d] served_end=%d snapshot_tip=%s proof_bytes=%u peer=%d\n",
+             start_height,
+             target_end_height,
+             served_end_height,
+             response_snapshot_tip_hash.ToString(),
+             static_cast<unsigned>(response_proof.size()),
+             node.GetId());
+}
+
 std::pair<bool /*ret*/, bool /*do_return*/> static ValidateDSTX(CDeterministicMNManager& dmnman, CDSTXManager& dstxman, ChainstateManager& chainman,
                                                                 CMasternodeMetaMan& mn_metaman, CTxMemPool& mempool, CCoinJoinBroadcastTx& dstx, uint256 hashTx)
 {
@@ -5407,6 +5732,11 @@ void PeerManagerImpl::ProcessMessage(
 
     if (msg_type == NetMsgType::GETCFCHECKPT) {
         ProcessGetCFCheckPt(pfrom, *peer, vRecv);
+        return;
+    }
+
+    if (msg_type == NetMsgType::GETMERKRANGE) {
+        ProcessGetMerkRange(pfrom, *peer, vRecv);
         return;
     }
 

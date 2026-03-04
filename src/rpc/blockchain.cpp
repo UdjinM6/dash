@@ -20,6 +20,7 @@
 #include <fs.h>
 #include <index/blockfilterindex.h>
 #include <index/coinstatsindex.h>
+#include <index/merkrangeindex.h>
 #include <index/txindex.h>
 #include <kernel/coinstats.h>
 #include <logging/timer.h>
@@ -2672,6 +2673,184 @@ static RPCHelpMan getblockfilter()
     };
 }
 
+static RPCHelpMan getmerkroot()
+{
+    return RPCHelpMan{"getmerkroot",
+                "\nReturns the merk range root hash for a block from an enabled merk range index.\n",
+                {
+                    {"blockhash", RPCArg::Type::STR, RPCArg::Optional::NO, "The hash of the block"},
+                    {"filtertype", RPCArg::Type::STR, RPCArg::Default{BlockFilterTypeName(BlockFilterType::BASIC_FILTER)}, "The type name of the filter"},
+                },
+                RPCResult{
+                    RPCResult::Type::STR_HEX, "", "Merk root hash (32-byte hex)",
+                },
+                RPCExamples{
+                    HelpExampleCli("getmerkroot", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\" \"basic\"")
+                  + HelpExampleRpc("getmerkroot", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\", \"basic\"")
+                },
+                [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    uint256 block_hash(ParseHashV(request.params[0], "blockhash"));
+    std::string filter_name = BlockFilterTypeName(BlockFilterType::BASIC_FILTER);
+    if (!request.params[1].isNull()) {
+        filter_name = request.params[1].get_str();
+    }
+
+    BlockFilterType filter_type;
+    if (!BlockFilterTypeByName(filter_name, filter_type)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Unknown filter type %s", filter_name));
+    }
+
+    MerkRangeIndex* index = GetMerkRangeIndex(filter_type);
+    if (!index) {
+        throw JSONRPCError(RPC_MISC_ERROR, strprintf("merk range index is not enabled for filter type %s", filter_name));
+    }
+
+    const CBlockIndex* block_index = nullptr;
+    bool block_was_connected;
+    ChainstateManager& chainman = EnsureAnyChainman(request.context);
+    {
+        LOCK(cs_main);
+        block_index = chainman.m_blockman.LookupBlockIndex(block_hash);
+        if (!block_index) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+        }
+        block_was_connected = block_index->IsValid(BLOCK_VALID_SCRIPTS);
+    }
+
+    const bool index_ready = index->BlockUntilSyncedToCurrentChain();
+
+    std::vector<uint8_t> root_hash_bytes;
+    if (!index->GetMerkRootHashForBlock(block_hash, root_hash_bytes) || root_hash_bytes.size() != 32) {
+        int err_code;
+        std::string errmsg = "Merk root hash not found.";
+
+        if (!block_was_connected) {
+            err_code = RPC_INVALID_ADDRESS_OR_KEY;
+            errmsg += " Block was not connected to active chain.";
+        } else if (!index_ready) {
+            err_code = RPC_MISC_ERROR;
+            errmsg += " Merk range roots are still in the process of being indexed.";
+        } else {
+            err_code = RPC_INTERNAL_ERROR;
+            errmsg += " This error is unexpected and indicates index corruption.";
+        }
+
+        throw JSONRPCError(err_code, errmsg);
+    }
+    const uint256 root_hash{Span<const unsigned char>{root_hash_bytes.data(), root_hash_bytes.size()}};
+
+    return root_hash.GetHex();
+},
+    };
+}
+
+static RPCHelpMan getmerkrange()
+{
+    return RPCHelpMan{"getmerkrange",
+                "\nReturns a merk compact filter range proof for [start_height, stop_height].\n",
+                {
+                    {"start_height", RPCArg::Type::NUM, RPCArg::Optional::NO, "Start block height (inclusive)"},
+                    {"stop_height", RPCArg::Type::NUM, RPCArg::Optional::NO, "Stop block height (inclusive)"},
+                    {"filtertype", RPCArg::Type::STR, RPCArg::Default{BlockFilterTypeName(BlockFilterType::BASIC_FILTER)}, "The type name of the filter"},
+                },
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::STR_HEX, "snapshot_tip_hash", "Merk range snapshot tip hash used for proof construction"},
+                        {RPCResult::Type::STR_HEX, "root_hash", "Merk root hash (32-byte hex)"},
+                        {RPCResult::Type::STR_HEX, "proof", "Serialized range proof bytes"},
+                        {RPCResult::Type::NUM, "proof_size", "Size of proof in bytes"},
+                    }
+                },
+                RPCExamples{
+                    HelpExampleCli("getmerkrange", "0 100 \"basic\"")
+                  + HelpExampleRpc("getmerkrange", "0, 100, \"basic\"")
+                },
+                [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    const int start_height = request.params[0].getInt<int>();
+    const int stop_height = request.params[1].getInt<int>();
+    if (start_height < 0 || stop_height < 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "start_height and stop_height must be non-negative");
+    }
+    if (start_height > stop_height) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "start_height must be <= stop_height");
+    }
+
+    std::string filter_name = BlockFilterTypeName(BlockFilterType::BASIC_FILTER);
+    if (!request.params[2].isNull()) {
+        filter_name = request.params[2].get_str();
+    }
+
+    BlockFilterType filter_type;
+    if (!BlockFilterTypeByName(filter_name, filter_type)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Unknown filter type %s", filter_name));
+    }
+
+    MerkRangeIndex* index = GetMerkRangeIndex(filter_type);
+    if (!index) {
+        throw JSONRPCError(RPC_MISC_ERROR, strprintf("merk range index is not enabled for filter type %s", filter_name));
+    }
+
+    ChainstateManager& chainman = EnsureAnyChainman(request.context);
+    {
+        LOCK(cs_main);
+        const CChain& chain = chainman.ActiveChain();
+        if (stop_height > chain.Height()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("stop_height %d is above active chain tip height %d", stop_height, chain.Height()));
+        }
+    }
+
+    const bool index_ready = index->BlockUntilSyncedToCurrentChain();
+
+    std::vector<uint8_t> proof;
+    std::vector<uint8_t> root_hash;
+    uint256 snapshot_tip_hash;
+    bool built_response{false};
+    for (int attempt = 0; attempt < 3; ++attempt) {
+        proof.clear();
+        root_hash.clear();
+        snapshot_tip_hash.SetNull();
+        if (!index->ProduceRangeProof(start_height, stop_height, proof, root_hash, &snapshot_tip_hash) ||
+            root_hash.size() != 32 || snapshot_tip_hash.IsNull()) {
+            continue;
+        }
+        bool coherent{false};
+        {
+            LOCK(cs_main);
+            const CChain& chain = chainman.ActiveChain();
+            const CBlockIndex* snapshot_index = chainman.m_blockman.LookupBlockIndex(snapshot_tip_hash);
+            const CBlockIndex* stop_index = chain[stop_height];
+            coherent = snapshot_index != nullptr &&
+                       chain.Contains(snapshot_index) &&
+                       stop_index != nullptr &&
+                       stop_height <= snapshot_index->nHeight;
+        }
+        if (coherent) {
+            built_response = true;
+            break;
+        }
+    }
+    if (!built_response) {
+        const IndexSummary summary = index->GetSummary();
+        if (!index_ready && summary.best_block_height < stop_height) {
+            throw JSONRPCError(RPC_MISC_ERROR, "Merk range index is still syncing");
+        }
+        throw JSONRPCError(RPC_MISC_ERROR, "unable to build coherent merkrange snapshot, retry");
+    }
+    const uint256 root_hash_uint256{Span<const unsigned char>{root_hash.data(), root_hash.size()}};
+
+    UniValue ret(UniValue::VOBJ);
+    ret.pushKV("snapshot_tip_hash", snapshot_tip_hash.GetHex());
+    ret.pushKV("root_hash", root_hash_uint256.GetHex());
+    ret.pushKV("proof", HexStr(proof));
+    ret.pushKV("proof_size", static_cast<uint64_t>(proof.size()));
+    return ret;
+},
+    };
+}
+
 /**
  * Serialize the UTXO set to a file for loading elsewhere.
  *
@@ -2833,6 +3012,8 @@ void RegisterBlockchainRPCCommands(CRPCTable& t)
         {"blockchain", &preciousblock},
         {"blockchain", &scantxoutset},
         {"blockchain", &getblockfilter},
+        {"blockchain", &getmerkroot},
+        {"blockchain", &getmerkrange},
         {"hidden", &invalidateblock},
         {"hidden", &reconsiderblock},
         {"hidden", &waitfornewblock},
