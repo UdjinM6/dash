@@ -7,7 +7,7 @@
 print-%: FORCE
 	@echo '$*'='$($*)'
 
-DIST_SUBDIRS = secp256k1
+DIST_SUBDIRS = secp256k1 grovedb-cpp
 
 AM_LDFLAGS = $(LIBTOOL_LDFLAGS) $(HARDENED_LDFLAGS) $(GPROF_LDFLAGS) $(SANITIZER_LDFLAGS) $(CORE_LDFLAGS) $(BACKTRACE_LDFLAGS)
 AM_CFLAGS = $(DEBUG_CFLAGS) $(BACKTRACE_FLAGS)
@@ -44,6 +44,7 @@ endif # ENABLE_STACKTRACES
 BITCOIN_INCLUDES=-I$(builddir) -I$(srcdir)/$(MINISKETCH_INCLUDE_DIR_INT) -I$(srcdir)/secp256k1/include -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(LEVELDB_CPPFLAGS)
 BITCOIN_INCLUDES+=-isystem$(srcdir)/dashbls/include -isystem$(srcdir)/dashbls/depends/relic/include -isystem$(srcdir)/dashbls/depends/minialloc/include
 BITCOIN_INCLUDES+=-isystem$(srcdir)/immer
+BITCOIN_INCLUDES+=-isystem$(srcdir)/grovedb-cpp/include $(ROCKSDB_CFLAGS)
 
 LIBBITCOIN_NODE=libbitcoin_node.a
 LIBBITCOIN_COMMON=libbitcoin_common.a
@@ -54,6 +55,7 @@ LIBBITCOIN_CRYPTO_BASE=crypto/libbitcoin_crypto_base.la
 LIBBITCOINQT=qt/libbitcoinqt.a
 LIBDASHBLS=dashbls/libdashbls.la
 LIBSECP256K1=secp256k1/libsecp256k1.la
+LIBGROVEDB_CPP=grovedb-cpp/src/libgrovedb_cpp.la
 
 if ENABLE_ZMQ
 LIBBITCOIN_ZMQ=libbitcoin_zmq.a
@@ -108,6 +110,10 @@ $(LIBDASHBLS):
 
 $(LIBSECP256K1): $(wildcard secp256k1/src/*.h) $(wildcard secp256k1/src/*.c) $(wildcard secp256k1/include/*)
 	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C $(@D) $(@F)
+
+$(LIBGROVEDB_CPP):
+	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C grovedb-cpp/third_party/blake3 libblake3.la
+	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C grovedb-cpp/src libgrovedb_cpp.la
 
 # Make is not made aware of per-object dependencies to avoid limiting building parallelization
 # But to build the less dependent modules first, we manually select their order here:
@@ -1043,6 +1049,7 @@ bitcoin_daemon_sources += dashd-res.rc
 endif
 
 bitcoin_bin_ldadd = \
+  $(LIBGROVEDB_CPP) \
   $(LIBBITCOIN_WALLET) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UTIL) \
@@ -1055,7 +1062,7 @@ bitcoin_bin_ldadd = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-bitcoin_bin_ldadd += $(BACKTRACE_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(SQLITE_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(GMP_LIBS)
+bitcoin_bin_ldadd += $(BACKTRACE_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(SQLITE_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(GMP_LIBS) $(ROCKSDB_LIBS)
 
 dashd_SOURCES = $(bitcoin_daemon_sources) init/bitcoind.cpp
 dashd_CPPFLAGS = $(bitcoin_bin_cppflags)
@@ -1204,11 +1211,13 @@ CLEANFILES += obj/build.h
 
 IMMER_DIST = immer/immer
 LIBDASHBLS_DIST = dashbls
+LIBGROVEDB_CPP_DIST = grovedb-cpp
 
 EXTRA_DIST = \
   $(CTAES_DIST)   \
   $(IMMER_DIST)   \
-  $(LIBDASHBLS_DIST)
+  $(LIBDASHBLS_DIST) \
+  $(LIBGROVEDB_CPP_DIST)
 
 config/bitcoin-config.h: config/stamp-h1
 	@$(MAKE) -C $(top_builddir) $(subdir)/$(@)
@@ -1220,6 +1229,7 @@ $(top_srcdir)/$(subdir)/config/bitcoin-config.h.in:  $(am__configure_deps)
 
 clean-local:
 	-$(MAKE) -C dashbls clean
+	-$(MAKE) -C grovedb-cpp clean
 	-$(MAKE) -C secp256k1 clean
 	-rm -f leveldb/*/*.gcda leveldb/*/*.gcno leveldb/helpers/memenv/*.gcda leveldb/helpers/memenv/*.gcno
 	-rm -f config.h

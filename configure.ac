@@ -1709,6 +1709,15 @@ if test "$use_zmq" = "yes"; then
   esac
 fi
 
+dnl RocksDB check (required for merk range compact filter index)
+PKG_CHECK_MODULES([ROCKSDB], [rocksdb], [], [AC_MSG_ERROR([rocksdb not found. Install rocksdb development package or provide it through depends.])])
+if test "$suppress_external_warnings" != "no" ; then
+  ROCKSDB_CFLAGS=SUPPRESS_WARNINGS($ROCKSDB_CFLAGS)
+fi
+if test "$TARGET_OS" = "windows"; then
+  ROCKSDB_LIBS="$ROCKSDB_LIBS -lrpcrt4 -lshlwapi"
+fi
+
 dnl check if libgmp is present
 TEMP_CPPFLAGS="$CPPFLAGS"
 TEMP_LDFLAGS="$LDFLAGS"
@@ -2045,6 +2054,8 @@ AC_SUBST(BACKTRACE_LIBS)
 AC_SUBST(GMP_LIBS)
 AC_SUBST(NATPMP_CPPFLAGS)
 AC_SUBST(NATPMP_LIBS)
+AC_SUBST(ROCKSDB_CFLAGS)
+AC_SUBST(ROCKSDB_LIBS)
 AC_SUBST(DSYMUTIL_FLAT)
 AC_SUBST(HAVE_FDATASYNC)
 AC_SUBST(HAVE_FULLFSYNC)
@@ -2077,8 +2088,54 @@ CPPFLAGS_TEMP="$CPPFLAGS"
 unset CPPFLAGS
 CPPFLAGS="$CPPFLAGS_TEMP"
 
-ac_configure_args="${ac_configure_args} --disable-shared --with-pic --enable-benchmark=no --enable-module-recovery --disable-module-ecdh --disable-openssl-tests"
-AC_CONFIG_SUBDIRS([src/dashbls src/secp256k1])
+# Keep grovedb-cpp on the same RocksDB installation as the top-level build.
+# This avoids ABI mismatches when both Homebrew and depends versions are present.
+GROVEDB_ROCKSDB_DIR=
+GROVEDB_ROCKSDB_LIBDIR=`$PKG_CONFIG --variable=libdir rocksdb 2>/dev/null`
+if test -n "$GROVEDB_ROCKSDB_LIBDIR"; then
+  rocksdb_libdir="${GROVEDB_ROCKSDB_LIBDIR%/}"
+  case "$rocksdb_libdir" in
+    */lib)
+      GROVEDB_ROCKSDB_DIR="${rocksdb_libdir%/lib}"
+      ;;
+    */lib64)
+      GROVEDB_ROCKSDB_DIR="${rocksdb_libdir%/lib64}"
+      ;;
+    *)
+      GROVEDB_ROCKSDB_DIR=`dirname "$rocksdb_libdir"`
+      ;;
+  esac
+fi
+
+if test -z "$GROVEDB_ROCKSDB_DIR"; then
+  for rocksdb_arg in $ROCKSDB_LIBS; do
+    case "$rocksdb_arg" in
+      -L*)
+        rocksdb_libdir="${rocksdb_arg#-L}"
+        rocksdb_libdir="${rocksdb_libdir%/}"
+        case "$rocksdb_libdir" in
+          */lib)
+            GROVEDB_ROCKSDB_DIR="${rocksdb_libdir%/lib}"
+            ;;
+          */lib64)
+            GROVEDB_ROCKSDB_DIR="${rocksdb_libdir%/lib64}"
+            ;;
+          *)
+            GROVEDB_ROCKSDB_DIR=`dirname "$rocksdb_libdir"`
+            ;;
+        esac
+        break
+        ;;
+    esac
+  done
+fi
+
+if test -z "$GROVEDB_ROCKSDB_DIR"; then
+  AC_MSG_ERROR([Unable to derive RocksDB prefix; pkg-config libdir is '$GROVEDB_ROCKSDB_LIBDIR' and ROCKSDB_LIBS is '$ROCKSDB_LIBS'])
+fi
+
+ac_configure_args="${ac_configure_args} --disable-shared --with-pic --enable-benchmark=no --enable-module-recovery --disable-module-ecdh --disable-openssl-tests --with-rocksdb=$GROVEDB_ROCKSDB_DIR"
+AC_CONFIG_SUBDIRS([src/dashbls src/grovedb-cpp src/secp256k1])
 
 AC_OUTPUT
 
