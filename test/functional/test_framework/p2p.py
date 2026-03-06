@@ -52,6 +52,7 @@ from test_framework.messages import (
     msg_getcfcheckpt,
     msg_getcfheaders,
     msg_getcfilters,
+    msg_getmerkrange,
     msg_getdata,
     msg_getheaders,
     msg_getheaders2,
@@ -62,6 +63,7 @@ from test_framework.messages import (
     msg_isdlock,
     msg_mempool,
     msg_mnlistdiff,
+    msg_merkrange,
     msg_merkleblock,
     msg_notfound,
     msg_ping,
@@ -100,8 +102,8 @@ logger = logging.getLogger("TestFramework.p2p")
 # The minimum P2P version that this test framework supports
 MIN_P2P_VERSION_SUPPORTED = 60001
 # The P2P version that this test framework implements and sends in its `version` message
-# Version 70240 introduced PLATFORMBAN to v2 short IDs
-P2P_VERSION = 70240
+# Version 70241 introduced merk range p2p messages
+P2P_VERSION = 70241
 # The services that this test framework offers in its `version` message
 P2P_SERVICES = NODE_NETWORK | NODE_HEADERS_COMPRESSED
 # The P2P user agent string that this test framework sends in its `version` message
@@ -129,6 +131,7 @@ MESSAGEMAP = {
     b"getcfcheckpt": msg_getcfcheckpt,
     b"getcfheaders": msg_getcfheaders,
     b"getcfilters": msg_getcfilters,
+    b"getmerkrange": msg_getmerkrange,
     b"getdata": msg_getdata,
     b"getheaders": msg_getheaders,
     b"headers": msg_headers,
@@ -165,6 +168,7 @@ MESSAGEMAP = {
     b"isdlock": msg_isdlock,
     b"mnauth": None,
     b"mnlistdiff": msg_mnlistdiff,
+    b"merkrange": msg_merkrange,
     b"notfound": msg_notfound,
     b"platformban": msg_platformban,
     b"qbsigs": None,
@@ -589,6 +593,7 @@ class P2PInterface(P2PConnection):
     def on_getdata(self, message): pass
     def on_getheaders(self, message): pass
     def on_getheaders2(self, message): pass
+    def on_merkrange(self, message): pass
     def on_headers(self, message): pass
     def on_headers2(self, message): pass
     def on_mempool(self, message): pass

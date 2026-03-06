@@ -81,12 +81,12 @@ class RpcMiscTest(BitcoinTestFramework):
         assert_equal(node.echoipc("hello"), "hello")
 
         self.log.info("test getindexinfo")
-        self.restart_node(0, ["-txindex=0", "-blockfilterindex=0", "-peerblockfilters=0"])
+        self.restart_node(0, ["-txindex=0", "-blockfilterindex=0", "-merkrangeindex=0", "-peerblockfilters=0"])
         # Without any indices running the RPC returns an empty object
         assert_equal(node.getindexinfo(), {})
 
         # Restart the node with indices and wait for them to sync
-        self.restart_node(0, ["-txindex", "-blockfilterindex", "-coinstatsindex"])
+        self.restart_node(0, ["-txindex", "-blockfilterindex", "-merkrangeindex=basic", "-coinstatsindex"])
         self.wait_until(lambda: all(i["synced"] for i in node.getindexinfo().values()))
 
         # Returns a list of all running indices by default
@@ -96,11 +96,12 @@ class RpcMiscTest(BitcoinTestFramework):
             {
                 "txindex": values,
                 "basic block filter index": values,
+                "basic merk range index": values,
                 "coinstatsindex": values,
             }
         )
         # Specifying an index by name returns only the status of that index
-        for i in {"txindex", "basic block filter index", "coinstatsindex"}:
+        for i in {"txindex", "basic block filter index", "basic merk range index", "coinstatsindex"}:
             assert_equal(node.getindexinfo(i), {i: values})
 
         # Specifying an unknown index name returns an empty result

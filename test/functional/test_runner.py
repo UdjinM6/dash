@@ -372,6 +372,7 @@ BASE_SCRIPTS = [
     'p2p_add_connections.py',
     'feature_bind_port_discover.py',
     'p2p_blockfilters.py',
+    'p2p_merkrange.py',
     'p2p_message_capture.py',
     'feature_addrman.py',
     'feature_asmap.py',

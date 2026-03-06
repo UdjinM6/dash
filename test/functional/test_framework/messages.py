@@ -54,6 +54,7 @@ NODE_COMPACT_FILTERS = (1 << 6)
 NODE_NETWORK_LIMITED = (1 << 10)
 NODE_HEADERS_COMPRESSED = (1 << 11)
 NODE_P2P_V2 = (1 << 12)
+NODE_MERKRANGE = (1 << 25)
 
 MSG_TX = 1
 MSG_BLOCK = 2
@@ -2588,6 +2589,71 @@ class msg_cfilter:
     def __repr__(self):
         return "msg_cfilter(filter_type={:#x}, block_hash={:x})".format(
             self.filter_type, self.block_hash)
+
+class msg_getmerkrange:
+    __slots__ = ("filter_type", "start_height", "stop_hash")
+    msgtype = b"getmerkrange"
+
+    def __init__(self, filter_type=None, start_height=None, stop_hash=None):
+        self.filter_type = filter_type
+        self.start_height = start_height
+        self.stop_hash = stop_hash
+
+    def deserialize(self, f):
+        self.filter_type = struct.unpack("<B", f.read(1))[0]
+        self.start_height = struct.unpack("<I", f.read(4))[0]
+        self.stop_hash = deser_uint256(f)
+
+    def serialize(self):
+        r = b""
+        r += struct.pack("<B", self.filter_type)
+        r += struct.pack("<I", self.start_height)
+        r += ser_uint256(self.stop_hash)
+        return r
+
+    def __repr__(self):
+        return "msg_getmerkrange(filter_type={:#x}, start_height={}, stop_hash={:x})".format(
+            self.filter_type, self.start_height, self.stop_hash)
+
+class msg_merkrange:
+    __slots__ = ("filter_type", "target_stop_hash", "served_stop_hash", "snapshot_tip_hash", "root_hash", "start_height", "end_height", "proof")
+    msgtype = b"merkrange"
+
+    def __init__(self, filter_type=None, target_stop_hash=None, served_stop_hash=None, snapshot_tip_hash=None, root_hash=None, start_height=None, end_height=None, proof=b""):
+        self.filter_type = filter_type
+        self.target_stop_hash = target_stop_hash
+        self.served_stop_hash = served_stop_hash
+        self.snapshot_tip_hash = snapshot_tip_hash
+        self.root_hash = root_hash
+        self.start_height = start_height
+        self.end_height = end_height
+        self.proof = proof
+
+    def deserialize(self, f):
+        self.filter_type = struct.unpack("<B", f.read(1))[0]
+        self.target_stop_hash = deser_uint256(f)
+        self.served_stop_hash = deser_uint256(f)
+        self.snapshot_tip_hash = deser_uint256(f)
+        self.root_hash = deser_uint256(f)
+        self.start_height = struct.unpack("<I", f.read(4))[0]
+        self.end_height = struct.unpack("<I", f.read(4))[0]
+        self.proof = deser_string(f)
+
+    def serialize(self):
+        r = b""
+        r += struct.pack("<B", self.filter_type)
+        r += ser_uint256(self.target_stop_hash)
+        r += ser_uint256(self.served_stop_hash)
+        r += ser_uint256(self.snapshot_tip_hash)
+        r += ser_uint256(self.root_hash)
+        r += struct.pack("<I", self.start_height)
+        r += struct.pack("<I", self.end_height)
+        r += ser_string(self.proof)
+        return r
+
+    def __repr__(self):
+        return "msg_merkrange(filter_type={:#x}, target_stop_hash={:x}, served_stop_hash={:x}, snapshot_tip_hash={:x}, root_hash={:x}, start_height={}, end_height={}, proof={})".format(
+            self.filter_type, self.target_stop_hash, self.served_stop_hash, self.snapshot_tip_hash, self.root_hash, self.start_height, self.end_height, len(self.proof))
 
 class msg_getcfheaders:
     __slots__ = ("filter_type", "start_height", "stop_hash")
