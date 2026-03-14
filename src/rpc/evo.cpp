@@ -1587,7 +1587,7 @@ static uint256 ParseBlock(const UniValue& v, const ChainstateManager& chainman, 
     try {
         return ParseHashV(v, strName);
     } catch (...) {
-        int h = v.getInt<int>();
+        int h = v.isNum() ? v.getInt<int>() : LocaleIndependentAtoi<int>(v.get_str());
         if (h < 1 || h > chainman.ActiveChain().Height())
             throw std::runtime_error(strprintf("%s must be a block hash or chain height and not %s", strName, v.getValStr()));
         return *chainman.ActiveChain()[h]->phashBlock;
@@ -1599,8 +1599,8 @@ static RPCHelpMan protx_diff()
     return RPCHelpMan{"protx diff",
         "\nCalculates a diff between two deterministic masternode lists. The result also contains proof data.\n",
         {
-            {"baseBlock", RPCArg::Type::NUM, RPCArg::Optional::NO, "The starting block height."},
-            {"block", RPCArg::Type::NUM, RPCArg::Optional::NO, "The ending block height."},
+            {"baseBlock", RPCArg::Type::STR, RPCArg::Optional::NO, "The starting block hash or height."},
+            {"block", RPCArg::Type::STR, RPCArg::Optional::NO, "The ending block hash or height."},
             {"extended", RPCArg::Type::BOOL, RPCArg::Optional::OMITTED, "Show additional fields."},
         },
         CSimplifiedMNListDiff::GetJsonHelp(/*key=*/"", /*optional=*/false),
@@ -1646,9 +1646,9 @@ static const CBlockIndex* ParseBlockIndex(const UniValue& v, const ChainstateMan
             throw std::runtime_error(strprintf("Block %s with hash %s not found", strName, v.getValStr()));
         return pblockindex;
     } catch (...) {
-        int h = v.getInt<int>();
+        int h = v.isNum() ? v.getInt<int>() : LocaleIndependentAtoi<int>(v.get_str());
         if (h < 1 || h > chainman.ActiveChain().Height())
-            throw std::runtime_error(strprintf("%s must be a chain height and not %s", strName, v.getValStr()));
+            throw std::runtime_error(strprintf("%s must be a block hash or chain height and not %s", strName, v.getValStr()));
         return chainman.ActiveChain()[h];
     }
 }
@@ -1658,8 +1658,8 @@ static RPCHelpMan protx_listdiff()
     return RPCHelpMan{"protx listdiff",
                "\nCalculate a full MN list diff between two masternode lists.\n",
                {
-                       {"baseBlock", RPCArg::Type::NUM, RPCArg::Optional::NO, "The starting block height."},
-                       {"block", RPCArg::Type::NUM, RPCArg::Optional::NO, "The ending block height."},
+                       {"baseBlock", RPCArg::Type::STR, RPCArg::Optional::NO, "The starting block hash or height."},
+                       {"block", RPCArg::Type::STR, RPCArg::Optional::NO, "The ending block hash or height."},
                },
                 RPCResult {
                     RPCResult::Type::OBJ, "", "",
@@ -1834,8 +1834,8 @@ static RPCHelpMan evodb_verify()
         "This is a read-only operation that does not modify the database.\n"
         "If no heights are specified, defaults to the full range from DIP0003 activation to chain tip.\n",
         {
-            {"startBlock", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "The starting block height (defaults to DIP0003 activation height)."},
-            {"stopBlock", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "The ending block height (defaults to current chain tip)."},
+            {"startBlock", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "The starting block hash or height (defaults to DIP0003 activation height)."},
+            {"stopBlock", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "The ending block hash or height (defaults to current chain tip)."},
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "",
@@ -1872,8 +1872,8 @@ static RPCHelpMan evodb_repair()
         "If verification fails, recalculates diffs from blockchain data and replaces corrupted records.\n"
         "If no heights are specified, defaults to the full range from DIP0003 activation to chain tip.\n",
         {
-            {"startBlock", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "The starting block height (defaults to DIP0003 activation height)."},
-            {"stopBlock", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "The ending block height (defaults to current chain tip)."},
+            {"startBlock", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "The starting block hash or height (defaults to DIP0003 activation height)."},
+            {"stopBlock", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "The ending block hash or height (defaults to current chain tip)."},
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "",
