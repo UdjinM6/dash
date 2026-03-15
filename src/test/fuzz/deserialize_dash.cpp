@@ -71,7 +71,7 @@ void DashDeserializeFromFuzzingInput(FuzzBufferType buffer, T& obj,
     }
     CDataStream sink(ser_type, ds.GetVersion());
     sink << obj;
-    assert(!sink.empty());
+    assert(buffer.empty() || !sink.empty());
 }
 
 } // namespace

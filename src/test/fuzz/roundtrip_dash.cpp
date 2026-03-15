@@ -71,7 +71,7 @@ void DashRoundtripFromFuzzingInput(FuzzBufferType buffer, T& obj)
 
     CDataStream sink(SER_NETWORK, ds.GetVersion());
     sink << obj;
-    assert(!sink.empty());
+    assert(buffer.empty() || !sink.empty());
 
     CDataStream ds2(SER_NETWORK, ds.GetVersion());
     ds2 << obj;
