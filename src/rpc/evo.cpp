@@ -1587,7 +1587,12 @@ static uint256 ParseBlock(const UniValue& v, const ChainstateManager& chainman, 
     try {
         return ParseHashV(v, strName);
     } catch (...) {
-        int h = v.isNum() ? v.getInt<int>() : LocaleIndependentAtoi<int>(v.get_str());
+        int32_t h;
+        if (v.isNum()) {
+            h = v.getInt<int>();
+        } else if (!ParseInt32(v.get_str(), &h)) {
+            throw std::runtime_error(strprintf("%s must be a block hash or chain height and not %s", strName, v.getValStr()));
+        }
         if (h < 1 || h > chainman.ActiveChain().Height())
             throw std::runtime_error(strprintf("%s must be a block hash or chain height and not %s", strName, v.getValStr()));
         return *chainman.ActiveChain()[h]->phashBlock;
@@ -1646,7 +1651,12 @@ static const CBlockIndex* ParseBlockIndex(const UniValue& v, const ChainstateMan
             throw std::runtime_error(strprintf("Block %s with hash %s not found", strName, v.getValStr()));
         return pblockindex;
     } catch (...) {
-        int h = v.isNum() ? v.getInt<int>() : LocaleIndependentAtoi<int>(v.get_str());
+        int32_t h;
+        if (v.isNum()) {
+            h = v.getInt<int>();
+        } else if (!ParseInt32(v.get_str(), &h)) {
+            throw std::runtime_error(strprintf("%s must be a block hash or chain height and not %s", strName, v.getValStr()));
+        }
         if (h < 1 || h > chainman.ActiveChain().Height())
             throw std::runtime_error(strprintf("%s must be a block hash or chain height and not %s", strName, v.getValStr()));
         return chainman.ActiveChain()[h];
