@@ -21,8 +21,10 @@
 #include <llmq/snapshot.h>
 #include <llmq/utils.h>
 #include <rpc/evo_util.h>
+#include <util/helpers.h>
 
 #include <chainparams.h>
+#include <core_io.h>
 #include <deploymentstatus.h>
 #include <index/txindex.h>
 #include <net_processing.h>
@@ -209,7 +211,9 @@ static UniValue BuildQuorumInfo(const llmq::CQuorumBlockProcessor& quorum_block_
             const auto& dmn = quorum.members[i];
             UniValue mo(UniValue::VOBJ);
             mo.pushKV("proTxHash", dmn->proTxHash.ToString());
-            mo.pushKV("service", dmn->pdmnState->netInfo->GetPrimary().ToStringAddrPort());
+            if (IsDeprecatedRPCEnabled("service")) {
+                mo.pushKV("service", dmn->pdmnState->netInfo->GetPrimary().ToStringAddrPort());
+            }
             mo.pushKV("addresses", GetNetInfoWithLegacyFields(*dmn->pdmnState, dmn->nType));
             mo.pushKV("pubKeyOperator", dmn->pdmnState->pubKeyOperator.ToString());
             mo.pushKV("valid", static_cast<bool>(quorum.qc->validMembers[i]));
@@ -259,7 +263,7 @@ static RPCHelpMan quorum_info()
                         {RPCResult::Type::OBJ, "", "",
                         {
                             GetRpcResult("proTxHash"),
-                            GetRpcResult("service"),
+                            GetRpcResult("service", /*optional=*/true),
                             GetRpcResult("addresses"),
                             GetRpcResult("pubKeyOperator"),
                             {RPCResult::Type::BOOL, "valid", "True if member is valid for this DKG"},
@@ -366,7 +370,7 @@ static RPCHelpMan quorum_dkgstatus()
         bool rotation_enabled = llmq::IsQuorumRotationEnabled(llmq_params, pindexTip);
         int quorums_num = rotation_enabled ? llmq_params.signingActiveQuorumCount : 1;
 
-        for (const int quorumIndex : irange::range(quorums_num)) {
+        for (const int quorumIndex : util::irange(quorums_num)) {
             UniValue obj(UniValue::VOBJ);
             obj.pushKV("llmqType", std::string(llmq_params.name));
             obj.pushKV("quorumIndex", quorumIndex);

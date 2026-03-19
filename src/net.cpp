@@ -21,6 +21,7 @@
 #include <node/eviction.h>
 #include <fs.h>
 #include <i2p.h>
+#include <key.h>
 #include <memusage.h>
 #include <net_permissions.h>
 #include <netaddress.h>
@@ -37,14 +38,14 @@
 #include <util/time.h>
 #include <util/trace.h>
 #include <util/translation.h>
-#include <util/vector.h>
-#include <util/wpipe.h>
 
+#include <evo/deterministicmns.h>
 #include <masternode/meta.h>
 #include <masternode/sync.h>
-#include <evo/deterministicmns.h>
-
 #include <stats/client.h>
+#include <util/std23.h>
+#include <util/vector.h>
+#include <util/wpipe.h>
 
 #ifdef WIN32
 #include <string.h>
@@ -1056,13 +1057,6 @@ public:
 };
 
 const V2MessageMap V2_MESSAGE_MAP;
-
-CKey GenerateRandomKey() noexcept
-{
-    CKey key;
-    key.MakeNewKey(/*fCompressed=*/true);
-    return key;
-}
 
 std::vector<uint8_t> GenerateRandomGarbage() noexcept
 {
@@ -4319,7 +4313,7 @@ bool CConnman::AddedNodesContain(const CAddress& addr) const
 bool CConnman::AddPendingMasternode(const uint256& proTxHash)
 {
     LOCK(cs_vPendingMasternodes);
-    if (std::find(vPendingMasternodes.begin(), vPendingMasternodes.end(), proTxHash) != vPendingMasternodes.end()) {
+    if (std23::ranges::contains(vPendingMasternodes, proTxHash)) {
         return false;
     }
 

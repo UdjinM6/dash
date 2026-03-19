@@ -4,19 +4,23 @@
 
 #include <llmq/net_signing.h>
 
+#include <bls/bls_batchverifier.h>
 #include <llmq/quorums.h>
 #include <llmq/signhash.h>
-#include <llmq/signing.h>
 #include <llmq/signing_shares.h>
-
-#include <bls/bls_batchverifier.h>
-#include <cxxtimer.hpp>
-#include <logging.h>
+#include <llmq/signing.h>
 #include <spork.h>
+#include <util/std23.h>
+
+#include <logging.h>
 #include <streams.h>
 #include <util/thread.h>
 #include <validationinterface.h>
 
+#include <cxxtimer.hpp>
+
+#include <algorithm>
+#include <ranges>
 #include <unordered_map>
 
 namespace llmq {
@@ -67,7 +71,7 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
             BanNode(pfrom.GetId());
             return;
         }
-        if (!ranges::all_of(msgs, [this, &pfrom](const auto& ann) {
+        if (!std::ranges::all_of(msgs, [this, &pfrom](const auto& ann) {
                 return m_shares_manager->ProcessMessageSigSesAnn(pfrom, ann);
             })) {
             BanNode(pfrom.GetId());
@@ -82,7 +86,7 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
             BanNode(pfrom.GetId());
             return;
         }
-        if (!ranges::all_of(msgs, [this, &pfrom, &msg_type](const auto& inv) {
+        if (!std::ranges::all_of(msgs, [this, &pfrom, &msg_type](const auto& inv) {
                 return m_shares_manager->ProcessMessageSigShares(pfrom, inv, msg_type);
             })) {
             BanNode(pfrom.GetId());
@@ -91,17 +95,16 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
     } else if (msg_type == NetMsgType::QBSIGSHARES) {
         std::vector<CBatchedSigShares> msgs;
         vRecv >> msgs;
-        size_t totalSigsCount = 0;
-        for (const auto& bs : msgs) {
-            totalSigsCount += bs.sigShares.size();
-        }
+        const size_t totalSigsCount = std23::ranges::fold_left(msgs, size_t{0}, [](size_t s, const auto& bs) {
+            return s + bs.sigShares.size();
+        });
         if (totalSigsCount > CSigSharesManager::MAX_MSGS_TOTAL_BATCHED_SIGS) {
             LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many sigs in QBSIGSHARES message. cnt=%d, max=%d, node=%d\n",
                      __func__, msgs.size(), CSigSharesManager::MAX_MSGS_TOTAL_BATCHED_SIGS, pfrom.GetId());
             BanNode(pfrom.GetId());
             return;
         }
-        if (!ranges::all_of(msgs, [this, &pfrom](const auto& bs) {
+        if (!std::ranges::all_of(msgs, [this, &pfrom](const auto& bs) {
                 return m_shares_manager->ProcessMessageBatchedSigShares(pfrom, bs);
             })) {
             BanNode(pfrom.GetId());
@@ -303,17 +306,25 @@ void NetSigning::WorkThreadDispatcher()
             }
         }
 
-        if (m_shares_manager->IsAnyPendingProcessing()) {
-            // If there's processing work, spawn a helper worker
-            worker_pool.push([this](int) {
-                while (!workInterrupt) {
-                    bool moreWork = ProcessPendingSigShares();
+        // Collect pending sig shares synchronously and dispatch each batch to a worker for parallel BLS verification
+        while (!workInterrupt) {
+            std::unordered_map<NodeId, std::vector<CSigShare>> sigSharesByNodes;
+            std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher> quorums;
 
-                    if (!moreWork) {
-                        return; // No work found, exit immediately
-                    }
-                }
+            const size_t nMaxBatchSize{32};
+            bool more_work = m_shares_manager->CollectPendingSigSharesToVerify(nMaxBatchSize, sigSharesByNodes, quorums);
+
+            if (sigSharesByNodes.empty()) {
+                break;
+            }
+
+            worker_pool.push([this, sigSharesByNodes = std::move(sigSharesByNodes), quorums = std::move(quorums)](int) mutable {
+                ProcessPendingSigShares(std::move(sigSharesByNodes), std::move(quorums));
             });
+
+            if (!more_work) {
+                break;
+            }
         }
 
         // Always sleep briefly between checks
@@ -326,17 +337,10 @@ void NetSigning::NotifyRecoveredSig(const std::shared_ptr<const CRecoveredSig>& 
     m_peer_manager->PeerRelayRecoveredSig(*sig, proactive_relay);
 }
 
-bool NetSigning::ProcessPendingSigShares()
+void NetSigning::ProcessPendingSigShares(
+    std::unordered_map<NodeId, std::vector<CSigShare>>&& sigSharesByNodes,
+    std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>&& quorums)
 {
-    std::unordered_map<NodeId, std::vector<CSigShare>> sigSharesByNodes;
-    std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher> quorums;
-
-    const size_t nMaxBatchSize{32};
-    bool more_work = m_shares_manager->CollectPendingSigSharesToVerify(nMaxBatchSize, sigSharesByNodes, quorums);
-    if (sigSharesByNodes.empty()) {
-        return false;
-    }
-
     // It's ok to perform insecure batched verification here as we verify against the quorum public key shares,
     // which are not craftable by individual entities, making the rogue public key attack impossible
     CBLSBatchVerifier<NodeId, SigShareKey> batchVerifier(false, true);
@@ -397,8 +401,6 @@ bool NetSigning::ProcessPendingSigShares()
             ProcessRecoveredSig(rs, true);
         }
     }
-
-    return more_work;
 }
 
 } // namespace llmq
