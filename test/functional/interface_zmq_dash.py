@@ -381,7 +381,7 @@ class DashZMQTest (DashTestFramework):
         }
         proposal_hex = ''.join(format(x, '02x') for x in json.dumps(proposal_data).encode())
         collateral = self.nodes[0].gobject("prepare", "0", proposal_rev, proposal_time, proposal_hex)
-        self.wait_for_instantlock(collateral, nodes=[self.nodes[0]])
+        self.wait_for_instantlock(collateral)
         self.generate(self.nodes[0], 6, sync_fun=lambda: self.sync_blocks())
         rpc_proposal_hash = self.nodes[0].gobject("submit", "0", proposal_rev, proposal_time, proposal_hex, collateral)
         # Validate hashgovernanceobject

@@ -106,7 +106,7 @@ class LLMQSigningTest(DashTestFramework):
 
         self.log.info("Send funds and wait InstantSend lock")
         txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
-        self.wait_for_instantlock(txid, nodes=[self.nodes[0]])
+        self.wait_for_instantlock(txid)
 
         self.log.info("Test various options to sign messages with nodes")
         recsig_time = self.mocktime
@@ -184,7 +184,7 @@ class LLMQSigningTest(DashTestFramework):
         self.wait_for_best_chainlock(self.nodes[0], block_hash)
         txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
         self.log.info(f"InstantSend lock on tx: {txid} is expecting")
-        self.wait_for_instantlock(txid, nodes=[self.nodes[0]])
+        self.wait_for_instantlock(txid)
 
 
 if __name__ == '__main__':
