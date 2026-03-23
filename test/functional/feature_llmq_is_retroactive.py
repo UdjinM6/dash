@@ -65,7 +65,7 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         # We have to wait in order to include tx in block
         self.bump_mocktime(10 * 60 + 1)
         block = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
-        self.wait_for_instantlock(txid, self.nodes[0])
+        self.wait_for_instantlock(txid, nodes=[self.nodes[0]], skip_sync=True)
         self.nodes[0].sporkupdate("SPORK_19_CHAINLOCKS_ENABLED", 0)
         self.wait_for_sporks_same()
         self.wait_for_chainlocked_block_all_nodes(block)
@@ -78,9 +78,7 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
         # 3 nodes should be enough to create an IS lock even if nodes 4 and 5 (which have no tx itself)
         # are the only "neighbours" in intra-quorum connections for one of them.
-        self.bump_mocktime(30)
-        self.sync_mempools(self.nodes[:3])
-        self.wait_for_instantlock(txid, self.nodes[0])
+        self.wait_for_instantlock(txid, nodes=self.nodes[:3])
         block = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
         self.wait_for_chainlocked_block_all_nodes(block)
 
@@ -101,7 +99,7 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         self.nodes[3].sendrawtransaction(self.nodes[0].getrawtransaction(txid))
         # node 3 should vote on a tx now since it became aware of it via sendrawtransaction
         # and this should be enough to complete an IS lock
-        self.wait_for_instantlock(txid, self.nodes[0])
+        self.wait_for_instantlock(txid, nodes=[self.nodes[0]], skip_sync=True)
 
         self.log.info("testing retroactive signing with unknown TX")
         self.isolate_node(3)
