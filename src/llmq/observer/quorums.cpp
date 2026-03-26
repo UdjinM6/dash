@@ -61,9 +61,7 @@ void QuorumObserver::Stop()
 
 void QuorumObserver::InitializeQuorumConnections(gsl::not_null<const CBlockIndex*> pindexNew) const
 {
-    for (const auto& params : Params().GetConsensus().llmqs) {
-        CheckQuorumConnections(params, pindexNew);
-    }
+    for (const auto& params : Params().GetConsensus().llmqs) { CheckQuorumConnections(params, pindexNew); }
 }
 
 void QuorumObserver::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDownload) const
