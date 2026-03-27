@@ -22,7 +22,7 @@ struct CTimestampIndexIteratorKey {
 
     void SetNull() { m_time = 0; }
 
-    size_t GetSerializeSize(int nType, int nVersion) const { return 4; }
+    static size_t GetSerializeSize(int nType, int nVersion) { return 4; }
 
     template <typename Stream>
     void Serialize(Stream& s) const
@@ -54,7 +54,7 @@ struct CTimestampIndexKey {
         m_block_hash.SetNull();
     }
 
-    size_t GetSerializeSize(int nType, int nVersion) const { return 36; }
+    static size_t GetSerializeSize(int nType, int nVersion) { return 36; }
 
     template <typename Stream>
     void Serialize(Stream& s) const

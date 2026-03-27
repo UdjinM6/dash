@@ -23,12 +23,10 @@ constexpr uint8_t DB_BEST_BLOCK{'B'};
 constexpr auto SYNC_LOG_INTERVAL{30s};
 constexpr auto SYNC_LOCATOR_WRITE_INTERVAL{30s};
 
-template <typename... Args>
-static void FatalError(const char* fmt, const Args&... args)
+void BaseIndex::FatalErrorImpl(const std::string& message)
 {
-    std::string strMessage = tfm::format(fmt, args...);
-    SetMiscWarning(Untranslated(strMessage));
-    LogPrintf("*** %s\n", strMessage);
+    SetMiscWarning(Untranslated(message));
+    LogPrintf("*** %s\n", message);
     AbortError(_("A fatal internal error occurred, see debug.log for details"));
     StartShutdown();
 }

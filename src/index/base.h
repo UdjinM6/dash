@@ -6,6 +6,7 @@
 #define BITCOIN_INDEX_BASE_H
 
 #include <dbwrapper.h>
+#include <tinyformat.h>
 #include <util/threadinterrupt.h>
 #include <validationinterface.h>
 
@@ -111,6 +112,15 @@ protected:
 
     /// Get the name of the index for display in logs.
     virtual const char* GetName() const = 0;
+
+    /// Trigger a fatal index error and initiate shutdown.
+    static void FatalErrorImpl(const std::string& message);
+
+    template <typename... Args>
+    void FatalError(const char* fmt, const Args&... args) const
+    {
+        FatalErrorImpl(tfm::format(fmt, args...));
+    }
 
     /// Update the internal best block index as well as the prune lock.
     void SetBestBlockIndex(const CBlockIndex* block);

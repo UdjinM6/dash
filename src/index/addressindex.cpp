@@ -10,6 +10,7 @@
 #include <index/addressindex_util.h>
 #include <logging.h>
 #include <node/blockstorage.h>
+#include <tinyformat.h>
 #include <undo.h>
 #include <util/system.h>
 
@@ -128,6 +129,26 @@ bool AddressIndex::DB::UpdateAddressUnspentIndex(const std::vector<CAddressUnspe
     CDBBatch batch(*this);
 
     for (const auto& [key, value] : entries) {
+        if (value.IsNull()) {
+            batch.Erase(std::make_pair(DB_ADDRESSUNSPENTINDEX, key));
+        } else {
+            batch.Write(std::make_pair(DB_ADDRESSUNSPENTINDEX, key), value);
+        }
+    }
+
+    return CDBWrapper::WriteBatch(batch);
+}
+
+bool AddressIndex::DB::RewindBatch(const std::vector<CAddressIndexEntry>& address_entries,
+                                   const std::vector<CAddressUnspentIndexEntry>& unspent_entries)
+{
+    CDBBatch batch(*this);
+
+    for (const auto& [key, _] : address_entries) {
+        batch.Erase(std::make_pair(DB_ADDRESSINDEX, key));
+    }
+
+    for (const auto& [key, value] : unspent_entries) {
         if (value.IsNull()) {
             batch.Erase(std::make_pair(DB_ADDRESSUNSPENTINDEX, key));
         } else {
@@ -349,13 +370,9 @@ bool AddressIndex::Rewind(const CBlockIndex* current_tip, const CBlockIndex* new
             }
         }
 
-        // Erase address history entries and update unspent index
-        if (!m_db->EraseAddressIndex(addressIndex)) {
-            return error("%s: Failed to erase address index during rewind", __func__);
-        }
-
-        if (!m_db->UpdateAddressUnspentIndex(addressUnspentIndex)) {
-            return error("%s: Failed to update address unspent index during rewind", __func__);
+        // Apply both rewind updates in a single batch to avoid leaving the index half-rewound.
+        if (!m_db->RewindBatch(addressIndex, addressUnspentIndex)) {
+            return error("%s: Failed to apply address index rewind batch", __func__);
         }
     }
 
@@ -369,10 +386,16 @@ void AddressIndex::BlockDisconnected(const std::shared_ptr<const CBlock>& block,
     // to remove this block's data
     const CBlockIndex* best_block_index = CurrentIndex();
 
-    // Only rewind if we have this block indexed
+    // Ignore stale-branch disconnect notifications that do not connect to the indexed chain.
     if (best_block_index && best_block_index->nHeight >= pindex->nHeight && pindex->pprev) {
+        if (best_block_index->GetAncestor(pindex->nHeight - 1) != pindex->pprev) {
+            LogPrintf("%s: WARNING: Block %s does not disconnect from an ancestor of " /* Continued */
+                      "known best chain (tip=%s); not updating index\n",
+                      __func__, pindex->GetBlockHash().ToString(), best_block_index->GetBlockHash().ToString());
+            return;
+        }
         if (!Rewind(best_block_index, pindex->pprev)) {
-            error("%s: Failed to rewind %s to previous block after disconnect", __func__, GetName());
+            FatalError("%s: Failed to rewind %s to previous block after disconnect", __func__, GetName());
         }
     }
 }

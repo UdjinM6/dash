@@ -52,6 +52,10 @@ protected:
 
         /// Update address unspent index (handles both adds and deletes)
         bool UpdateAddressUnspentIndex(const std::vector<CAddressUnspentIndexEntry>& entries);
+
+        /// Atomically erase address history entries and update unspent outputs during rewind.
+        bool RewindBatch(const std::vector<CAddressIndexEntry>& address_entries,
+                         const std::vector<CAddressUnspentIndexEntry>& unspent_entries);
     };
 
     /// Override to return false - we need undo data

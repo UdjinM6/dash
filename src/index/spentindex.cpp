@@ -12,6 +12,7 @@
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
+#include <tinyformat.h>
 #include <undo.h>
 #include <util/system.h>
 
@@ -151,10 +152,16 @@ void SpentIndex::BlockDisconnected(const std::shared_ptr<const CBlock>& block, c
     // to remove this block's data
     const CBlockIndex* best_block_index = CurrentIndex();
 
-    // Only rewind if we have this block indexed
+    // Ignore stale-branch disconnect notifications that do not connect to the indexed chain.
     if (best_block_index && best_block_index->nHeight >= pindex->nHeight && pindex->pprev) {
+        if (best_block_index->GetAncestor(pindex->nHeight - 1) != pindex->pprev) {
+            LogPrintf("%s: WARNING: Block %s does not disconnect from an ancestor of " /* Continued */
+                      "known best chain (tip=%s); not updating index\n",
+                      __func__, pindex->GetBlockHash().ToString(), best_block_index->GetBlockHash().ToString());
+            return;
+        }
         if (!Rewind(best_block_index, pindex->pprev)) {
-            error("%s: Failed to rewind %s to previous block after disconnect", __func__, GetName());
+            FatalError("%s: Failed to rewind %s to previous block after disconnect", __func__, GetName());
         }
     }
 }

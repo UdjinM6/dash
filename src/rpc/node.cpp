@@ -666,13 +666,11 @@ static RPCHelpMan getaddressbalance()
         throw JSONRPCError(RPC_MISC_ERROR, "Address index is not enabled. Start with -addressindex to enable.");
     }
 
-    // Check sync status first to return a clear error message
-    // Use the index's best block height instead of chain tip to avoid inconsistency
+    // Check sync status first to return a clear error message.
     const IndexSummary summary = g_addressindex->GetSummary();
     if (!summary.synced) {
         throw JSONRPCError(RPC_MISC_ERROR, strprintf("Address index is syncing. Current height: %d", summary.best_block_height));
     }
-    int nHeight = summary.best_block_height;
 
     for (const auto& address : addresses) {
         if (!g_addressindex->GetAddressIndex(address.first, address.second, addressIndex,
@@ -680,6 +678,10 @@ static RPCHelpMan getaddressbalance()
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
         }
     }
+
+    // Refresh the indexed height after the query so maturity checks are based on the same
+    // index state that produced the returned entries.
+    const int nHeight = g_addressindex->GetSummary().best_block_height;
 
 
     CAmount balance = 0;
