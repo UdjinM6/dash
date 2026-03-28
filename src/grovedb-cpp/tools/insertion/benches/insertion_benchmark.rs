@@ -1,0 +1,226 @@
+use criterion::{criterion_group, criterion_main, Criterion};
+use grovedb::{Element, GroveDb};
+use grovedb_path::SubtreePath;
+use grovedb_version::version::GroveVersion;
+use rand::Rng;
+use tempfile::TempDir;
+
+const N_ITEMS: usize = 10_000;
+const EMPTY_PATH: SubtreePath<'static, [u8; 0]> = SubtreePath::empty();
+
+fn insertion_benchmark_without_transaction(c: &mut Criterion) {
+    let grove_version = GroveVersion::latest();
+    let dir = TempDir::new().unwrap();
+    let db = GroveDb::open(dir.path()).unwrap();
+    let test_leaf: &[u8] = b"leaf1";
+    db.insert(
+        EMPTY_PATH,
+        test_leaf,
+        Element::empty_tree(),
+        None,
+        None,
+        grove_version,
+    )
+    .unwrap()
+    .unwrap();
+    let keys = std::iter::repeat_with(|| rand::thread_rng().gen::<[u8; 32]>()).take(N_ITEMS);
+
+    c.bench_function("scalars insertion without transaction", |b| {
+        b.iter(|| {
+            for k in keys.clone() {
+                db.insert(
+                    [test_leaf].as_ref(),
+                    &k,
+                    Element::new_item(k.to_vec()),
+                    None,
+                    None,
+                    grove_version,
+                )
+                .unwrap()
+                .unwrap();
+            }
+        })
+    });
+}
+
+fn insertion_benchmark_with_transaction(c: &mut Criterion) {
+    let grove_version = GroveVersion::latest();
+    let dir = TempDir::new().unwrap();
+    let db = GroveDb::open(dir.path()).unwrap();
+    let test_leaf: &[u8] = b"leaf1";
+    db.insert(
+        EMPTY_PATH,
+        test_leaf,
+        Element::empty_tree(),
+        None,
+        None,
+        grove_version,
+    )
+    .unwrap()
+    .unwrap();
+    let keys = std::iter::repeat_with(|| rand::thread_rng().gen::<[u8; 32]>()).take(N_ITEMS);
+
+    c.bench_function("scalars insertion with transaction", |b| {
+        b.iter(|| {
+            let tx = db.start_transaction();
+            for k in keys.clone() {
+                db.insert(
+                    [test_leaf].as_ref(),
+                    &k,
+                    Element::new_item(k.to_vec()),
+                    None,
+                    Some(&tx),
+                    grove_version,
+                )
+                .unwrap()
+                .unwrap();
+            }
+            db.commit_transaction(tx)
+                .unwrap()
+                .unwrap();
+        })
+    });
+}
+
+fn root_leaf_insertion_benchmark_without_transaction(c: &mut Criterion) {
+    let grove_version = GroveVersion::latest();
+    let dir = TempDir::new().unwrap();
+    let db = GroveDb::open(dir.path()).unwrap();
+    let keys = std::iter::repeat_with(|| rand::thread_rng().gen::<[u8; 32]>()).take(10);
+
+    c.bench_function("root leaves insertion without transaction", |b| {
+        b.iter(|| {
+            for k in keys.clone() {
+                db.insert(
+                    EMPTY_PATH,
+                    &k,
+                    Element::empty_tree(),
+                    None,
+                    None,
+                    grove_version,
+                )
+                .unwrap()
+                .unwrap();
+            }
+        })
+    });
+}
+
+fn root_leaf_insertion_benchmark_with_transaction(c: &mut Criterion) {
+    let grove_version = GroveVersion::latest();
+    let dir = TempDir::new().unwrap();
+    let db = GroveDb::open(dir.path()).unwrap();
+    let keys = std::iter::repeat_with(|| rand::thread_rng().gen::<[u8; 32]>()).take(10);
+
+    c.bench_function("root leaves insertion with transaction", |b| {
+        b.iter(|| {
+            let tx = db.start_transaction();
+            for k in keys.clone() {
+                db.insert(
+                    EMPTY_PATH,
+                    &k,
+                    Element::empty_tree(),
+                    None,
+                    Some(&tx),
+                    grove_version,
+                )
+                .unwrap()
+                .unwrap();
+            }
+            db.commit_transaction(tx)
+                .unwrap()
+                .unwrap();
+        })
+    });
+}
+
+fn deeply_nested_insertion_benchmark_without_transaction(c: &mut Criterion) {
+    let grove_version = GroveVersion::latest();
+    let dir = TempDir::new().unwrap();
+    let db = GroveDb::open(dir.path()).unwrap();
+    let mut nested_subtrees: Vec<[u8; 32]> = Vec::new();
+    for s in std::iter::repeat_with(|| rand::thread_rng().gen::<[u8; 32]>()).take(10) {
+        db.insert(
+            nested_subtrees.as_slice(),
+            &s,
+            Element::empty_tree(),
+            None,
+            None,
+            grove_version,
+        )
+        .unwrap()
+        .unwrap();
+        nested_subtrees.push(s);
+    }
+    let keys = std::iter::repeat_with(|| rand::thread_rng().gen::<[u8; 32]>()).take(N_ITEMS);
+
+    c.bench_function("deeply nested scalars insertion without transaction", |b| {
+        b.iter(|| {
+            for k in keys.clone() {
+                db.insert(
+                    nested_subtrees.as_slice(),
+                    &k,
+                    Element::new_item(k.to_vec()),
+                    None,
+                    None,
+                    grove_version,
+                )
+                .unwrap()
+                .unwrap();
+            }
+        })
+    });
+}
+
+fn deeply_nested_insertion_benchmark_with_transaction(c: &mut Criterion) {
+    let grove_version = GroveVersion::latest();
+    let dir = TempDir::new().unwrap();
+    let db = GroveDb::open(dir.path()).unwrap();
+    let mut nested_subtrees: Vec<[u8; 32]> = Vec::new();
+    for s in std::iter::repeat_with(|| rand::thread_rng().gen::<[u8; 32]>()).take(10) {
+        db.insert(
+            nested_subtrees.as_slice(),
+            &s,
+            Element::empty_tree(),
+            None,
+            None,
+            grove_version,
+        )
+        .unwrap()
+        .unwrap();
+        nested_subtrees.push(s);
+    }
+    let keys = std::iter::repeat_with(|| rand::thread_rng().gen::<[u8; 32]>()).take(N_ITEMS);
+
+    c.bench_function("deeply nested scalars insertion with transaction", |b| {
+        b.iter(|| {
+            let tx = db.start_transaction();
+            for k in keys.clone() {
+                db.insert(
+                    nested_subtrees.as_slice(),
+                    &k,
+                    Element::new_item(k.to_vec()),
+                    None,
+                    Some(&tx),
+                    grove_version,
+                )
+                .unwrap()
+                .unwrap();
+            }
+            db.commit_transaction(tx)
+                .unwrap()
+                .unwrap();
+        })
+    });
+}
+
+criterion_group!(
+    benches,
+    insertion_benchmark_without_transaction,
+    insertion_benchmark_with_transaction,
+    root_leaf_insertion_benchmark_without_transaction,
+    root_leaf_insertion_benchmark_with_transaction,
+    deeply_nested_insertion_benchmark_without_transaction,
+    deeply_nested_insertion_benchmark_with_transaction,
+);
+criterion_main!(benches);
