@@ -44,6 +44,7 @@
 #ifndef WIN32
 #include <signal.h>
 #include <sys/wait.h>
+#include <unistd.h>
 #endif
 
 #include <boost/test/unit_test.hpp>
@@ -1150,7 +1151,7 @@ static constexpr char ExitCommand = 'X';
             break;
         case ExitCommand:
             close(fd);
-            exit(0);
+            _exit(0);
         default:
             assert(0);
         }
