@@ -63,6 +63,7 @@ REGEXP_EXTERNAL_DEPENDENCIES_EXCLUSIONS = [
     "src/minisketch/",
     "src/tinyformat.h",
     "src/dashbls/",
+    "src/grovedb-cpp/",
     "src/immer/"
 ]
 

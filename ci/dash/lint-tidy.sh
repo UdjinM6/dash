@@ -66,7 +66,8 @@ python3 "${CLANG_TIDY_CACHE_PY}" --zero-stats 2>&1 || true
 
 cd "${BASE_ROOT_DIR}/build-ci/dashcore-${BUILD_TARGET}/src"
 
-if ! ( run-clang-tidy -clang-tidy-binary="${CLANG_TIDY_CACHE}" -quiet "${MAKEJOBS}" | tee tmp.tidy-out.txt ); then
+if ! ( run-clang-tidy -clang-tidy-binary="${CLANG_TIDY_CACHE}" -quiet "${MAKEJOBS}" \
+    '^(?!.*/grovedb-cpp/)' | tee tmp.tidy-out.txt ); then
   grep -C5 "error: " tmp.tidy-out.txt
   echo "^^^ ⚠️ Failure generated from clang-tidy"
   false
