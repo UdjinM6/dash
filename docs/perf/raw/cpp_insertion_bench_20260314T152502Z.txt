@@ -1,0 +1,6 @@
+scalars insertion without transaction: 85109.7 ns/op (10000 items, samples=10)
+scalars insertion with transaction: 70115.3 ns/op (10000 items, samples=10)
+root leaves insertion without transaction: 36314.6 ns/op (10 items, samples=10)
+root leaves insertion with transaction: 36081.3 ns/op (10 items, samples=10)
+deeply nested scalars insertion without transaction: 146012.3 ns/op (10000 items, samples=10)
+deeply nested scalars insertion with transaction: 125594.9 ns/op (10000 items, samples=10)

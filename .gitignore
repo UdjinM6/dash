@@ -1,0 +1,43 @@
+# CMake build output
+build*/
+
+# CTest artifacts
+Testing/
+
+# Autotools build artifacts
+build-aux/
+autom4te.cache/
+configure
+config.h.in
+config.h
+config.log
+config.status
+Makefile
+Makefile.in
+*.la
+*.lo
+*.o
+*.Po
+*.Plo
+.libs/
+.deps/
+*.trs
+tests/*.log
+tests/test-suite.log
+src/harness
+bench/bench_*
+tests/*_tests
+aclocal.m4
+libtool
+stamp-*
+m4/libtool.m4
+m4/ltoptions.m4
+m4/ltsugar.m4
+m4/ltversion.m4
+m4/lt~obsolete.m4
+
+# Rust build artifacts
+target/
+**/target/
+# Only ignore Cargo.lock at the root; tool crates need theirs committed
+/Cargo.lock

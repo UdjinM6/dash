@@ -1,0 +1,306 @@
+name: C++ CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - develop
+  pull_request:
+    branches:
+      - master
+      - develop
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    name: Parity Gates
+    runs-on: ubuntu-24.04
+    env:
+      CARGO_HOME: ${{ github.workspace }}/.cargo-home
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            tools/rust-storage-tools
+            tools/insertion
+            tools/corpus
+
+      - name: Install C++ and RocksDB deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ pkg-config librocksdb-dev
+
+      - name: Configure CMake
+        run: cmake -S . -B build
+
+      - name: Build C++ tests
+        run: |
+          cpu_count="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+          jobs="$(( cpu_count > 1 ? cpu_count - 1 : 1 ))"
+          cmake --build build -j"${jobs}"
+
+      - name: Run full CTest suite
+        working-directory: build
+        run: |
+          cpu_count="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+          jobs="$(( cpu_count > 1 ? cpu_count - 1 : 1 ))"
+          ctest -j"${jobs}" --output-on-failure
+
+      - name: Run semantic parity gate
+        run: bash tools/run_parity_ctest.sh semantic
+
+      - name: Run tx parity gate
+        run: bash tools/run_parity_ctest.sh tx
+
+      - name: Run byte parity gate
+        run: bash tools/run_parity_ctest.sh byte
+
+      - name: Run contract parity gate
+        run: bash tools/run_parity_ctest.sh contract
+
+      - name: Run cost parity gate
+        run: bash tools/run_parity_ctest.sh cost
+
+      - name: Check accepted divergence expiry
+        run: bash tools/check_accepted_divergence_expiry.sh
+
+      - name: Check corpus fixture regeneration determinism
+        run: bash tools/run_fixture_regen_check.sh
+
+      - name: Check perf regression thresholds
+        run: bash tools/check_perf_regression_thresholds.sh
+
+      - name: Check error-string policy
+        run: bash tools/check_error_string_policy.sh
+
+      - name: Check facade parity mode coverage
+        run: bash tools/check_facade_parity_mode_coverage.sh
+
+      - name: Check Rust parity commit pin
+        run: bash tools/check_rust_parity_commit_pin.sh
+
+  autotools-smoke:
+    name: Autotools Smoke
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        config_name:
+          - default
+          - enable-debug
+          - disable-tests
+          - disable-benchmarks
+          - with-rocksdb-path
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install autotools and build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool pkg-config cmake g++ librocksdb-dev
+
+      - name: Bootstrap autotools
+        run: ./autogen.sh
+
+      - name: Configure
+        run: |
+          case "${{ matrix.config_name }}" in
+            default)
+              opts=""
+              ;;
+            enable-debug)
+              opts="--enable-debug"
+              ;;
+            disable-tests)
+              opts="--disable-tests"
+              ;;
+            disable-benchmarks)
+              opts="--disable-benchmarks"
+              ;;
+            with-rocksdb-path)
+              rocksdb_prefix="$(pkg-config --variable=prefix rocksdb 2>/dev/null || echo /usr)"
+              opts="--with-rocksdb=${rocksdb_prefix}"
+              ;;
+            *)
+              echo "unknown config_name=${{ matrix.config_name }}" >&2
+              exit 1
+              ;;
+          esac
+          echo "Running ./configure ${opts}"
+          ./configure ${opts}
+
+      - name: Build
+        run: |
+          cpu_count="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+          jobs="$(( cpu_count > 1 ? cpu_count - 1 : 1 ))"
+          make -j"${jobs}"
+
+      - name: Run autotools tests
+        if: matrix.config_name != 'disable-tests'
+        run: |
+          cpu_count="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+          jobs="$(( cpu_count > 1 ? cpu_count - 1 : 1 ))"
+          make check -j"${jobs}"
+
+      - name: Verify tests disabled
+        if: matrix.config_name == 'disable-tests'
+        run: |
+          make check -j1
+          test ! -f tests/test-suite.log
+
+      - name: Run benchmark smoke tests
+        if: matrix.config_name != 'disable-benchmarks'
+        run: |
+          ./bench/bench_insertion 10 2 1 1
+          ./bench/bench_insertion_storage 10 2 1 1
+          ./bench/bench_corpus corpus/corpus.json 1
+
+      - name: Verify benchmarks disabled
+        if: matrix.config_name == 'disable-benchmarks'
+        run: |
+          test ! -x ./bench/bench_insertion
+          test ! -x ./bench/bench_insertion_storage
+          test ! -x ./bench/bench_corpus
+
+  cmake-smoke:
+    name: CMake Smoke
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        config_name:
+          - default
+          - debug
+          - no-rocksdb
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ pkg-config librocksdb-dev
+
+      - name: Configure
+        run: |
+          case "${{ matrix.config_name }}" in
+            default)
+              cmake -S . -B build
+              ;;
+            debug)
+              cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+              ;;
+            no-rocksdb)
+              cmake -S . -B build -DGROVEDB_CPP_ENABLE_ROCKSDB=OFF
+              ;;
+          esac
+
+      - name: Build
+        run: |
+          cpu_count="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+          jobs="$(( cpu_count > 1 ? cpu_count - 1 : 1 ))"
+          cmake --build build -j"${jobs}"
+
+      - name: Verify RocksDB detected
+        if: matrix.config_name != 'no-rocksdb'
+        run: ctest --test-dir build -N | grep storage_tx_contract_tests
+
+      - name: Verify RocksDB not linked
+        if: matrix.config_name == 'no-rocksdb'
+        run: |
+          ! ctest --test-dir build -N | grep storage_tx_contract_tests
+
+      - name: Run tests
+        working-directory: build
+        run: |
+          cpu_count="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+          jobs="$(( cpu_count > 1 ? cpu_count - 1 : 1 ))"
+          ctest -j"${jobs}" --output-on-failure
+
+  macos-smoke:
+    name: macOS Smoke
+    runs-on: macos-14
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install deps
+        run: brew install rocksdb
+
+      - name: Configure + Build
+        run: |
+          cpu_count="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+          jobs="$(( cpu_count > 1 ? cpu_count - 1 : 1 ))"
+          cmake -S . -B build -DCMAKE_PREFIX_PATH="$(brew --prefix)"
+          cmake --build build -j"${jobs}"
+
+      - name: Verify RocksDB detected
+        run: ctest --test-dir build -N | grep storage_tx_contract_tests
+
+      - name: Run tests
+        working-directory: build
+        run: |
+          cpu_count="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)"
+          jobs="$(( cpu_count > 1 ? cpu_count - 1 : 1 ))"
+          ctest -j"${jobs}" --output-on-failure
+
+  rust-insertion-perf-manual:
+    name: Rust Insertion Perf (manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    env:
+      CARGO_HOME: ${{ github.workspace }}/.cargo-home
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            tools/insertion
+
+      - name: Run Rust insertion benchmark
+        run: bash tools/run_rust_insertion_bench.sh 1 2 10
+
+      - name: Locate generated raw file
+        id: rust_insertion_raw
+        run: |
+          raw_file="$(ls -1t docs/perf/raw/rust_insertion_bench_*.txt | head -n 1)"
+          echo "raw_file=${raw_file}" >> "${GITHUB_OUTPUT}"
+          echo "Latest raw file: ${raw_file}"
+
+      - name: Show generated raw file contents
+        run: cat "${{ steps.rust_insertion_raw.outputs.raw_file }}"
+
+      - name: Upload rust insertion raw artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: rust-insertion-bench-raw
+          path: ${{ steps.rust_insertion_raw.outputs.raw_file }}
+          if-no-files-found: error
