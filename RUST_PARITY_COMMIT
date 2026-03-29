@@ -1,0 +1,3 @@
+REPO=https://github.com/dashpay/grovedb.git
+TAG=v4.0.0
+COMMIT=9d63f129096a829db6a5ce75aa28ba31880a5c27

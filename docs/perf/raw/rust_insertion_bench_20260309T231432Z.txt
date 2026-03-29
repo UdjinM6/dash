@@ -1,0 +1,32 @@
+scalars insertion without transaction
+                        time:   [989.16 ms 1.0173 s 1.0462 s]
+                        change: [-2.8439% +1.4661% +5.5407%] (p = 0.51 > 0.05)
+                        No change in performance detected.
+
+scalars insertion with transaction
+                        time:   [960.60 ms 999.39 ms 1.0377 s]
+                        change: [-4.5891% -0.0322% +4.8163%] (p = 0.99 > 0.05)
+                        No change in performance detected.
+
+root leaves insertion without transaction
+                        time:   [847.41 µs 893.28 µs 936.18 µs]
+                        change: [-1.5440% +2.2537% +6.7552%] (p = 0.36 > 0.05)
+                        No change in performance detected.
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+
+root leaves insertion with transaction
+                        time:   [778.18 µs 812.26 µs 831.13 µs]
+                        change: [-1.9312% +2.2330% +6.8295%] (p = 0.34 > 0.05)
+                        No change in performance detected.
+
+deeply nested scalars insertion without transaction
+                        time:   [1.6235 s 1.6684 s 1.7108 s]
+                        change: [-2.7591% +1.3197% +5.2664%] (p = 0.54 > 0.05)
+                        No change in performance detected.
+
+deeply nested scalars insertion with transaction
+                        time:   [1.4818 s 1.5491 s 1.6143 s]
+                        change: [-5.7937% -0.1431% +5.7742%] (p = 0.96 > 0.05)
+                        No change in performance detected.
+

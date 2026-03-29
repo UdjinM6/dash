@@ -1,0 +1,24 @@
+[package]
+name = "corpus"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+grovedb = { git = "https://github.com/dashpay/grovedb.git", tag = "v4.0.0" }
+grovedb-version = { git = "https://github.com/dashpay/grovedb.git", tag = "v4.0.0" }
+grovedb-element = { git = "https://github.com/dashpay/grovedb.git", tag = "v4.0.0" }
+grovedb-costs = { git = "https://github.com/dashpay/grovedb.git", tag = "v4.0.0" }
+hex = "0.4.3"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.117"
+tempfile = "3.20.0"
+bincode = { version = "=2.0.0-rc.3" }
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "corpus_proof_benchmark"
+harness = false
+
+[workspace]
