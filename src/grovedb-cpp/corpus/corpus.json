@@ -1,0 +1,1761 @@
+{
+  "version": "v1",
+  "cases": [
+    {
+      "name": "single_key_item",
+      "path": [
+        "726f6f74"
+      ],
+      "keys": [
+        "6974656d"
+      ],
+      "element_bytes_list": [
+        "000576616c756500"
+      ],
+      "item_bytes_list": [
+        "76616c7565"
+      ],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "6974656d",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "00300404726f6f7400080201046974656d00f13dd86a7e3d75278bb8cd2ef1860e0b2fdc130cfb0a5a9b6e62a000c672ae4c0104726f6f741003046974656d0008000576616c7565000001",
+      "subtree_key": "726f6f74",
+      "root_hash": "3f08f11475954a4d0a83fa6dfb004527295ef9b867a38bc15a3d64e113b431ea",
+      "cost": {
+        "seek_count": 4,
+        "storage_loaded_bytes": 232,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "batch_single_key_item",
+      "path": [
+        "726f6f74"
+      ],
+      "keys": [
+        "6974656d"
+      ],
+      "element_bytes_list": [
+        "000576616c756500"
+      ],
+      "item_bytes_list": [
+        "76616c7565"
+      ],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "6974656d",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "00300404726f6f7400080201046974656d00f13dd86a7e3d75278bb8cd2ef1860e0b2fdc130cfb0a5a9b6e62a000c672ae4c0104726f6f741003046974656d0008000576616c7565000001",
+      "subtree_key": "726f6f74",
+      "root_hash": "3f08f11475954a4d0a83fa6dfb004527295ef9b867a38bc15a3d64e113b431ea",
+      "cost": {
+        "seek_count": 4,
+        "storage_loaded_bytes": 232,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "multi_key_item",
+      "path": [
+        "726f6f74"
+      ],
+      "keys": [
+        "62"
+      ],
+      "element_bytes_list": [
+        "0002766200"
+      ],
+      "item_bytes_list": [
+        "7662"
+      ],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "62",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "002d0404726f6f740005020101620056c240f34ef56f367ba76804a57ca7bd911b0f62d1661463d85005707a65671c0104726f6f744e011bac8a313d001dc23ddefd216035225d01e26cb7233dd361b77591ab2630c216030162000500027662001001ad64a9e794c543e99d1e6fc9f6299eb3d736d9a725aed11149863366e76fd68f110001",
+      "subtree_key": "726f6f74",
+      "root_hash": "c468ff631be064f67bee2fd36c97ae39aaf1278d2c9bfc8a2a9e5115cc591e0b",
+      "cost": {
+        "seek_count": 4,
+        "storage_loaded_bytes": 300,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "absent_key",
+      "path": [
+        "726f6f74"
+      ],
+      "keys": [
+        "62"
+      ],
+      "element_bytes_list": [],
+      "item_bytes_list": [],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "62",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": false,
+      "proof": "002d0404726f6f7400050201016100015d391b065b94876a17cd459fada2c2554c3d5927a36ffad7c22fba4e80d5a10104726f6f74470501611ea9215e86dcc6d7bfc287696081e5012af78045651d0551313e1f4f06c35257050163637392ed458850abdaf50ff3957d483187c86a1b9aaabfd198e4f8f90cdcdf1e110001",
+      "subtree_key": "726f6f74",
+      "root_hash": "5daec22304b987a9362aa158dc1b434bcd5efbe153cb9ecfaff4eb3840da1f29",
+      "cost": {
+        "seek_count": 5,
+        "storage_loaded_bytes": 335,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "batch_absent_key",
+      "path": [
+        "726f6f74"
+      ],
+      "keys": [
+        "62"
+      ],
+      "element_bytes_list": [],
+      "item_bytes_list": [],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "62",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": false,
+      "proof": "002d0404726f6f7400050201016100015d391b065b94876a17cd459fada2c2554c3d5927a36ffad7c22fba4e80d5a10104726f6f74470501611ea9215e86dcc6d7bfc287696081e5012af78045651d0551313e1f4f06c35257050163637392ed458850abdaf50ff3957d483187c86a1b9aaabfd198e4f8f90cdcdf1e110001",
+      "subtree_key": "726f6f74",
+      "root_hash": "5daec22304b987a9362aa158dc1b434bcd5efbe153cb9ecfaff4eb3840da1f29",
+      "cost": {
+        "seek_count": 5,
+        "storage_loaded_bytes": 335,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "sum_tree_single_key",
+      "path": [
+        "73756d74726565"
+      ],
+      "keys": [
+        "73756d6b6579"
+      ],
+      "element_bytes_list": [
+        "030e00"
+      ],
+      "item_bytes_list": [
+        "0e"
+      ],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "73756d6b6579",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0036040773756d74726565000b04010673756d6b65790e00eaa4b5cf00c0d367457a5369c9235e04a499acadc3093a636d3a0754482789f0010773756d747265650d030673756d6b65790003030e000001",
+      "subtree_key": "73756d74726565",
+      "root_hash": "62541eade8f298f53048513ca3b44927965812c5040b6145eb0abbbc7dbd784e",
+      "cost": {
+        "seek_count": 4,
+        "storage_loaded_bytes": 246,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "batch_sum_tree_single_key",
+      "path": [
+        "73756d74726565"
+      ],
+      "keys": [
+        "73756d6b6579"
+      ],
+      "element_bytes_list": [
+        "030e00"
+      ],
+      "item_bytes_list": [
+        "0e"
+      ],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "73756d6b6579",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0036040773756d74726565000b04010673756d6b65790e00eaa4b5cf00c0d367457a5369c9235e04a499acadc3093a636d3a0754482789f0010773756d747265650d030673756d6b65790003030e000001",
+      "subtree_key": "73756d74726565",
+      "root_hash": "62541eade8f298f53048513ca3b44927965812c5040b6145eb0abbbc7dbd784e",
+      "cost": {
+        "seek_count": 4,
+        "storage_loaded_bytes": 246,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "big_sum_tree_single_key",
+      "path": [
+        "62696773756d74726565"
+      ],
+      "keys": [
+        "73756d6b6579"
+      ],
+      "element_bytes_list": [
+        "031700"
+      ],
+      "item_bytes_list": [
+        "17"
+      ],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "73756d6b6579",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0039040a62696773756d74726565000b05010673756d6b657917005888a98ab0b0e38967c21d36eaae869fbfcc3e314653e8708794b4fc9f369069010a62696773756d747265650d030673756d6b657900030317000001",
+      "subtree_key": "62696773756d74726565",
+      "root_hash": "ed3e545fcb39d2ece38ba5d4cb7a562e3f3fad46ac646efb3abd0990442d2bfe",
+      "cost": {
+        "seek_count": 4,
+        "storage_loaded_bytes": 274,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "count_tree_single_key",
+      "path": [
+        "636f756e7474726565"
+      ],
+      "keys": [
+        "636f756e746b6579"
+      ],
+      "element_bytes_list": [
+        "0002766100"
+      ],
+      "item_bytes_list": [
+        "7661"
+      ],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "636f756e746b6579",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "003a0409636f756e7474726565000d060108636f756e746b657901002ad17ac487a46f76febc1bc81f8e8757109196b70bcf298148aea41ee77125470109636f756e7474726565110308636f756e746b6579000500027661000001",
+      "subtree_key": "636f756e7474726565",
+      "root_hash": "ed26bf4a025cfd2d1ded1a6ef8c86edaa3d9cc665f3a114cc0f97848c806b67a",
+      "cost": {
+        "seek_count": 4,
+        "storage_loaded_bytes": 254,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "count_sum_tree_single_key",
+      "path": [
+        "636f756e7473756d74726565"
+      ],
+      "keys": [
+        "73756d6b6579"
+      ],
+      "element_bytes_list": [
+        "031600"
+      ],
+      "item_bytes_list": [
+        "16"
+      ],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "73756d6b6579",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "003c040c636f756e7473756d74726565000c07010673756d6b6579011600d5114e864761d67758424cf0df2d706ade826336f253796b123d07340e8d09fb010c636f756e7473756d747265650d030673756d6b657900030316000001",
+      "subtree_key": "636f756e7473756d74726565",
+      "root_hash": "943768ce9385fcf30c8595425c3b7d10ccb9e93d9cea97cbff3a9d4d7b73558d",
+      "cost": {
+        "seek_count": 4,
+        "storage_loaded_bytes": 267,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "provable_count_sum_tree_single_key",
+      "path": [
+        "70726f76636f756e7473756d"
+      ],
+      "keys": [
+        "73756d6b6579"
+      ],
+      "element_bytes_list": [
+        "030800"
+      ],
+      "item_bytes_list": [
+        "08"
+      ],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "73756d6b6579",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "003c040c70726f76636f756e7473756d000c0a010673756d6b65790108001c9eadace413d26eb3119ed900761ad7c1d82547ea32ab148d038b915ef44896010c70726f76636f756e7473756d15140673756d6b6579000303080000000000000000010001",
+      "subtree_key": "70726f76636f756e7473756d",
+      "root_hash": "2cdce452d8c5bf098faa01bb81b6f8317db67581148c75cd90ec0058ec323c15",
+      "cost": {
+        "seek_count": 4,
+        "storage_loaded_bytes": 267,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "sum_tree_item_with_sum_single_key",
+      "path": [
+        "73756d77697468"
+      ],
+      "keys": [
+        "73756d6974656d"
+      ],
+      "element_bytes_list": [
+        "09077061796c6f61640c00"
+      ],
+      "item_bytes_list": [
+        "7061796c6f6164"
+      ],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "73756d6974656d",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0037040773756d77697468000c04010773756d6974656d0c00b9b4dd06c27b58cbc6e4a9662a245279c57bfd30a7612da6019317580798eec9010773756d7769746816030773756d6974656d000b09077061796c6f61640c000001",
+      "subtree_key": "73756d77697468",
+      "root_hash": "b28dd48b80de3b8dd35a98d9989cb81a3b0f634a8fcf5be9c5892fcae7027c04",
+      "cost": {
+        "seek_count": 4,
+        "storage_loaded_bytes": 255,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "sum_tree_item_with_sum_range",
+      "path": [
+        "73756d72616e6765"
+      ],
+      "keys": [
+        "62",
+        "63"
+      ],
+      "element_bytes_list": [
+        "090276620c00",
+        "090276630e00"
+      ],
+      "item_bytes_list": [
+        "7662",
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "64",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0032040873756d72616e676500060401016234007a918c3b9804a9655a1230e16e52be77825355f876de9b6d7686fa0f7c0d2d7f010873756d72616e67655d01a745ebc751386b2b3dfc1b5603a5efdc07c6d9089267e5983a0f5e90535810ab0301620006090276620c00100301630006090276630e000501646006b448c128941ddf7f70dd0441bec2c327fc46e6e41c6790d8b53e25dd964e11110001",
+      "subtree_key": "73756d72616e6765",
+      "root_hash": "b939cc2c09e990780a2d1f09d7620a9ed3b2526a3130423c561699736954c1b1",
+      "cost": {
+        "seek_count": 6,
+        "storage_loaded_bytes": 508,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "batch_sum_tree_item_with_sum_range",
+      "path": [
+        "73756d72616e6765"
+      ],
+      "keys": [
+        "62",
+        "63"
+      ],
+      "element_bytes_list": [
+        "090276620c00",
+        "090276630e00"
+      ],
+      "item_bytes_list": [
+        "7662",
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "64",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0032040873756d72616e676500060401016234007a918c3b9804a9655a1230e16e52be77825355f876de9b6d7686fa0f7c0d2d7f010873756d72616e67655d01a745ebc751386b2b3dfc1b5603a5efdc07c6d9089267e5983a0f5e90535810ab0301620006090276620c00100301630006090276630e000501646006b448c128941ddf7f70dd0441bec2c327fc46e6e41c6790d8b53e25dd964e11110001",
+      "subtree_key": "73756d72616e6765",
+      "root_hash": "b939cc2c09e990780a2d1f09d7620a9ed3b2526a3130423c561699736954c1b1",
+      "cost": {
+        "seek_count": 6,
+        "storage_loaded_bytes": 508,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "count_sum_tree_item_with_sum_range",
+      "path": [
+        "636f756e7473756d72616e6765"
+      ],
+      "keys": [
+        "62",
+        "63"
+      ],
+      "element_bytes_list": [
+        "090276620c00",
+        "090276630e00"
+      ],
+      "item_bytes_list": [
+        "7662",
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "64",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0038040d636f756e7473756d72616e67650007070101620434004c8922024acc6f296d69370b515fd0bcaa8c5d901f533abe874047dc29ad0fe2010d636f756e7473756d72616e67655d01a745ebc751386b2b3dfc1b5603a5efdc07c6d9089267e5983a0f5e90535810ab0301620006090276620c00100301630006090276630e000501646006b448c128941ddf7f70dd0441bec2c327fc46e6e41c6790d8b53e25dd964e11110001",
+      "subtree_key": "636f756e7473756d72616e6765",
+      "root_hash": "7ca34024ba2f9c43acc8772a7e9add5b7c16e897ef415f63f2764a39f224f307",
+      "cost": {
+        "seek_count": 6,
+        "storage_loaded_bytes": 534,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "batch_count_sum_tree_item_with_sum_range",
+      "path": [
+        "636f756e7473756d72616e6765"
+      ],
+      "keys": [
+        "62",
+        "63"
+      ],
+      "element_bytes_list": [
+        "090276620c00",
+        "090276630e00"
+      ],
+      "item_bytes_list": [
+        "7662",
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "64",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0038040d636f756e7473756d72616e67650007070101620434004c8922024acc6f296d69370b515fd0bcaa8c5d901f533abe874047dc29ad0fe2010d636f756e7473756d72616e67655d01a745ebc751386b2b3dfc1b5603a5efdc07c6d9089267e5983a0f5e90535810ab0301620006090276620c00100301630006090276630e000501646006b448c128941ddf7f70dd0441bec2c327fc46e6e41c6790d8b53e25dd964e11110001",
+      "subtree_key": "636f756e7473756d72616e6765",
+      "root_hash": "7ca34024ba2f9c43acc8772a7e9add5b7c16e897ef415f63f2764a39f224f307",
+      "cost": {
+        "seek_count": 6,
+        "storage_loaded_bytes": 534,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "big_sum_tree_item_with_sum_range",
+      "path": [
+        "62696773756d73756d72616e6765"
+      ],
+      "keys": [
+        "62",
+        "63"
+      ],
+      "element_bytes_list": [
+        "090276620c00",
+        "090276630e00"
+      ],
+      "item_bytes_list": [
+        "7662",
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "64",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0038040e62696773756d73756d72616e67650006050101623400ac7b24aed06fba1fd4156930e5f37ad3e4d38eedca0504f6f7a336a930f78060010e62696773756d73756d72616e67655d01a745ebc751386b2b3dfc1b5603a5efdc07c6d9089267e5983a0f5e90535810ab0301620006090276620c00100301630006090276630e000501646006b448c128941ddf7f70dd0441bec2c327fc46e6e41c6790d8b53e25dd964e11110001",
+      "subtree_key": "62696773756d73756d72616e6765",
+      "root_hash": "376c15292cc9a8c882dd1fd7cacca54b5a507a7bd4355de8c7bff1cb17ac03de",
+      "cost": {
+        "seek_count": 6,
+        "storage_loaded_bytes": 617,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "provable_count_sum_tree_item_with_sum_range",
+      "path": [
+        "70726f76636f756e7473756d72616e6765"
+      ],
+      "keys": [
+        "62",
+        "63"
+      ],
+      "element_bytes_list": [
+        "090276620c00",
+        "090276630e00"
+      ],
+      "item_bytes_list": [
+        "7662",
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "64",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "003c041170726f76636f756e7473756d72616e676500070a010162043400a6e621d820b206ed52f18127fe3e5620ebf8ca363fa713ebbe03aa686b1800a0011170726f76636f756e7473756d72616e6765750132fb122c1b6d0c8c83047b4115fae30e0b8838277c173a8f795c907dc6e9769e1401620006090276620c000000000000000004101401630006090276630e0000000000000000021a01646006b448c128941ddf7f70dd0441bec2c327fc46e6e41c6790d8b53e25dd964e000000000000000111110001",
+      "subtree_key": "70726f76636f756e7473756d72616e6765",
+      "root_hash": "9bf1879c16eb905385fb8ba94d81c459f591fdd2f5f434ff70b37c563e7b8673",
+      "cost": {
+        "seek_count": 6,
+        "storage_loaded_bytes": 542,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "sum_tree_item_with_sum_nested_range",
+      "path": [
+        "73756d5f6e65737465645f726f6f74",
+        "73756d5f6e65737465645f696e6e6572",
+        "73756d5f6e65737465645f6c656166"
+      ],
+      "keys": [
+        "62",
+        "63"
+      ],
+      "element_bytes_list": [
+        "090276620c00",
+        "090276630e00"
+      ],
+      "item_bytes_list": [
+        "7662",
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "64",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0047040f73756d5f6e65737465645f726f6f74001402011073756d5f6e65737465645f696e6e65720078e6fc7d33e2170e06e12d4186ddd93f927380b100b74c4a931c4ef8e92fef3d010f73756d5f6e65737465645f726f6f7447041073756d5f6e65737465645f696e6e6572001302010f73756d5f6e65737465645f6c6561660084cb3aad053c674426fec91a9cb529a87549b829c86c6da91b6a169a11a1588f011073756d5f6e65737465645f696e6e657239040f73756d5f6e65737465645f6c65616600060401016234007a918c3b9804a9655a1230e16e52be77825355f876de9b6d7686fa0f7c0d2d7f010f73756d5f6e65737465645f6c6561665d01a745ebc751386b2b3dfc1b5603a5efdc07c6d9089267e5983a0f5e90535810ab0301620006090276620c00100301630006090276630e000501646006b448c128941ddf7f70dd0441bec2c327fc46e6e41c6790d8b53e25dd964e11110001",
+      "subtree_key": "73756d5f6e65737465645f726f6f74",
+      "root_hash": "87b00dc29e929c87b373905dc30ccb59198989f52f4b6148c3e7784199fcac13",
+      "cost": {
+        "seek_count": 10,
+        "storage_loaded_bytes": 874,
+        "hash_node_calls": 5,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "batch_sum_tree_item_with_sum_nested_range",
+      "path": [
+        "73756d5f6e65737465645f726f6f74",
+        "73756d5f6e65737465645f696e6e6572",
+        "73756d5f6e65737465645f6c656166"
+      ],
+      "keys": [
+        "62",
+        "63"
+      ],
+      "element_bytes_list": [
+        "090276620c00",
+        "090276630e00"
+      ],
+      "item_bytes_list": [
+        "7662",
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "64",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0047040f73756d5f6e65737465645f726f6f74001402011073756d5f6e65737465645f696e6e65720078e6fc7d33e2170e06e12d4186ddd93f927380b100b74c4a931c4ef8e92fef3d010f73756d5f6e65737465645f726f6f7447041073756d5f6e65737465645f696e6e6572001302010f73756d5f6e65737465645f6c6561660084cb3aad053c674426fec91a9cb529a87549b829c86c6da91b6a169a11a1588f011073756d5f6e65737465645f696e6e657239040f73756d5f6e65737465645f6c65616600060401016234007a918c3b9804a9655a1230e16e52be77825355f876de9b6d7686fa0f7c0d2d7f010f73756d5f6e65737465645f6c6561665d01a745ebc751386b2b3dfc1b5603a5efdc07c6d9089267e5983a0f5e90535810ab0301620006090276620c00100301630006090276630e000501646006b448c128941ddf7f70dd0441bec2c327fc46e6e41c6790d8b53e25dd964e11110001",
+      "subtree_key": "73756d5f6e65737465645f726f6f74",
+      "root_hash": "87b00dc29e929c87b373905dc30ccb59198989f52f4b6148c3e7784199fcac13",
+      "cost": {
+        "seek_count": 10,
+        "storage_loaded_bytes": 874,
+        "hash_node_calls": 5,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "provable_count_single_key",
+      "path": [
+        "636f756e7473"
+      ],
+      "keys": [
+        "62"
+      ],
+      "element_bytes_list": [
+        "0002766200"
+      ],
+      "item_bytes_list": [
+        "7662"
+      ],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "62",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "00300406636f756e747300060801016203004773e5659ad397a161136cba16f26201475949497a54a47cf2b05fcf7ac759ca0106636f756e74735601307ebe8dabe5f20565c96991915669e04000e1b13554c4bc2ce924b57e81539614016200050002766200000000000000000310019a2a69e6cdaa93b3be08d98610cd7927dc69e578a1be14a958d117fe19d8d3c4110001",
+      "subtree_key": "636f756e7473",
+      "root_hash": "ca043f75cd65e19988e6a798d126ac275f0c8eb845b75ccf693902987068f168",
+      "cost": {
+        "seek_count": 4,
+        "storage_loaded_bytes": 317,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "provable_count_range_query",
+      "path": [
+        "636f756e74735f72616e6765"
+      ],
+      "keys": [
+        "62",
+        "63"
+      ],
+      "element_bytes_list": [
+        "0002766200",
+        "0002766300"
+      ],
+      "item_bytes_list": [
+        "7662",
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range_inclusive",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "63",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0036040c636f756e74735f72616e676500060801016203004773e5659ad397a161136cba16f26201475949497a54a47cf2b05fcf7ac759ca010c636f756e74735f72616e67654701307ebe8dabe5f20565c96991915669e04000e1b13554c4bc2ce924b57e81539614016200050002766200000000000000000310140163000500027663000000000000000001110001",
+      "subtree_key": "636f756e74735f72616e6765",
+      "root_hash": "b2e16d42c4b7a7b278363ddaeb310f968cb399a75fa630cc1d00f1d1e61725c1",
+      "cost": {
+        "seek_count": 5,
+        "storage_loaded_bytes": 402,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "range_query",
+      "path": [
+        "72616e6765"
+      ],
+      "keys": [
+        "62",
+        "63"
+      ],
+      "element_bytes_list": [
+        "0002766200",
+        "0002766300"
+      ],
+      "item_bytes_list": [
+        "7662",
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "64",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "002e040572616e67650005020101620036fa671a513cb8e517a4b2275aa4a31aeefe57645988769992fa2117e3d8a31d010572616e67655b011bac8a313d001dc23ddefd216035225d01e26cb7233dd361b77591ab2630c2160301620005000276620010030163000500027663000501640c8926b47debd73472849da71d08d3d235282a997c2e8518aa6618438ca1924311110001",
+      "subtree_key": "72616e6765",
+      "root_hash": "ad92cdcd4d08f32ba8b2e28dc65e4674c046284ff3bb7e3e06b75d92663d0296",
+      "cost": {
+        "seek_count": 6,
+        "storage_loaded_bytes": 483,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "batch_range_query",
+      "path": [
+        "72616e6765"
+      ],
+      "keys": [
+        "62",
+        "63"
+      ],
+      "element_bytes_list": [
+        "0002766200",
+        "0002766300"
+      ],
+      "item_bytes_list": [
+        "7662",
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "64",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "002e040572616e67650005020101620036fa671a513cb8e517a4b2275aa4a31aeefe57645988769992fa2117e3d8a31d010572616e67655b011bac8a313d001dc23ddefd216035225d01e26cb7233dd361b77591ab2630c2160301620005000276620010030163000500027663000501640c8926b47debd73472849da71d08d3d235282a997c2e8518aa6618438ca1924311110001",
+      "subtree_key": "72616e6765",
+      "root_hash": "ad92cdcd4d08f32ba8b2e28dc65e4674c046284ff3bb7e3e06b75d92663d0296",
+      "cost": {
+        "seek_count": 6,
+        "storage_loaded_bytes": 483,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "range_after_query",
+      "path": [
+        "72616e67655f6166746572"
+      ],
+      "keys": [
+        "63"
+      ],
+      "element_bytes_list": [
+        "0002766300"
+      ],
+      "item_bytes_list": [
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range_after_to",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "64",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0034040b72616e67655f61667465720005020101620036fa671a513cb8e517a4b2275aa4a31aeefe57645988769992fa2117e3d8a31d010b72616e67655f616674657274011bac8a313d001dc23ddefd216035225d01e26cb7233dd361b77591ab2630c21605016237fb2a4dcc4f0993f81707f2ff52d0be3e246e49c04b2aef0609d6f26c2c82c310030163000500027663000501640c8926b47debd73472849da71d08d3d235282a997c2e8518aa6618438ca1924311110001",
+      "subtree_key": "72616e67655f6166746572",
+      "root_hash": "add13c660255ebed3b41e45a5984c29e516e762dfb3e6e032d4657569536705c",
+      "cost": {
+        "seek_count": 6,
+        "storage_loaded_bytes": 495,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "range_absent",
+      "path": [
+        "72616e67655f616273656e74"
+      ],
+      "keys": [
+        "62"
+      ],
+      "element_bytes_list": [],
+      "item_bytes_list": [],
+      "query_descriptor": {
+        "kind": "range",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "63",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": false,
+      "proof": "0035040c72616e67655f616273656e7400050201016100015d391b065b94876a17cd459fada2c2554c3d5927a36ffad7c22fba4e80d5a1010c72616e67655f616273656e74470501611ea9215e86dcc6d7bfc287696081e5012af78045651d0551313e1f4f06c35257050163637392ed458850abdaf50ff3957d483187c86a1b9aaabfd198e4f8f90cdcdf1e110001",
+      "subtree_key": "72616e67655f616273656e74",
+      "root_hash": "a9ab64de6b57c667d6ff559e0161860ee6b0b9fd97f94d9674fdba4e2a07b03f",
+      "cost": {
+        "seek_count": 5,
+        "storage_loaded_bytes": 351,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "range_query_empty",
+      "path": [
+        "72616e67655f656d707479"
+      ],
+      "keys": [],
+      "element_bytes_list": [],
+      "item_bytes_list": [],
+      "query_descriptor": {
+        "kind": "range",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "63",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0034040b72616e67655f656d70747900050201016100015d391b065b94876a17cd459fada2c2554c3d5927a36ffad7c22fba4e80d5a1010b72616e67655f656d707479470501611ea9215e86dcc6d7bfc287696081e5012af78045651d0551313e1f4f06c35257050163637392ed458850abdaf50ff3957d483187c86a1b9aaabfd198e4f8f90cdcdf1e110001",
+      "subtree_key": "72616e67655f656d707479",
+      "root_hash": "88d562d3431c458ecdc972c662a9bec5da9d3cfbc6040c74d57e9070194c185c",
+      "cost": {
+        "seek_count": 5,
+        "storage_loaded_bytes": 349,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "path_query_simple",
+      "path": [
+        "70715f73696d706c65"
+      ],
+      "keys": [
+        "61",
+        "62",
+        "63",
+        "64"
+      ],
+      "element_bytes_list": [
+        "0002766100",
+        "0002766200",
+        "0002766300",
+        "0002766400"
+      ],
+      "item_bytes_list": [
+        "7661",
+        "7662",
+        "7663",
+        "7664"
+      ],
+      "query_descriptor": {
+        "kind": "range_full",
+        "key": "",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0032040970715f73696d706c650005020101620036fa671a513cb8e517a4b2275aa4a31aeefe57645988769992fa2117e3d8a31d010970715f73696d706c652b030161000500027661000301620005000276620010030163000500027663000301640005000276640011110001",
+      "subtree_key": "70715f73696d706c65",
+      "root_hash": "172c0f2db43a54c6abe10549dae55ed3d6b5afd9c96aedf458c8fd5e37bba89d",
+      "cost": {
+        "seek_count": 7,
+        "storage_loaded_bytes": 563,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "path_query_range_to",
+      "path": [
+        "70715f746f"
+      ],
+      "keys": [
+        "61"
+      ],
+      "element_bytes_list": [
+        "0002766100"
+      ],
+      "item_bytes_list": [
+        "7661"
+      ],
+      "query_descriptor": {
+        "kind": "range_to",
+        "key": "",
+        "keys": [],
+        "start_key": "",
+        "end_key": "62",
+        "has_start_key": false,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "002e040570715f746f0005020101620056c240f34ef56f367ba76804a57ca7bd911b0f62d1661463d85005707a65671c010570715f746f500301610005000276610005016237fb2a4dcc4f0993f81707f2ff52d0be3e246e49c04b2aef0609d6f26c2c82c31001ad64a9e794c543e99d1e6fc9f6299eb3d736d9a725aed11149863366e76fd68f110001",
+      "subtree_key": "70715f746f",
+      "root_hash": "dbab197650143cdeee3425dbcc724143aa66ea99d382c75539374a86db5404f2",
+      "cost": {
+        "seek_count": 5,
+        "storage_loaded_bytes": 374,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "path_query_range_after",
+      "path": [
+        "70715f6166746572"
+      ],
+      "keys": [
+        "62",
+        "63"
+      ],
+      "element_bytes_list": [
+        "0002766200",
+        "0002766300"
+      ],
+      "item_bytes_list": [
+        "7662",
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range_after",
+        "key": "",
+        "keys": [],
+        "start_key": "61",
+        "end_key": "",
+        "has_start_key": true,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0031040870715f61667465720005020101620056c240f34ef56f367ba76804a57ca7bd911b0f62d1661463d85005707a65671c010870715f6166746572390501611ea9215e86dcc6d7bfc287696081e5012af78045651d0551313e1f4f06c35257030162000500027662001003016300050002766300110001",
+      "subtree_key": "70715f6166746572",
+      "root_hash": "8d29fde62b978fd224ab2701fff5fc9cf72ec6d6f9325e0591f668ce085c16c4",
+      "cost": {
+        "seek_count": 6,
+        "storage_loaded_bytes": 452,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "path_query_range_to_inclusive",
+      "path": [
+        "70715f746f69"
+      ],
+      "keys": [
+        "61",
+        "62"
+      ],
+      "element_bytes_list": [
+        "0002766100",
+        "0002766200"
+      ],
+      "item_bytes_list": [
+        "7661",
+        "7662"
+      ],
+      "query_descriptor": {
+        "kind": "range_to_inclusive",
+        "key": "",
+        "keys": [],
+        "start_key": "",
+        "end_key": "62",
+        "has_start_key": false,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "002f040670715f746f690005020101620056c240f34ef56f367ba76804a57ca7bd911b0f62d1661463d85005707a65671c010670715f746f693703016100050002766100030162000500027662001001ad64a9e794c543e99d1e6fc9f6299eb3d736d9a725aed11149863366e76fd68f110001",
+      "subtree_key": "70715f746f69",
+      "root_hash": "e9a15668733b57fa84513e665367a41460902fff69afd52e449ca1865c91920d",
+      "cost": {
+        "seek_count": 5,
+        "storage_loaded_bytes": 376,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "path_query_range_after_to",
+      "path": [
+        "70715f616674"
+      ],
+      "keys": [
+        "63"
+      ],
+      "element_bytes_list": [
+        "0002766300"
+      ],
+      "item_bytes_list": [
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range_after_to",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "64",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "002f040670715f6166740005020101620036fa671a513cb8e517a4b2275aa4a31aeefe57645988769992fa2117e3d8a31d010670715f61667474011bac8a313d001dc23ddefd216035225d01e26cb7233dd361b77591ab2630c21605016237fb2a4dcc4f0993f81707f2ff52d0be3e246e49c04b2aef0609d6f26c2c82c310030163000500027663000501640c8926b47debd73472849da71d08d3d235282a997c2e8518aa6618438ca1924311110001",
+      "subtree_key": "70715f616674",
+      "root_hash": "81e97e1b735ce5b6cb43531de909c865c0013e2476b03c32b291ef20c7eaf47f",
+      "cost": {
+        "seek_count": 6,
+        "storage_loaded_bytes": 485,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "path_query_range_after_to_inclusive",
+      "path": [
+        "70715f61667469"
+      ],
+      "keys": [
+        "63",
+        "64"
+      ],
+      "element_bytes_list": [
+        "0002766300",
+        "0002766400"
+      ],
+      "item_bytes_list": [
+        "7663",
+        "7664"
+      ],
+      "query_descriptor": {
+        "kind": "range_after_to_inclusive",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "64",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0030040770715f616674690005020101620036fa671a513cb8e517a4b2275aa4a31aeefe57645988769992fa2117e3d8a31d010770715f616674695b011bac8a313d001dc23ddefd216035225d01e26cb7233dd361b77591ab2630c21605016237fb2a4dcc4f0993f81707f2ff52d0be3e246e49c04b2aef0609d6f26c2c82c310030163000500027663000301640005000276640011110001",
+      "subtree_key": "70715f61667469",
+      "root_hash": "285d8800f080272b4ea06267946e8a8b6dcc7c3669bd134e4383e692493ec148",
+      "cost": {
+        "seek_count": 6,
+        "storage_loaded_bytes": 487,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "nested_path_single_key",
+      "path": [
+        "726f6f74",
+        "696e6e6572",
+        "6c656166"
+      ],
+      "keys": [
+        "6974656d"
+      ],
+      "element_bytes_list": [
+        "000576616c756500"
+      ],
+      "item_bytes_list": [
+        "76616c7565"
+      ],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "6974656d",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "00310404726f6f740009020105696e6e657200f0b0be269db8ef17039042c84ce1596b0821c094ca3cb07524b1bd2e119724690104726f6f74310405696e6e657200080201046c65616600584956522a0368239568553b8d340a65f50f0b1d29898e5462297fd51d2015ab0105696e6e65723004046c65616600080201046974656d00f13dd86a7e3d75278bb8cd2ef1860e0b2fdc130cfb0a5a9b6e62a000c672ae4c01046c6561661003046974656d0008000576616c7565000001",
+      "subtree_key": "726f6f74",
+      "root_hash": "351704493c95e220f9816d925af3aa8c04c72a7b6bd1bd009cd98775071399a7",
+      "cost": {
+        "seek_count": 8,
+        "storage_loaded_bytes": 540,
+        "hash_node_calls": 5,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "range_inclusive_query",
+      "path": [
+        "72616e67655f696e636c7573697665"
+      ],
+      "keys": [
+        "62",
+        "63"
+      ],
+      "element_bytes_list": [
+        "0002766200",
+        "0002766300"
+      ],
+      "item_bytes_list": [
+        "7662",
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range_inclusive",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "63",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "0038040f72616e67655f696e636c75736976650005020101620036fa671a513cb8e517a4b2275aa4a31aeefe57645988769992fa2117e3d8a31d010f72616e67655f696e636c757369766559011bac8a313d001dc23ddefd216035225d01e26cb7233dd361b77591ab2630c21603016200050002766200100301630005000276630001cd322b29417fea01766506bbc24215210e0056f8ce36a2572c6b372cccff425211110001",
+      "subtree_key": "72616e67655f696e636c7573697665",
+      "root_hash": "1d9c6967ad5dd1d5ac9baf0b4ba3ad3112ab2b64b5af51d2cc01f2bfad5ca917",
+      "cost": {
+        "seek_count": 5,
+        "storage_loaded_bytes": 431,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "nested_path_range_query",
+      "path": [
+        "726f6f74",
+        "696e6e6572",
+        "6c656166"
+      ],
+      "keys": [
+        "62",
+        "63"
+      ],
+      "element_bytes_list": [
+        "0002766200",
+        "0002766300"
+      ],
+      "item_bytes_list": [
+        "7662",
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "64",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "00310404726f6f740009020105696e6e657200c2adf1054d1e200453d1e44b558e1fce1c5a70a0698af1eb4274b6e347ab876b0104726f6f74310405696e6e657200080201046c656166004ffe9807ae1cf67f225fe7f1c6cad70cb79f272527aa430e8b5b54357e2864450105696e6e65722d04046c6561660005020101620036fa671a513cb8e517a4b2275aa4a31aeefe57645988769992fa2117e3d8a31d01046c6561665b011bac8a313d001dc23ddefd216035225d01e26cb7233dd361b77591ab2630c2160301620005000276620010030163000500027663000501640c8926b47debd73472849da71d08d3d235282a997c2e8518aa6618438ca1924311110001",
+      "subtree_key": "726f6f74",
+      "root_hash": "ba3153bc2c22a4187ceec7b838ea473c2dc9c17e0796feb561d8b7840dcf964e",
+      "cost": {
+        "seek_count": 10,
+        "storage_loaded_bytes": 789,
+        "hash_node_calls": 5,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "provable_count_nested_range_query",
+      "path": [
+        "726f6f745f7063",
+        "696e6e6572",
+        "6c6561665f7063"
+      ],
+      "keys": [
+        "62",
+        "63"
+      ],
+      "element_bytes_list": [
+        "0002766200",
+        "0002766300"
+      ],
+      "item_bytes_list": [
+        "7662",
+        "7663"
+      ],
+      "query_descriptor": {
+        "kind": "range_inclusive",
+        "key": "",
+        "keys": [],
+        "start_key": "62",
+        "end_key": "63",
+        "has_start_key": true,
+        "has_end_key": true,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "00340407726f6f745f70630009020105696e6e65720004cf5da99eee33c12e46e0397eba56553e57178ada5aaba28454ed05281b7e7a0107726f6f745f7063340405696e6e6572000b0201076c6561665f706300fd36144f24df2e18f092c94d02da584e48e3f971cfbc62cc03163122f958120d0105696e6e65723104076c6561665f70630006080101620400b93025dbe27d53482ddf97aad0f4306c8d0b4ec3d41abcb5895221038f267b3801076c6561665f70636901307ebe8dabe5f20565c96991915669e04000e1b13554c4bc2ce924b57e815396140162000500027662000000000000000004101401630005000276630000000000000000020142c391f9614781aecb34ff9d2df9d1487325ec4df2dea7372e62801cc909514211110001",
+      "subtree_key": "726f6f745f7063",
+      "root_hash": "26d5abbd138bbfa791b5aeb414ffce0371fd0899a62ca3cc5237c3c1e3450848",
+      "cost": {
+        "seek_count": 9,
+        "storage_loaded_bytes": 744,
+        "hash_node_calls": 5,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "delete_tree_absent",
+      "path": [],
+      "keys": [
+        "64656c6574655f696e6e6572"
+      ],
+      "element_bytes_list": [],
+      "item_bytes_list": [],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "64656c6574655f696e6e6572",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": false,
+      "proof": "002d050b64656c6574655f726f6f74651929e1747381a16157515e5447625502f3a79843859a0a929d24c605c0b23a0001",
+      "subtree_key": "",
+      "root_hash": "8447b102ba7c070e46e6cb78c357e41b4234ee48578b0eadc33d66a3390b6f77",
+      "cost": {
+        "seek_count": 2,
+        "storage_loaded_bytes": 81,
+        "hash_node_calls": 0,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "batch_delete_tree_absent",
+      "path": [],
+      "keys": [
+        "64656c6574655f696e6e6572"
+      ],
+      "element_bytes_list": [],
+      "item_bytes_list": [],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "64656c6574655f696e6e6572",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": false,
+      "proof": "002d050b64656c6574655f726f6f74651929e1747381a16157515e5447625502f3a79843859a0a929d24c605c0b23a0001",
+      "subtree_key": "",
+      "root_hash": "8447b102ba7c070e46e6cb78c357e41b4234ee48578b0eadc33d66a3390b6f77",
+      "cost": {
+        "seek_count": 2,
+        "storage_loaded_bytes": 81,
+        "hash_node_calls": 0,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "delete_pc_tree_absent",
+      "path": [
+        "64656c6574655f70635f6f75746572"
+      ],
+      "keys": [
+        "64656c6574655f70635f726f6f74"
+      ],
+      "element_bytes_list": [],
+      "item_bytes_list": [],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "64656c6574655f70635f726f6f74",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": false,
+      "proof": "0046040f64656c6574655f70635f6f75746572001302010f64656c6574655f70635f6f74686572009df5a21917859551b4c9dc807e9525ae787b0a2270d801e0e9a3831801106752010f64656c6574655f70635f6f7574657231050f64656c6574655f70635f6f746865724101395eff940dfab762faacb4fb1b0853c64f44f19d8c5e6347ae993f4856810001",
+      "subtree_key": "64656c6574655f70635f6f75746572",
+      "root_hash": "ee0def19eaa28dbf7c4f9317cabd445849b5bf32339262fa104dec045577ee5d",
+      "cost": {
+        "seek_count": 4,
+        "storage_loaded_bytes": 264,
+        "hash_node_calls": 1,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "reference_single_key",
+      "path": [
+        "7265665f726f6f74"
+      ],
+      "keys": [
+        "726566"
+      ],
+      "element_bytes_list": [
+        "000576616c756500"
+      ],
+      "item_bytes_list": [
+        "76616c7565"
+      ],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "726566",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "005504087265665f726f6f74000702010372656600c06547b2b4122d800dd58d47872084bd3466690493a24445961b3fe464bd2879014d0c353d4d484552fe15da4a41e7e01f0f950db1de92b02a66ecc36ca35eda411101087265665f726f6f742f06037265660008000576616c756500f23bcb0435545fd2d56f96244b04d1ca3486c538da497ae8a5474ac6136aba2a0001",
+      "subtree_key": "7265665f726f6f74",
+      "root_hash": "47e22a7011f672de4afb47b12627c5c5e27e11f82e4f73cbfd47931774ce538c",
+      "cost": {
+        "seek_count": 6,
+        "storage_loaded_bytes": 462,
+        "hash_node_calls": 3,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "reference_chain_max_hop",
+      "path": [
+        "7265665f726f6f74"
+      ],
+      "keys": [
+        "726566"
+      ],
+      "element_bytes_list": [
+        "000576616c756500"
+      ],
+      "item_bytes_list": [
+        "76616c7565"
+      ],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "726566",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "007701f6e5b5cff8e24803e01ebc1e6908830943dfb90bfd5d7022bda545fa43b8ea5504087265665f726f6f74000702010372656600fcb54bcefa8b3a7586ea4a3c7236d5a4e9636cff64f97a6fe9ab69634374278c10014d0c353d4d484552fe15da4a41e7e01f0f950db1de92b02a66ecc36ca35eda411101087265665f726f6f742f06037265660008000576616c75650013da5fd0908a087ac48d5eacd5f9916c2f052899bc8989d25b221d026496c51b0001",
+      "subtree_key": "7265665f726f6f74",
+      "root_hash": "aa08a99871763a958478cdd8db7fef0b40e7af58e217a751398eedd1f62886ab",
+      "cost": {
+        "seek_count": 8,
+        "storage_loaded_bytes": 674,
+        "hash_node_calls": 4,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    },
+    {
+      "name": "batch_reference_chain_max_hop",
+      "path": [
+        "7265665f726f6f74"
+      ],
+      "keys": [
+        "726566"
+      ],
+      "element_bytes_list": [
+        "000576616c756500"
+      ],
+      "item_bytes_list": [
+        "76616c7565"
+      ],
+      "query_descriptor": {
+        "kind": "single_key",
+        "key": "726566",
+        "keys": [],
+        "start_key": "",
+        "end_key": "",
+        "has_start_key": false,
+        "has_end_key": false,
+        "has_limit": false,
+        "has_offset": false,
+        "limit": 0,
+        "offset": 0
+      },
+      "expect_present": true,
+      "proof": "007701f6e5b5cff8e24803e01ebc1e6908830943dfb90bfd5d7022bda545fa43b8ea5504087265665f726f6f74000702010372656600fcb54bcefa8b3a7586ea4a3c7236d5a4e9636cff64f97a6fe9ab69634374278c10014d0c353d4d484552fe15da4a41e7e01f0f950db1de92b02a66ecc36ca35eda411101087265665f726f6f742f06037265660008000576616c75650013da5fd0908a087ac48d5eacd5f9916c2f052899bc8989d25b221d026496c51b0001",
+      "subtree_key": "7265665f726f6f74",
+      "root_hash": "aa08a99871763a958478cdd8db7fef0b40e7af58e217a751398eedd1f62886ab",
+      "cost": {
+        "seek_count": 8,
+        "storage_loaded_bytes": 674,
+        "hash_node_calls": 4,
+        "storage_added_bytes": 0,
+        "storage_replaced_bytes": 0,
+        "storage_removed": "none"
+      }
+    }
+  ]
+}
