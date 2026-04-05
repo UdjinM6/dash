@@ -18,9 +18,16 @@ uint256 CBlockHeader::GetHash(bool use_cache) const
     std::vector<unsigned char> vch(80);
     CVectorWriter ss(SER_GETHASH, PROTOCOL_VERSION, vch, 0);
     ss << *this;
-    cached_hash = HashX11((const char *)vch.data(), (const char *)vch.data() + vch.size());
-    m_hash_valid.store(true, std::memory_order_release);
-    return cached_hash;
+    uint256 hash = HashX11((const char *)vch.data(), (const char *)vch.data() + vch.size());
+    if (use_cache) {
+        cached_hash = hash;
+        m_hash_valid.store(true, std::memory_order_release);
+    } else {
+        // Caller signalled the header may have been mutated, invalidate
+        // any stale cache so a later use_cache=true recomputes.
+        m_hash_valid.store(false, std::memory_order_relaxed);
+    }
+    return hash;
 }
 
 std::string CBlock::ToString() const
