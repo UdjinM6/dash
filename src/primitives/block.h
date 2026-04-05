@@ -6,6 +6,7 @@
 #ifndef BITCOIN_PRIMITIVES_BLOCK_H
 #define BITCOIN_PRIMITIVES_BLOCK_H
 
+#include <atomic>
 #include <list>
 #include <primitives/transaction.h>
 #include <serialize.h>
@@ -31,17 +32,80 @@ public:
     uint32_t nBits;
     uint32_t nNonce;
 
-    // Memory only cached hash as x11 is more expensive than sha256
+    // Memory only cached hash as x11 is more expensive than sha256.
+    // Guarded by m_hash_valid (acquire/release) to avoid torn reads across threads.
     mutable uint256 cached_hash;
+    mutable std::atomic<bool> m_hash_valid{false};
 
     CBlockHeader()
     {
         SetNull();
     }
 
+    // std::atomic is non-copyable, so we need explicit copy/move constructors
+    CBlockHeader(const CBlockHeader& other)
+        : nVersion(other.nVersion), hashPrevBlock(other.hashPrevBlock),
+          hashMerkleRoot(other.hashMerkleRoot), nTime(other.nTime),
+          nBits(other.nBits), nNonce(other.nNonce)
+    {
+        if (other.m_hash_valid.load(std::memory_order_acquire)) {
+            cached_hash = other.cached_hash;
+            m_hash_valid.store(true, std::memory_order_relaxed);
+        }
+    }
+
+    CBlockHeader(CBlockHeader&& other) noexcept
+        : nVersion(other.nVersion), hashPrevBlock(std::move(other.hashPrevBlock)),
+          hashMerkleRoot(std::move(other.hashMerkleRoot)), nTime(other.nTime),
+          nBits(other.nBits), nNonce(other.nNonce)
+    {
+        if (other.m_hash_valid.load(std::memory_order_acquire)) {
+            cached_hash = std::move(other.cached_hash);
+            m_hash_valid.store(true, std::memory_order_relaxed);
+        }
+    }
+
+    CBlockHeader& operator=(const CBlockHeader& other)
+    {
+        if (this == &other) return *this;
+        nVersion = other.nVersion;
+        hashPrevBlock = other.hashPrevBlock;
+        hashMerkleRoot = other.hashMerkleRoot;
+        nTime = other.nTime;
+        nBits = other.nBits;
+        nNonce = other.nNonce;
+        if (other.m_hash_valid.load(std::memory_order_acquire)) {
+            cached_hash = other.cached_hash;
+            m_hash_valid.store(true, std::memory_order_relaxed);
+        } else {
+            cached_hash.SetNull();
+            m_hash_valid.store(false, std::memory_order_relaxed);
+        }
+        return *this;
+    }
+
+    CBlockHeader& operator=(CBlockHeader&& other) noexcept
+    {
+        nVersion = other.nVersion;
+        hashPrevBlock = std::move(other.hashPrevBlock);
+        hashMerkleRoot = std::move(other.hashMerkleRoot);
+        nTime = other.nTime;
+        nBits = other.nBits;
+        nNonce = other.nNonce;
+        if (other.m_hash_valid.load(std::memory_order_acquire)) {
+            cached_hash = std::move(other.cached_hash);
+            m_hash_valid.store(true, std::memory_order_relaxed);
+        } else {
+            cached_hash.SetNull();
+            m_hash_valid.store(false, std::memory_order_relaxed);
+        }
+        return *this;
+    }
+
     SERIALIZE_METHODS(CBlockHeader, obj) {
         READWRITE(obj.nVersion, obj.hashPrevBlock, obj.hashMerkleRoot, obj.nTime, obj.nBits, obj.nNonce);
         obj.cached_hash.SetNull();
+        obj.m_hash_valid.store(false, std::memory_order_relaxed);
     }
 
     void SetNull()
@@ -53,6 +117,7 @@ public:
         nBits = 0;
         nNonce = 0;
         cached_hash.SetNull();
+        m_hash_valid.store(false, std::memory_order_relaxed);
     }
 
     bool IsNull() const
@@ -154,8 +219,7 @@ struct CompressibleBlockHeader : CBlockHeader {
 
     explicit CompressibleBlockHeader(CBlockHeader&& block_header)
     {
-        static_assert(std::is_trivially_copyable_v<CBlockHeader>, "If CBlockHeader is not trivially copyable, please consider using std::move on the next line");
-        *static_cast<CBlockHeader*>(this) = block_header;
+        *static_cast<CBlockHeader*>(this) = std::move(block_header);
 
         // When we create this from a block header, mark everything as uncompressed
         bit_field.SetVersionOffset(0);
@@ -232,7 +296,10 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
-        block.cached_hash    = cached_hash;
+        if (m_hash_valid.load(std::memory_order_acquire)) {
+            block.cached_hash = cached_hash;
+            block.m_hash_valid.store(true, std::memory_order_relaxed);
+        }
         return block;
     }
 

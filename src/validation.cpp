@@ -5145,6 +5145,7 @@ void CChainState::LoadExternalBlockFile(
                         blkdat >> *pblock;
                         // We calculated the hash of the header earlier, no need to recalculate it.
                         pblock->cached_hash = hash;
+                        pblock->m_hash_valid.store(true, std::memory_order_release);
                         nRewind = blkdat.GetPos();
 
                         BlockValidationState state;

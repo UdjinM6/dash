@@ -12,12 +12,14 @@
 
 uint256 CBlockHeader::GetHash(bool use_cache) const
 {
-    if (!use_cache || cached_hash.IsNull()) {
-        std::vector<unsigned char> vch(80);
-        CVectorWriter ss(SER_GETHASH, PROTOCOL_VERSION, vch, 0);
-        ss << *this;
-        cached_hash = HashX11((const char *)vch.data(), (const char *)vch.data() + vch.size());
+    if (use_cache && m_hash_valid.load(std::memory_order_acquire)) {
+        return cached_hash;
     }
+    std::vector<unsigned char> vch(80);
+    CVectorWriter ss(SER_GETHASH, PROTOCOL_VERSION, vch, 0);
+    ss << *this;
+    cached_hash = HashX11((const char *)vch.data(), (const char *)vch.data() + vch.size());
+    m_hash_valid.store(true, std::memory_order_release);
     return cached_hash;
 }
 
