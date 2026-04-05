@@ -104,8 +104,8 @@ public:
 
     SERIALIZE_METHODS(CBlockHeader, obj) {
         READWRITE(obj.nVersion, obj.hashPrevBlock, obj.hashMerkleRoot, obj.nTime, obj.nBits, obj.nNonce);
-        obj.cached_hash.SetNull();
-        obj.m_hash_valid.store(false, std::memory_order_relaxed);
+        SER_READ(obj, obj.cached_hash.SetNull());
+        SER_READ(obj, obj.m_hash_valid.store(false, std::memory_order_relaxed));
     }
 
     void SetNull()
