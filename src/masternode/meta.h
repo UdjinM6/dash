@@ -13,6 +13,7 @@
 #include <uint256.h>
 #include <unordered_lru_cache.h>
 
+#include <chrono>
 #include <deque>
 #include <map>
 #include <optional>
@@ -67,7 +68,16 @@ public:
     void AddGovernanceVote(const uint256& nGovernanceObjectHash);
     void RemoveGovernanceObject(const uint256& nGovernanceObjectHash);
 
-    void SetLastOutboundAttempt(int64_t t) { lastOutboundAttempt = t; ++outboundAttemptCount; }
+    static constexpr std::chrono::seconds OUTBOUND_ATTEMPT_EXPIRY{std::chrono::minutes{30}};
+
+    void SetLastOutboundAttempt(int64_t t)
+    {
+        if (lastOutboundAttempt > 0 && (t - lastOutboundAttempt) > OUTBOUND_ATTEMPT_EXPIRY.count()) {
+            outboundAttemptCount = 0;
+        }
+        lastOutboundAttempt = t;
+        ++outboundAttemptCount;
+    }
     void SetLastOutboundSuccess(int64_t t) { lastOutboundSuccess = t; outboundAttemptCount = 0; }
 
     bool SetPlatformBan(bool is_banned, int height)

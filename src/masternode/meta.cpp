@@ -175,7 +175,16 @@ int64_t CMasternodeMetaMan::GetLastOutboundSuccess(const uint256& protx_hash) co
 bool CMasternodeMetaMan::OutboundFailedTooManyTimes(const uint256& protx_hash) const
 {
     LOCK(cs);
-    return GetMetaInfoOrDefault(protx_hash).outboundAttemptCount > MASTERNODE_MAX_FAILED_OUTBOUND_ATTEMPTS;
+    const auto& info = GetMetaInfoOrDefault(protx_hash);
+    if (info.outboundAttemptCount <= MASTERNODE_MAX_FAILED_OUTBOUND_ATTEMPTS) {
+        return false;
+    }
+    const int64_t now = GetTime<std::chrono::seconds>().count();
+    if (info.lastOutboundAttempt > 0 &&
+        (now - info.lastOutboundAttempt) > CMasternodeMetaInfo::OUTBOUND_ATTEMPT_EXPIRY.count()) {
+        return false;
+    }
+    return true;
 }
 
 bool CMasternodeMetaMan::IsPlatformBanned(const uint256& protx_hash) const
