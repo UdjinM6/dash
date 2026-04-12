@@ -345,6 +345,17 @@ bool CConnman::AlreadyConnectedToAddress(const CAddress& addr) const
     return FindNode(static_cast<CService>(addr)) != nullptr;
 }
 
+bool CConnman::HasOutboundConnectionToAddress(const CAddress& addr) const
+{
+    READ_LOCK(m_nodes_mutex);
+    for (const CNode* pnode : m_nodes) {
+        if (pnode->fDisconnect) continue;
+        if (pnode->IsInboundConn()) continue;
+        if (static_cast<CService>(pnode->addr) == static_cast<CService>(addr)) return true;
+    }
+    return false;
+}
+
 bool CConnman::CheckIncomingNonce(uint64_t nonce) const
 {
     READ_LOCK(m_nodes_mutex);
@@ -369,18 +380,27 @@ static CAddress GetBindAddress(const Sock& sock)
     return addr_bind;
 }
 
-CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, ConnectionType conn_type, bool use_v2transport)
+CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, ConnectionType conn_type, bool use_v2transport, MasternodeProbeConn masternode_probe_connection)
 {
     AssertLockNotHeld(m_unused_i2p_sessions_mutex);
     assert(conn_type != ConnectionType::INBOUND);
+
+    const bool is_masternode_probe = (masternode_probe_connection == MasternodeProbeConn::IsConnection);
 
     if (pszDest == nullptr) {
         if (addrConnect.GetPort() == GetListenPort() && IsLocal(addrConnect)) {
             return nullptr;
         }
 
-        // Look for an existing connection
-        if (ExistsNode(static_cast<CService>(addrConnect))) {
+        // Look for an existing connection. Masternode probes are allowed to run
+        // alongside an existing inbound connection (the whole point — verify
+        // outbound listenability), but must NOT coexist with another outbound
+        // to the same address: a duplicate outbound to the same proRegTxHash
+        // makes CMNAuth::ProcessMessage drop the older one, churning a live
+        // quorum connection.
+        const bool duplicate = is_masternode_probe ? HasOutboundConnectionToAddress(addrConnect)
+                                                   : ExistsNode(static_cast<CService>(addrConnect));
+        if (duplicate) {
             LogPrintf("Failed to open new connection, already connected\n");
             return nullptr;
         }
@@ -414,8 +434,11 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
                     return nullptr;
                 }
                 // It is possible that we already have a connection to the IP/port pszDest resolved to.
-                // In that case, drop the connection that was just created.
-                if (ExistsNode(static_cast<CService>(addrConnect))) {
+                // In that case, drop the connection that was just created. Probes may coexist with
+                // an existing inbound, but not with another outbound (see ConnectNode preamble).
+                const bool duplicate = is_masternode_probe ? HasOutboundConnectionToAddress(addrConnect)
+                                                           : ExistsNode(static_cast<CService>(addrConnect));
+                if (duplicate) {
                     LogPrintf("Not opening a connection to %s, already connected to %s\n", pszDest, addrConnect.ToStringAddrPort());
                     return nullptr;
                 }
@@ -3408,7 +3431,14 @@ void CConnman::ThreadOpenMasternodeConnections(CDeterministicMNManager& dmnman, 
         ForEachNode([&](const CNode* pnode) {
             connectedNodes.emplace(pnode->addr);
             if (auto verifiedProRegTxHash = pnode->GetVerifiedProRegTxHash(); !verifiedProRegTxHash.IsNull()) {
-                connectedProRegTxHashes.emplace(verifiedProRegTxHash, pnode->IsInboundConn());
+                const bool is_inbound = pnode->IsInboundConn();
+                // Outbound takes precedence: a peer can briefly have both an inbound
+                // and an outbound CNode (e.g. while a masternode probe is in flight),
+                // and probe scheduling must treat any outbound as already-verified.
+                auto [it, inserted] = connectedProRegTxHashes.emplace(verifiedProRegTxHash, is_inbound);
+                if (!inserted && it->second && !is_inbound) {
+                    it->second = false;
+                }
             }
         });
 
@@ -3550,14 +3580,9 @@ void CConnman::ThreadOpenMasternodeConnections(CDeterministicMNManager& dmnman, 
 
         mn_metaman.SetLastOutboundAttempt(connectToDmn->proTxHash, nANow);
 
-        OpenMasternodeConnection(CAddress(connectToDmn->pdmnState->netInfo->GetPrimary(), NODE_NETWORK), /*use_v2transport=*/GetLocalServices() & NODE_P2P_V2, isProbe);
-        // should be in the list now if connection was opened
-        bool connected = ForNode(connectToDmn->pdmnState->netInfo->GetPrimary(), CConnman::AllNodes, [&](const CNode* pnode) {
-            if (pnode->fDisconnect) {
-                return false;
-            }
-            return true;
-        });
+        const bool connected = OpenMasternodeConnection(
+            CAddress(connectToDmn->pdmnState->netInfo->GetPrimary(), NODE_NETWORK),
+            /*use_v2transport=*/GetLocalServices() & NODE_P2P_V2, isProbe);
         if (!connected) {
             LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- connection failed for masternode  %s, service=%s\n", __func__, connectToDmn->proTxHash.ToString(), connectToDmn->pdmnState->netInfo->GetPrimary().ToStringAddrPort());
             // Will take a few consequent failed attempts to PoSe-punish a MN.
@@ -3569,7 +3594,7 @@ void CConnman::ThreadOpenMasternodeConnections(CDeterministicMNManager& dmnman, 
 }
 
 // if successful, this moves the passed grant to the constructed node
-void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, CSemaphoreGrant&& grant_outbound,
+bool CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, CSemaphoreGrant&& grant_outbound,
                                      const char *pszDest, ConnectionType conn_type, bool use_v2transport,
                                      MasternodeConn masternode_connection, MasternodeProbeConn masternode_probe_connection)
 {
@@ -3580,10 +3605,10 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
     // Initiate outbound network connection
     //
     if (interruptNet) {
-        return;
+        return false;
     }
     if (!fNetworkActive) {
-        return;
+        return false;
     }
 
     auto getIpStr = [&]() {
@@ -3594,24 +3619,36 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         }
     };
 
+    const bool is_masternode_probe = (masternode_probe_connection == MasternodeProbeConn::IsConnection);
+
     if (!pszDest) {
         // banned, discouraged or exact match?
-        if ((m_banman && (m_banman->IsDiscouraged(addrConnect) || m_banman->IsBanned(addrConnect))) || AlreadyConnectedToAddress(addrConnect))
-            return;
+        if (m_banman && (m_banman->IsDiscouraged(addrConnect) || m_banman->IsBanned(addrConnect))) return false;
+        // Masternode probes may coexist with an existing inbound connection (the
+        // whole point — verify outbound listenability and refresh the outbound-
+        // success counter), but NOT with another outbound to the same address:
+        // CMNAuth::ProcessMessage drops the older outbound on collision, which
+        // would churn a live quorum connection.
+        if (is_masternode_probe ? HasOutboundConnectionToAddress(addrConnect)
+                                : AlreadyConnectedToAddress(addrConnect)) {
+            return false;
+        }
         // connecting to ourselves?
         if (addrConnect.GetPort() == GetListenPort() && IsLocal(addrConnect)) {
-            return;
+            return false;
         }
     } else if (ExistsNode(std::string(pszDest))) {
-        return;
+        // Probes are always called with addrConnect (pszDest is null), so this
+        // path is non-probe: keep the original check.
+        return false;
     }
 
     LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- connecting to %s\n", __func__, getIpStr());
-    CNode* pnode = ConnectNode(addrConnect, pszDest, fCountFailure, conn_type, use_v2transport);
+    CNode* pnode = ConnectNode(addrConnect, pszDest, fCountFailure, conn_type, use_v2transport, masternode_probe_connection);
 
     if (!pnode) {
         LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- ConnectNode failed for %s\n", __func__, getIpStr());
-        return;
+        return false;
     }
 
     {
@@ -3650,11 +3687,13 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
             m_wakeup_pipe->Write();
         }
     }
+
+    return true;
 }
 
-void CConnman::OpenMasternodeConnection(const CAddress &addrConnect, bool use_v2transport, MasternodeProbeConn probe) {
-    OpenNetworkConnection(addrConnect, false, {}, /*strDest=*/nullptr, ConnectionType::OUTBOUND_FULL_RELAY,
-                          use_v2transport, MasternodeConn::IsConnection, probe);
+bool CConnman::OpenMasternodeConnection(const CAddress &addrConnect, bool use_v2transport, MasternodeProbeConn probe) {
+    return OpenNetworkConnection(addrConnect, false, {}, /*strDest=*/nullptr, ConnectionType::OUTBOUND_FULL_RELAY,
+                                 use_v2transport, MasternodeConn::IsConnection, probe);
 }
 
 Mutex NetEventsInterface::g_msgproc_mutex;

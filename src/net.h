@@ -1289,12 +1289,12 @@ public:
         IsConnection,
     };
 
-    void OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, CSemaphoreGrant&& grant_outbound,
+    bool OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, CSemaphoreGrant&& grant_outbound,
                                const char* strDest, ConnectionType conn_type, bool use_v2transport,
                                MasternodeConn masternode_connection = MasternodeConn::IsNotConnection,
                                MasternodeProbeConn masternode_probe_connection = MasternodeProbeConn::IsNotConnection)
         EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex, !mutexMsgProc, !cs_mapSocketToNode);
-    void OpenMasternodeConnection(const CAddress& addrConnect, bool use_v2transport, MasternodeProbeConn probe = MasternodeProbeConn::IsConnection)
+    bool OpenMasternodeConnection(const CAddress& addrConnect, bool use_v2transport, MasternodeProbeConn probe = MasternodeProbeConn::IsConnection)
         EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex, !mutexMsgProc, !cs_mapSocketToNode);
     bool CheckIncomingNonce(uint64_t nonce) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
     void ASMapHealthCheck();
@@ -1695,9 +1695,18 @@ private:
      */
     bool AlreadyConnectedToAddress(const CAddress& addr) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
 
+    /**
+     * Like AlreadyConnectedToAddress, but only counts non-inbound CNodes.
+     * Used by masternode probes: a probe may run alongside an existing inbound
+     * connection (the whole point — verify outbound listenability), but must
+     * NOT be opened while another outbound to the same address already exists,
+     * otherwise CMNAuth::ProcessMessage drops the older outbound on collision.
+     */
+    bool HasOutboundConnectionToAddress(const CAddress& addr) const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
+
     std::vector<NodeEvictionCandidate> GetEvictionCandidates() const EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
     bool AttemptToEvictConnection() EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex);
-    CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, ConnectionType conn_type, bool use_v2transport) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex);
+    CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, ConnectionType conn_type, bool use_v2transport, MasternodeProbeConn masternode_probe_connection = MasternodeProbeConn::IsNotConnection) EXCLUSIVE_LOCKS_REQUIRED(!m_nodes_mutex, !m_unused_i2p_sessions_mutex);
     void AddWhitelistPermissionFlags(NetPermissionFlags& flags, const CNetAddr &addr) const;
 
     void DeleteNode(CNode* pnode);
