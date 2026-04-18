@@ -12,6 +12,8 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <string_view>
+
 BOOST_FIXTURE_TEST_SUITE(serialize_tests, BasicTestingSetup)
 
 class CSerializeMethodsTestSingle
@@ -303,6 +305,121 @@ BOOST_AUTO_TEST_CASE(class_methods)
         BOOST_CHECK_EQUAL(out.at(0), std::byte{'a'});
         BOOST_CHECK_EQUAL(out.at(1), std::byte{'b'});
         BOOST_CHECK_EQUAL(out_3, std::byte{'c'});
+    }
+}
+
+// Helper: predicate for BOOST_CHECK_EXCEPTION that matches an ios_base::failure
+// message substring. Pins the test to our explicit guard throw rather than a
+// later EOF from missing payload, which would also surface as ios_base::failure
+// but wouldn't prove the cap fires before allocation.
+static auto failure_contains(std::string_view needle)
+{
+    return [needle](const std::ios_base::failure& e) {
+        return std::string_view{e.what()}.find(needle) != std::string_view::npos;
+    };
+}
+
+BOOST_AUTO_TEST_CASE(limited_dynbitset_formatter)
+{
+    constexpr size_t kCap = 16;
+
+    // Roundtrip at and below the cap.
+    for (size_t n : {size_t{0}, size_t{1}, kCap - 1, kCap}) {
+        std::vector<bool> in(n);
+        for (size_t i = 0; i < n; ++i) in[i] = (i % 3) == 0;
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        ss << LIMITED_DYNBITSET(in, kCap);
+        std::vector<bool> out;
+        ss >> LIMITED_DYNBITSET(out, kCap);
+        BOOST_CHECK(in == out);
+    }
+
+    // Ser rejects oversize input.
+    {
+        std::vector<bool> tooBig(kCap + 1);
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        BOOST_CHECK_EXCEPTION(ss << LIMITED_DYNBITSET(tooBig, kCap), std::ios_base::failure,
+                              failure_contains("DynamicBitSet size exceeds MaxBits"));
+    }
+
+    // Unser rejects an oversized peer-declared CompactSize BEFORE allocation:
+    // the stream carries only the CompactSize with no bitset payload, so if the
+    // guard didn't fire first, the read would fail later with a different error.
+    {
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        WriteCompactSize(ss, static_cast<uint64_t>(kCap) + 1);
+        std::vector<bool> out;
+        BOOST_CHECK_EXCEPTION(ss >> LIMITED_DYNBITSET(out, kCap), std::ios_base::failure,
+                              failure_contains("DynamicBitSet size exceeds MaxBits"));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(limited_autobitset_formatter)
+{
+    constexpr size_t kCap = 64;
+
+    // Roundtrip both dense and sparse inputs (WriteAutoBitSet picks the smaller
+    // encoding, so covering both exercises the varint-stopper path too).
+    for (size_t set_bits : {size_t{0}, size_t{1}, size_t{5}, kCap}) {
+        std::vector<bool> in(kCap);
+        for (size_t i = 0; i < set_bits && i < kCap; ++i) in[i] = true;
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        ss << LIMITED_AUTOBITSET(in, kCap);
+        std::vector<bool> out;
+        ss >> LIMITED_AUTOBITSET(out, kCap);
+        BOOST_CHECK(in == out);
+    }
+
+    // Ser rejects oversize input.
+    {
+        std::vector<bool> tooBig(kCap + 1);
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        BOOST_CHECK_EXCEPTION(ss << LIMITED_AUTOBITSET(tooBig, kCap), std::ios_base::failure,
+                              failure_contains("AutoBitSet size exceeds MaxBits"));
+    }
+
+    // Unser rejects an oversized peer-declared CompactSize BEFORE allocation.
+    // This is the guard that closes the varint-stopper amplification: a
+    // one-byte stopper payload could otherwise force size-proportional work.
+    {
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        WriteCompactSize(ss, static_cast<uint64_t>(kCap) + 1);
+        std::vector<bool> out;
+        BOOST_CHECK_EXCEPTION(ss >> LIMITED_AUTOBITSET(out, kCap), std::ios_base::failure,
+                              failure_contains("AutoBitSet size exceeds MaxBits"));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(limited_vector_formatter)
+{
+    constexpr size_t kCap = 8;
+
+    // Roundtrip at and below the cap.
+    for (size_t n : {size_t{0}, size_t{1}, kCap - 1, kCap}) {
+        std::vector<int> in;
+        for (size_t i = 0; i < n; ++i) in.push_back(static_cast<int>(i) * 7);
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        ss << LIMITED_VECTOR(in, kCap);
+        std::vector<int> out;
+        ss >> LIMITED_VECTOR(out, kCap);
+        BOOST_CHECK(in == out);
+    }
+
+    // Ser rejects oversize input.
+    {
+        std::vector<int> tooBig(kCap + 1);
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        BOOST_CHECK_EXCEPTION(ss << LIMITED_VECTOR(tooBig, kCap), std::ios_base::failure,
+                              failure_contains("Vector size exceeds Limit"));
+    }
+
+    // Unser rejects an oversized peer-declared CompactSize BEFORE allocation.
+    {
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        WriteCompactSize(ss, static_cast<uint64_t>(kCap) + 1);
+        std::vector<int> out;
+        BOOST_CHECK_EXCEPTION(ss >> LIMITED_VECTOR(out, kCap), std::ios_base::failure,
+                              failure_contains("Vector size exceeds Limit"));
     }
 }
 

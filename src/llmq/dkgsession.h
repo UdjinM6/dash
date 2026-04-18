@@ -113,8 +113,8 @@ public:
                 obj.llmqType,
                 obj.quorumHash,
                 obj.proTxHash,
-                DYNBITSET(obj.badMembers),
-                DYNBITSET(obj.complainForMembers),
+                LIMITED_DYNBITSET(obj.badMembers, Consensus::MAX_LLMQ_SIZE),
+                LIMITED_DYNBITSET(obj.complainForMembers, Consensus::MAX_LLMQ_SIZE),
                 obj.sig
                 );
     }
@@ -193,7 +193,7 @@ public:
                 obj.llmqType,
                 obj.quorumHash,
                 obj.proTxHash,
-                DYNBITSET(obj.validMembers),
+                LIMITED_DYNBITSET(obj.validMembers, Consensus::MAX_LLMQ_SIZE),
                 obj.quorumPublicKey,
                 obj.quorumVvecHash,
                 obj.quorumSig,

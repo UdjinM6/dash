@@ -292,7 +292,7 @@ uint256 BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHa
     CHashWriter hw(SER_GETHASH, 0);
     hw << llmqType;
     hw << blockHash;
-    hw << DYNBITSET(validMembers);
+    hw << LIMITED_DYNBITSET(validMembers, Consensus::MAX_LLMQ_SIZE);
     hw << pubKey;
     hw << vvecHash;
     return hw.GetHash();

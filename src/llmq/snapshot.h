@@ -51,38 +51,11 @@ public:
     CQuorumSnapshot(std::vector<bool> active_quorum_members, SnapshotSkipMode skip_mode, std::vector<int> skip_list);
     ~CQuorumSnapshot();
 
-    template <typename Stream, typename Operation>
-    inline void SerializationOpBase(Stream& s, Operation ser_action)
+    SERIALIZE_METHODS(CQuorumSnapshot, obj)
     {
-        READWRITE(mnSkipListMode);
-    }
-
-    template <typename Stream>
-    void Serialize(Stream& s) const
-    {
-        const_cast<CQuorumSnapshot*>(this)->SerializationOpBase(s, CSerActionSerialize());
-
-        WriteCompactSize(s, activeQuorumMembers.size());
-        WriteFixedBitSet(s, activeQuorumMembers, activeQuorumMembers.size());
-        WriteCompactSize(s, mnSkipList.size());
-        for (const auto& obj : mnSkipList) {
-            s << obj;
-        }
-    }
-
-    template <typename Stream>
-    void Unserialize(Stream& s)
-    {
-        SerializationOpBase(s, CSerActionUnserialize());
-
-        size_t cnt = ReadCompactSize(s);
-        ReadFixedBitSet(s, activeQuorumMembers, cnt);
-        cnt = ReadCompactSize(s);
-        for ([[maybe_unused]] const auto _ : util::irange(cnt)) {
-            int obj;
-            s >> obj;
-            mnSkipList.push_back(obj);
-        }
+        READWRITE(obj.mnSkipListMode,
+                  LIMITED_DYNBITSET(obj.activeQuorumMembers, dmn_types::MAX_DMN_LIST_SIZE),
+                  LIMITED_VECTOR(obj.mnSkipList, dmn_types::MAX_DMN_LIST_SIZE));
     }
 
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);

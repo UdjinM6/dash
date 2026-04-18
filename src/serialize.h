@@ -585,19 +585,29 @@ public:
 template<typename Formatter, typename T>
 static inline Wrapper<Formatter, T&> Using(T&& t) { return Wrapper<Formatter, T&>(t); }
 
-#define DYNBITSET(obj) Using<DynamicBitSetFormatter>(obj)
-#define AUTOBITSET(obj) Using<AutoBitSetFormatter>(obj)
+#define LIMITED_DYNBITSET(obj, N) Using<LimitedDynamicBitSetFormatter<(N)>>(obj)
+#define LIMITED_AUTOBITSET(obj, N) Using<LimitedAutoBitSetFormatter<(N)>>(obj)
 #define VARINT_MODE(obj, mode) Using<VarIntFormatter<mode>>(obj)
 #define VARINT(obj) Using<VarIntFormatter<VarIntMode::DEFAULT>>(obj)
 #define COMPACTSIZE(obj) Using<CompactSizeFormatter<true>>(obj)
 #define LIMITED_STRING(obj,n) Using<LimitedStringFormatter<n>>(obj)
+#define LIMITED_VECTOR(obj,n) Using<LimitedVectorFormatter<n>>(obj)
 
-/** TODO: describe DynamicBitSet */
-struct DynamicBitSetFormatter
+/**
+ * Bounded formatter for std::vector<bool> serialized as a CompactSize length
+ * followed by a packed byte bitset. Rejects sizes above MaxBits on both Ser
+ * and Unser paths, closing peer-declared-size amplification at the
+ * allocation site.
+ */
+template<size_t MaxBits>
+struct LimitedDynamicBitSetFormatter
 {
     template<typename Stream>
     void Ser(Stream& s, const std::vector<bool>& vec) const
     {
+        if (vec.size() > MaxBits) {
+            throw std::ios_base::failure("DynamicBitSet size exceeds MaxBits");
+        }
         WriteCompactSize(s, vec.size());
         WriteFixedBitSet(s, vec, vec.size());
     }
@@ -605,25 +615,47 @@ struct DynamicBitSetFormatter
     template<typename Stream>
     void Unser(Stream& s, std::vector<bool>& vec)
     {
-        ReadFixedBitSet(s, vec, ReadCompactSize(s));
+        const uint64_t n = ReadCompactSize(s);
+        if (n > MaxBits) {
+            throw std::ios_base::failure("DynamicBitSet size exceeds MaxBits");
+        }
+        ReadFixedBitSet(s, vec, static_cast<size_t>(n));
     }
 };
 
 /**
- * Serializes either as a CFixedBitSet or CFixedVarIntsBitSet, depending on which would give a smaller size
+ * Bounded formatter for std::vector<bool> that writes a CompactSize length
+ * followed by either a packed byte bitset or a varint-indexed sparse bitset,
+ * whichever is smaller (see WriteAutoBitSet). Callers round-trip the vector
+ * directly; no external autobitset_t pair is required. Rejects sizes above
+ * MaxBits on both Ser and Unser paths; in particular, this closes the
+ * varint-stopper amplification on the AutoBitSet path, where a tiny
+ * stopper-only payload could otherwise force a size-proportional allocation.
  */
-struct AutoBitSetFormatter
+template<size_t MaxBits>
+struct LimitedAutoBitSetFormatter
 {
     template<typename Stream>
-    void Ser(Stream& s, const autobitset_t& item) const
+    void Ser(Stream& s, const std::vector<bool>& vec) const
     {
-        WriteAutoBitSet(s, item);
+        if (vec.size() > MaxBits) {
+            throw std::ios_base::failure("AutoBitSet size exceeds MaxBits");
+        }
+        WriteCompactSize(s, vec.size());
+        autobitset_t tmp = std::make_pair(vec, vec.size());
+        WriteAutoBitSet(s, tmp);
     }
 
     template<typename Stream>
-    void Unser(Stream& s, autobitset_t& item)
+    void Unser(Stream& s, std::vector<bool>& vec)
     {
-        ReadAutoBitSet(s, item);
+        const uint64_t n = ReadCompactSize(s);
+        if (n > MaxBits) {
+            throw std::ios_base::failure("AutoBitSet size exceeds MaxBits");
+        }
+        autobitset_t tmp = std::make_pair(std::vector<bool>{}, static_cast<size_t>(n));
+        ReadAutoBitSet(s, tmp);
+        vec = std::move(tmp.first);
     }
 };
 
@@ -764,6 +796,48 @@ struct LimitedStringFormatter
     void Ser(Stream& s, const std::string& v)
     {
         s << v;
+    }
+};
+
+/**
+ * Bounded formatter for std::vector<T>. Rejects sizes above Limit on both
+ * Ser and Unser paths, so peer-declared element counts cannot drive
+ * allocations beyond a caller-specified semantic bound. Delegates to the
+ * standard per-element serialization for T; the chunked reserve pattern in
+ * the Unser path mirrors the default vector deserializer.
+ */
+template<size_t Limit>
+struct LimitedVectorFormatter
+{
+    template<typename Stream, typename V>
+    void Ser(Stream& s, const V& v) const
+    {
+        if (v.size() > Limit) {
+            throw std::ios_base::failure("Vector size exceeds Limit");
+        }
+        s << v;
+    }
+
+    template<typename Stream, typename V>
+    void Unser(Stream& s, V& v)
+    {
+        v.clear();
+        const uint64_t size = ReadCompactSize(s);
+        if (size > Limit) {
+            throw std::ios_base::failure("Vector size exceeds Limit");
+        }
+        size_t allocated = 0;
+        while (allocated < static_cast<size_t>(size)) {
+            static_assert(sizeof(typename V::value_type) <= MAX_VECTOR_ALLOCATE,
+                          "Vector element size too large");
+            allocated = std::min(static_cast<size_t>(size),
+                                 allocated + MAX_VECTOR_ALLOCATE / sizeof(typename V::value_type));
+            v.reserve(allocated);
+            while (v.size() < allocated) {
+                v.emplace_back();
+                s >> v.back();
+            }
+        }
     }
 };
 

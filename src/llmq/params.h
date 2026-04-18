@@ -5,6 +5,7 @@
 #ifndef BITCOIN_LLMQ_PARAMS_H
 #define BITCOIN_LLMQ_PARAMS_H
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <string_view>
@@ -504,6 +505,10 @@ static constexpr std::array<LLMQParams, 14> available_llmqs = {
     },
 
 }; // available_llmqs
+
+// Defensive upper bound on any P2P-deserialized vector sized by quorum
+// membership. Derived at compile time from the largest configured LLMQ size.
+static constexpr int MAX_LLMQ_SIZE = std::ranges::max(available_llmqs, {}, &LLMQParams::size).size;
 
 } // namespace Consensus
 

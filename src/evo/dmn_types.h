@@ -51,6 +51,11 @@ constexpr auto Invalid = mntype_struct{
         amount == Evo.collat_amount;
 }
 
+// Defensive upper bound on the deterministic MN list size for P2P-deserialized
+// vectors sized by total MN count. Derived from the consensus-enforced money
+// supply divided by the smallest valid MN collateral (Regular = 1000 DASH).
+static constexpr size_t MAX_DMN_LIST_SIZE = static_cast<size_t>(MAX_MONEY / Regular.collat_amount);
+
 } // namespace dmn_types
 
 [[nodiscard]] constexpr dmn_types::mntype_struct GetMnType(MnType type)

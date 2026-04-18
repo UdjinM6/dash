@@ -122,11 +122,7 @@ public:
 public:
     SERIALIZE_METHODS(CSigSharesInv, obj)
     {
-        uint64_t invSize = obj.inv.size();
-        READWRITE(VARINT(obj.sessionId), COMPACTSIZE(invSize));
-        autobitset_t bitset = std::make_pair(obj.inv, (size_t)invSize);
-        READWRITE(AUTOBITSET(bitset));
-        SER_READ(obj, obj.inv = bitset.first);
+        READWRITE(VARINT(obj.sessionId), LIMITED_AUTOBITSET(obj.inv, Consensus::MAX_LLMQ_SIZE));
     }
 
     void Init(size_t size);
