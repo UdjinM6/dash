@@ -5,6 +5,7 @@
 #include <llmq/observer.h>
 
 #include <llmq/debug.h>
+#include <llmq/dkgsessionhandler.h>
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/dkgsessionhandler.h>
 
