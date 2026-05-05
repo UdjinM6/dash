@@ -379,18 +379,14 @@ bool ProcessPendingMessageBatch(const CConnman& connman, CDKGSession& session, C
         const NodeId &nodeId = p.first;
         if (!p.second) {
             LogPrint(BCLog::LLMQ_DKG, "%s -- failed to deserialize message, peer=%d\n", __func__, nodeId);
-            {
-                pendingMessages.Misbehaving(nodeId, 100, peerman);
-            }
+            peerman.Misbehaving(nodeId, 100);
             continue;
         }
         bool ban = false;
         if (!session.PreVerifyMessage(*p.second, ban)) {
             if (ban) {
                 LogPrint(BCLog::LLMQ_DKG, "%s -- banning node due to failed preverification, peer=%d\n", __func__, nodeId);
-                {
-                    pendingMessages.Misbehaving(nodeId, 100, peerman);
-                }
+                peerman.Misbehaving(nodeId, 100);
             }
             LogPrint(BCLog::LLMQ_DKG, "%s -- skipping message due to failed preverification, peer=%d\n", __func__, nodeId);
             continue;
@@ -405,7 +401,7 @@ bool ProcessPendingMessageBatch(const CConnman& connman, CDKGSession& session, C
     if (!badNodes.empty()) {
         for (auto nodeId : badNodes) {
             LogPrint(BCLog::LLMQ_DKG, "%s -- failed to verify signature, peer=%d\n", __func__, nodeId);
-            pendingMessages.Misbehaving(nodeId, 100, peerman);
+            peerman.Misbehaving(nodeId, 100);
         }
     }
 
@@ -471,9 +467,9 @@ void ActiveDKGSessionHandler::HandleDKGRound(CConnman& connman, PeerManager& pee
     WaitForNextPhase(QuorumPhase::Initialized, QuorumPhase::Contribute, curQuorumHash);
 
     // Contribute
-    auto fContributeStart = [this, &peerman]() {
+    auto fContributeStart = [this]() {
         if (auto qc = curSession->Contribute(); qc) {
-            pendingContributions.PushPendingMessage(-1, *qc, peerman);
+            pendingContributions.PushOwnPendingMessage(*qc);
         }
     };
     auto fContributeWait = [this, &connman, &peerman] {
@@ -482,9 +478,9 @@ void ActiveDKGSessionHandler::HandleDKGRound(CConnman& connman, PeerManager& pee
     HandlePhase(QuorumPhase::Contribute, QuorumPhase::Complain, curQuorumHash, 0.05, fContributeStart, fContributeWait);
 
     // Complain
-    auto fComplainStart = [this, &connman, &peerman]() {
+    auto fComplainStart = [this, &connman]() {
         if (auto qc = curSession->VerifyAndComplain(connman); qc) {
-            pendingComplaints.PushPendingMessage(-1, *qc, peerman);
+            pendingComplaints.PushOwnPendingMessage(*qc);
         }
     };
     auto fComplainWait = [this, &connman, &peerman] {
@@ -493,9 +489,9 @@ void ActiveDKGSessionHandler::HandleDKGRound(CConnman& connman, PeerManager& pee
     HandlePhase(QuorumPhase::Complain, QuorumPhase::Justify, curQuorumHash, 0.05, fComplainStart, fComplainWait);
 
     // Justify
-    auto fJustifyStart = [this, &peerman]() {
+    auto fJustifyStart = [this]() {
         if (auto qj = curSession->VerifyAndJustify(); qj) {
-            pendingJustifications.PushPendingMessage(-1, *qj, peerman);
+            pendingJustifications.PushOwnPendingMessage(*qj);
         }
     };
     auto fJustifyWait = [this, &connman, &peerman] {
@@ -504,9 +500,9 @@ void ActiveDKGSessionHandler::HandleDKGRound(CConnman& connman, PeerManager& pee
     HandlePhase(QuorumPhase::Justify, QuorumPhase::Commit, curQuorumHash, 0.05, fJustifyStart, fJustifyWait);
 
     // Commit
-    auto fCommitStart = [this, &peerman]() {
+    auto fCommitStart = [this]() {
         if (auto qc = curSession->VerifyAndCommit(); qc) {
-            pendingPrematureCommitments.PushPendingMessage(-1, *qc, peerman);
+            pendingPrematureCommitments.PushOwnPendingMessage(*qc);
         }
     };
     auto fCommitWait = [this, &connman, &peerman] {
