@@ -2173,18 +2173,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     node.clhandler = std::make_unique<chainlock::ChainlockHandler>(*node.chainlocks, chainman, *node.mempool, *node.mn_sync);
     RegisterValidationInterface(node.clhandler.get());
 
-    assert(!node.peerman);
-    node.peerman = PeerManager::make(chainparams, *node.connman, *node.addrman, node.banman.get(), *node.dstxman,
-                                     chainman, *node.mempool, *node.mn_metaman, *node.mn_sync,
-                                     *node.govman, *node.sporkman, *node.chainlocks, *node.clhandler, node.active_ctx, node.dmnman,
-                                     node.cj_walletman, node.llmq_ctx, node.observer_ctx, ignores_incoming_txs);
-    RegisterValidationInterface(node.peerman.get());
-
-    g_ds_notification_interface = std::make_unique<CDSNotificationInterface>(
-        *node.connman, *node.dstxman, *node.mn_sync, *node.govman, chainman, node.dmnman // todo: replace unique_ptr for dmnman to reference
-    );
-    RegisterValidationInterface(g_ds_notification_interface.get());
-
     // ********************************************************* Step 7c: Setup masternode mode or watch-only mode
     assert(!node.active_ctx);
     assert(!node.observer_ctx);
@@ -2210,6 +2198,19 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                                                                     chainman, *node.sporkman, dash_db_params);
         RegisterValidationInterface(node.observer_ctx.get());
     }
+
+    assert(!node.peerman);
+    node.peerman = PeerManager::make(chainparams, *node.connman, *node.addrman, node.banman.get(), *node.dstxman,
+                                     chainman, *node.mempool, *node.mn_metaman, *node.mn_sync,
+                                     *node.govman, *node.sporkman, *node.chainlocks, *node.clhandler,
+                                     node.active_ctx ? node.active_ctx->nodeman.get() : nullptr,
+                                     node.dmnman, node.cj_walletman, node.llmq_ctx, ignores_incoming_txs);
+    RegisterValidationInterface(node.peerman.get());
+
+    g_ds_notification_interface = std::make_unique<CDSNotificationInterface>(
+        *node.connman, *node.dstxman, *node.mn_sync, *node.govman, chainman, node.dmnman // todo: replace unique_ptr for dmnman to reference
+    );
+    RegisterValidationInterface(g_ds_notification_interface.get());
 
     // ********************************************************* Step 7d: Setup other Dash services
 
