@@ -13,6 +13,7 @@
 #include <llmq/dkgsession.h>
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/options.h>
+#include <llmq/quorumsman.h>
 #include <llmq/utils.h>
 #include <net.h>
 #include <netmessagemaker.h>
@@ -212,38 +213,52 @@ bool ProcessPendingMessageBatch(const CConnman& connman, CDKGSession& session, C
 
 
 NetDKG::NetDKG(PeerManagerInternal* peer_manager, const CSporkManager& sporkman, CDKGSessionManager& qdkgsman,
-               const ChainstateManager& chainman, bool quorums_watch) :
+               const ChainstateManager& chainman, bool quorums_watch, CQuorumManager& qman, QuorumRole& role) :
     NetHandler(peer_manager),
     m_qdkgsman{qdkgsman},
+    m_qman{qman},
     m_sporkman{sporkman},
     m_chainman{chainman},
     m_quorums_watch{quorums_watch},
     m_active{nullptr}
 {
+    m_qdkgsman.InitializeHandlers([](const Consensus::LLMQParams& llmq_params,
+                                     [[maybe_unused]] int quorum_idx) -> std::unique_ptr<CDKGSessionHandler> {
+        return std::make_unique<CDKGSessionHandler>(llmq_params);
+    });
+    m_qman.ConnectManagers(&role, &m_qdkgsman);
 }
 
 NetDKG::NetDKG(PeerManagerInternal* peer_manager, const CSporkManager& sporkman, CDKGSessionManager& qdkgsman,
-               const ChainstateManager& chainman, bool quorums_watch,
+               const ChainstateManager& chainman, bool quorums_watch, CQuorumManager& qman, QuorumRole& role,
                CBLSWorker& bls_worker, CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
                CDKGDebugManager& dkgdbgman, CQuorumBlockProcessor& qblockman, CQuorumSnapshotManager& qsnapman,
                const CActiveMasternodeManager& mn_activeman, CConnman& connman) :
     NetHandler(peer_manager),
     m_qdkgsman{qdkgsman},
+    m_qman{qman},
     m_sporkman{sporkman},
     m_chainman{chainman},
     m_quorums_watch{quorums_watch},
-    m_active{std::make_unique<ActiveDKG>(ActiveDKG{bls_worker, dmnman, mn_metaman, dkgdbgman, qblockman, qsnapman,
-                                                   mn_activeman, connman})}
+    m_active{std::make_unique<ActiveDKG>(ActiveDKG{dmnman, mn_metaman, dkgdbgman, qblockman, qsnapman, connman})}
 {
+    m_qdkgsman.InitializeHandlers(
+        [&](const Consensus::LLMQParams& llmq_params, int quorum_idx) -> std::unique_ptr<ActiveDKGSessionHandler> {
+            return std::make_unique<ActiveDKGSessionHandler>(bls_worker, dmnman, mn_metaman, dkgdbgman, qdkgsman,
+                                                             qblockman, qsnapman, mn_activeman, chainman, sporkman,
+                                                             llmq_params, quorums_watch, quorum_idx);
+        });
+    m_qman.ConnectManagers(&role, &m_qdkgsman);
 }
+
+NetDKG::~NetDKG() { m_qman.DisconnectManagers(); }
 
 void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
 {
     if (!IsQuorumDKGEnabled(m_sporkman)) return;
 
-    if (msg_type != NetMsgType::QCONTRIB && msg_type != NetMsgType::QCOMPLAINT
-        && msg_type != NetMsgType::QJUSTIFICATION && msg_type != NetMsgType::QPCOMMITMENT
-        && msg_type != NetMsgType::QWATCH) {
+    if (msg_type != NetMsgType::QCONTRIB && msg_type != NetMsgType::QCOMPLAINT && msg_type != NetMsgType::QJUSTIFICATION &&
+        msg_type != NetMsgType::QPCOMMITMENT && msg_type != NetMsgType::QWATCH) {
         return;
     }
 
@@ -296,7 +311,7 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
 
     if (quorumIndex == -1) {
         const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(::cs_main,
-            return m_chainman.m_blockman.LookupBlockIndex(quorumHash));
+                                                             return m_chainman.m_blockman.LookupBlockIndex(quorumHash));
         if (pQuorumBaseBlockIndex == nullptr) {
             LogPrintf("NetDKG -- unknown quorumHash %s\n", quorumHash.ToString());
             // NOTE: do not insta-ban for this, we might be lagging behind
@@ -320,10 +335,14 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
     }
 
     int inv_type = 0;
-    if (msg_type == NetMsgType::QCONTRIB) inv_type = MSG_QUORUM_CONTRIB;
-    else if (msg_type == NetMsgType::QCOMPLAINT) inv_type = MSG_QUORUM_COMPLAINT;
-    else if (msg_type == NetMsgType::QJUSTIFICATION) inv_type = MSG_QUORUM_JUSTIFICATION;
-    else if (msg_type == NetMsgType::QPCOMMITMENT) inv_type = MSG_QUORUM_PREMATURE_COMMITMENT;
+    if (msg_type == NetMsgType::QCONTRIB)
+        inv_type = MSG_QUORUM_CONTRIB;
+    else if (msg_type == NetMsgType::QCOMPLAINT)
+        inv_type = MSG_QUORUM_COMPLAINT;
+    else if (msg_type == NetMsgType::QJUSTIFICATION)
+        inv_type = MSG_QUORUM_JUSTIFICATION;
+    else if (msg_type == NetMsgType::QPCOMMITMENT)
+        inv_type = MSG_QUORUM_PREMATURE_COMMITMENT;
     Assume(inv_type != 0); // guarded by the early-return above
 
     auto pm = std::make_shared<CDataStream>(std::move(vRecv));
@@ -332,19 +351,26 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
     const uint256 hash = hw.GetHash();
 
     const NodeId from = pfrom.GetId();
-    const bool dispatched = m_qdkgsman.DoForHandler({llmqType, quorumIndex},
-        [&](CDKGSessionHandler& handler) {
-            CDKGPendingMessages* pending = nullptr;
-            switch (inv_type) {
-            case MSG_QUORUM_CONTRIB:              pending = &handler.pendingContributions; break;
-            case MSG_QUORUM_COMPLAINT:            pending = &handler.pendingComplaints; break;
-            case MSG_QUORUM_JUSTIFICATION:        pending = &handler.pendingJustifications; break;
-            case MSG_QUORUM_PREMATURE_COMMITMENT: pending = &handler.pendingPrematureCommitments; break;
-            }
-            Assume(pending != nullptr);
-            WITH_LOCK(::cs_main, m_peer_manager->PeerEraseObjectRequest(from, CInv{static_cast<uint32_t>(inv_type), hash}));
-            pending->PushPendingMessage(from, std::move(pm), hash);
-        });
+    const bool dispatched = m_qdkgsman.DoForHandler({llmqType, quorumIndex}, [&](CDKGSessionHandler& handler) {
+        CDKGPendingMessages* pending = nullptr;
+        switch (inv_type) {
+        case MSG_QUORUM_CONTRIB:
+            pending = &handler.pendingContributions;
+            break;
+        case MSG_QUORUM_COMPLAINT:
+            pending = &handler.pendingComplaints;
+            break;
+        case MSG_QUORUM_JUSTIFICATION:
+            pending = &handler.pendingJustifications;
+            break;
+        case MSG_QUORUM_PREMATURE_COMMITMENT:
+            pending = &handler.pendingPrematureCommitments;
+            break;
+        }
+        Assume(pending != nullptr);
+        WITH_LOCK(::cs_main, m_peer_manager->PeerEraseObjectRequest(from, CInv{static_cast<uint32_t>(inv_type), hash}));
+        pending->PushPendingMessage(from, std::move(pm), hash);
+    });
     if (!dispatched) {
         LogPrintf("NetDKG -- no session handlers for quorumIndex [%d]\n", quorumIndex);
         m_peer_manager->PeerMisbehaving(pfrom.GetId(), 100);
@@ -365,8 +391,8 @@ bool NetDKG::AlreadyHave(const CInv& inv)
         bool seen = false;
         m_qdkgsman.ForEachHandler([&](CDKGSessionHandler& h) {
             if (seen) return;
-            if (h.pendingContributions.HasSeen(inv.hash) || h.pendingComplaints.HasSeen(inv.hash)
-                || h.pendingJustifications.HasSeen(inv.hash) || h.pendingPrematureCommitments.HasSeen(inv.hash)) {
+            if (h.pendingContributions.HasSeen(inv.hash) || h.pendingComplaints.HasSeen(inv.hash) ||
+                h.pendingJustifications.HasSeen(inv.hash) || h.pendingPrematureCommitments.HasSeen(inv.hash)) {
                 seen = true;
             }
         });
@@ -504,8 +530,8 @@ void NetDKG::HandleDKGRound(ActiveDKGSessionHandler& handler)
 
     const auto tip_mn_list = active.dmnman.GetListAtChainTip();
     utils::EnsureQuorumConnections(handler.params, active.connman, m_sporkman,
-                                   {active.dmnman, active.qsnapman, m_chainman, pQuorumBaseBlockIndex},
-                                   tip_mn_list, curSession->ProTx(), /*is_masternode=*/true, handler.QuorumsWatch());
+                                   {active.dmnman, active.qsnapman, m_chainman, pQuorumBaseBlockIndex}, tip_mn_list,
+                                   curSession->ProTx(), /*is_masternode=*/true, handler.QuorumsWatch());
     if (curSession->AreWeMember()) {
         utils::AddQuorumProbeConnections(handler.params, active.connman, active.mn_metaman, m_sporkman,
                                          {active.dmnman, active.qsnapman, m_chainman, pQuorumBaseBlockIndex},

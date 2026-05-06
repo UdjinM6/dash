@@ -2187,14 +2187,13 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             return InitError(_("Invalid masternodeblsprivkey. Please see documentation."));
         }
         // Will init later in ThreadImport
-        node.active_ctx = std::make_unique<ActiveContext>(*node.llmq_ctx->bls_worker, chainman, *node.connman, *node.dmnman, *node.govman, *node.mn_metaman,
+        node.active_ctx = std::make_unique<ActiveContext>(*node.llmq_ctx->bls_worker, chainman, *node.connman, *node.dmnman, *node.govman,
                                                           *node.sporkman, *node.chainlocks, *node.mempool, *node.clhandler, *node.llmq_ctx->isman,
-                                                          *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qman, *node.llmq_ctx->qsnapman, *node.llmq_ctx->sigman,
+                                                          *node.llmq_ctx->qman, *node.llmq_ctx->qsnapman, *node.llmq_ctx->sigman,
                                                           *node.mn_sync, operator_sk, dash_db_params, quorums_watch);
         RegisterValidationInterface(node.active_ctx.get());
     } else if (quorums_watch) {
-        node.observer_ctx = std::make_unique<llmq::ObserverContext>(*node.llmq_ctx->bls_worker, *node.dmnman, *node.mn_metaman,
-                                                                    *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qman, *node.llmq_ctx->qsnapman,
+        node.observer_ctx = std::make_unique<llmq::ObserverContext>(*node.dmnman, *node.llmq_ctx->qman, *node.llmq_ctx->qsnapman,
                                                                     chainman, *node.sporkman, dash_db_params);
         RegisterValidationInterface(node.observer_ctx.get());
     }
@@ -2232,12 +2231,14 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     if (node.active_ctx) {
         node.peerman->AddExtraHandler(std::make_unique<llmq::NetDKG>(
             node.peerman.get(), *node.sporkman, *node.active_ctx->qdkgsman, chainman, quorums_watch,
+            *node.llmq_ctx->qman, *node.active_ctx,
             *node.llmq_ctx->bls_worker, *node.dmnman, *node.mn_metaman,
             *node.active_ctx->dkgdbgman, *node.llmq_ctx->quorum_block_processor, *node.llmq_ctx->qsnapman,
             *node.active_ctx->nodeman, *node.connman));
     } else if (node.observer_ctx) {
         node.peerman->AddExtraHandler(std::make_unique<llmq::NetDKG>(
-            node.peerman.get(), *node.sporkman, *node.observer_ctx->qdkgsman, chainman, /*quorums_watch=*/true));
+            node.peerman.get(), *node.sporkman, *node.observer_ctx->qdkgsman, chainman, /*quorums_watch=*/true,
+            *node.llmq_ctx->qman, *node.observer_ctx));
     } else {
         node.peerman->AddExtraHandler(std::make_unique<llmq::NetDKGStub>(node.peerman.get()));
     }
