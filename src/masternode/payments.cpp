@@ -6,7 +6,7 @@
 
 #include <evo/deterministicmns.h>
 #include <governance/classes.h>
-#include <governance/governance.h>
+#include <governance/superblock.h>
 #include <masternode/sync.h>
 
 #include <chain.h>
@@ -232,7 +232,7 @@ bool CMNPaymentsProcessor::IsBlockValueValid(const CBlock& block, const int nBlo
         return false;
     }
 
-    if (!m_mn_sync.IsSynced() || !m_govman.IsValid()) {
+    if (!m_mn_sync.IsSynced() || !m_superblocks.IsValid()) {
         LogPrint(BCLog::MNPAYMENTS, "CMNPaymentsProcessor::%s -- WARNING! Not enough data, checked superblock max bounds only\n", __func__);
         // not enough data for full checks but at least we know that the superblock limits were honored.
         // We rely on the network to have followed the correct chain in this case
@@ -245,7 +245,7 @@ bool CMNPaymentsProcessor::IsBlockValueValid(const CBlock& block, const int nBlo
 
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
 
-    if (!m_govman.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
+    if (!m_superblocks.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
         // we are on a valid superblock height but a superblock was not triggered
         // revert to block reward limits in this case
         if(!isBlockRewardValueMet) {
@@ -256,7 +256,7 @@ bool CMNPaymentsProcessor::IsBlockValueValid(const CBlock& block, const int nBlo
     }
 
     // this actually also checks for correct payees and not only amount
-    if (!m_govman.IsValidSuperblock(m_chainman.ActiveChain(), tip_mn_list, *block.vtx[0], nBlockHeight, blockReward)) {
+    if (!m_superblocks.IsValidSuperblock(m_chainman.ActiveChain(), tip_mn_list, *block.vtx[0], nBlockHeight, blockReward)) {
         // triggered but invalid? that's weird
         LogPrintf("CMNPaymentsProcessor::%s -- ERROR! Invalid superblock detected at height %d: %s", __func__, nBlockHeight, block.vtx[0]->ToString()); /* Continued */
         // should NOT allow invalid superblocks, when superblocks are enabled
@@ -280,7 +280,7 @@ bool CMNPaymentsProcessor::IsBlockPayeeValid(const CTransaction& txNew, const CB
         return false;
     }
 
-    if (!m_mn_sync.IsSynced() || !m_govman.IsValid()) {
+    if (!m_mn_sync.IsSynced() || !m_superblocks.IsValid()) {
         // governance data is either incomplete or non-existent
         LogPrint(BCLog::MNPAYMENTS, "CMNPaymentsProcessor::%s -- WARNING! Not enough data, skipping superblock payee checks\n", __func__);
         return true;  // not an error
@@ -300,9 +300,9 @@ bool CMNPaymentsProcessor::IsBlockPayeeValid(const CTransaction& txNew, const CB
     if (!check_superblock) return true;
 
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
-    if (m_govman.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
-        if (m_govman.IsValidSuperblock(m_chainman.ActiveChain(), tip_mn_list, txNew, nBlockHeight,
-                                       blockSubsidy + feeReward)) {
+    if (m_superblocks.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
+        if (m_superblocks.IsValidSuperblock(m_chainman.ActiveChain(), tip_mn_list, txNew, nBlockHeight,
+                                            blockSubsidy + feeReward)) {
             LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- Valid superblock at height %d: %s", /* Continued */
                      __func__, nBlockHeight, txNew.ToString());
             // continue validation, should also pay MN
@@ -326,9 +326,9 @@ void CMNPaymentsProcessor::FillBlockPayments(CMutableTransaction& txNew, const C
 
     // Only create superblocks when one is actually triggered.
     const auto tip_mn_list = m_dmnman.GetListAtChainTip();
-    if (m_govman.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
+    if (m_superblocks.IsSuperblockTriggered(tip_mn_list, nBlockHeight)) {
         LogPrint(BCLog::GOBJECT, "CMNPaymentsProcessor::%s -- Triggered superblock creation at height %d\n", __func__, nBlockHeight);
-        m_govman.GetSuperblockPayments(tip_mn_list, nBlockHeight, voutSuperblockPaymentsRet);
+        m_superblocks.GetSuperblockPayments(tip_mn_list, nBlockHeight, voutSuperblockPaymentsRet);
     }
 
     if (!GetMasternodeTxOuts(pindexPrev, blockSubsidy, feeReward, voutMasternodePaymentsRet)) {
