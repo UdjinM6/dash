@@ -252,7 +252,11 @@ NetDKG::NetDKG(PeerManagerInternal* peer_manager, const CSporkManager& sporkman,
     m_qman.ConnectManagers(&role, &m_qdkgsman);
 }
 
-NetDKG::~NetDKG() { m_qman.DisconnectManagers(); }
+NetDKG::~NetDKG()
+{
+    Stop();
+    m_qman.DisconnectManagers();
+}
 
 void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStream& vRecv)
 {
@@ -272,12 +276,6 @@ void NetDKG::ProcessMessage(CNode& pfrom, const std::string& msg_type, CDataStre
             return;
         }
         pfrom.qwatch = true;
-        return;
-    }
-
-    if (!is_masternode && !m_quorums_watch) {
-        // regular non-watching nodes should never receive any of these
-        m_peer_manager->PeerMisbehaving(pfrom.GetId(), 10);
         return;
     }
 
