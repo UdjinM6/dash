@@ -419,6 +419,84 @@ void FuncV19Activation(TestChainSetup& setup)
     BOOST_REQUIRE(dummy_list == tip_list);
 };
 
+// Regression test for pre-V24 ProUpRegTx state-version handling. A v1 (legacy) masternode that
+// receives a v2 (basic-scheme) ProUpRegTx must keep nVersion == LegacyBLS when the operator key is
+// unchanged (otherwise the deterministic masternode list diverges from pre-V24 nodes that leave it
+// at v1), but must adopt the update's version (and PoSe-ban) when the operator key changes, matching
+// historical behavior.
+void FuncProUpRegTxVersionHandlingBeforeV24(TestChainSetup& setup)
+{
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    auto& dmnman = *Assert(setup.m_node.dmnman);
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+
+    // Register while V19 is still inactive: this uses the legacy scheme and yields v1 (LegacyBLS) state.
+    BOOST_REQUIRE(!DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
+    BOOST_REQUIRE(bls::bls_legacy_scheme.load());
+
+    auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
+    CKey owner_key;
+    CBLSSecretKey operator_key;
+    CKey collateral_key;
+    collateral_key.MakeNewKey(false);
+    const auto collateralScript = GetScriptForDestination(PKHash(collateral_key.GetPubKey()));
+    auto tx_reg = CreateProRegTx(chainman.ActiveChain(), *(setup.m_node.mempool), utxos, 1, collateralScript,
+                                 setup.coinbaseKey, owner_key, operator_key);
+    const auto proTxHash = tx_reg.GetHash();
+    setup.CreateAndProcessBlock({tx_reg}, coinbase_pk);
+    dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
+
+    auto dmn = dmnman.GetListAtChainTip().GetMN(proTxHash);
+    BOOST_REQUIRE(dmn);
+    BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::LegacyBLS);
+
+    // Activate V19 (switches to the basic scheme) while leaving V24 inactive.
+    while (!DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19)) {
+        setup.CreateAndProcessBlock({}, coinbase_pk);
+        dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
+    }
+    BOOST_REQUIRE(!DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman, Consensus::DEPLOYMENT_V24));
+    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
+
+    // Build a v2 ProUpRegTx that keeps the same operator key (operator unchanged) and only rewrites
+    // the payout. keyIDVoting matches the registration (owner id), as CreateProRegTx sets it.
+    const auto payoutScript = GenerateRandomAddress();
+    auto tx_upreg = CreateProUpRegTx(chainman.ActiveChain(), *(setup.m_node.mempool), utxos, proTxHash, owner_key,
+                                     operator_key.GetPublicKey(), owner_key.GetPubKey().GetID(), payoutScript,
+                                     setup.coinbaseKey);
+    const auto opt_upreg = GetTxPayload<CProUpRegTx>(tx_upreg);
+    BOOST_REQUIRE(opt_upreg);
+    BOOST_CHECK_EQUAL(opt_upreg->nVersion, ProTxVersion::BasicBLS);
+
+    setup.CreateAndProcessBlock({tx_upreg}, coinbase_pk);
+    dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
+
+    dmn = dmnman.GetListAtChainTip().GetMN(proTxHash);
+    BOOST_REQUIRE(dmn);
+    // The update must have been applied...
+    BOOST_CHECK(dmn->pdmnState->scriptPayout == payoutScript);
+    // ...but the state version must stay v1 (no bump before V24).
+    BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::LegacyBLS);
+    BOOST_REQUIRE(!dmn->pdmnState->IsBanned());
+
+    // Now a v2 ProUpRegTx that *changes* the operator key: even before V24 this adopts the update's
+    // version and PoSe-bans the masternode (operator-related fields are reset), as it did historically.
+    CBLSSecretKey operator_key_new;
+    operator_key_new.MakeNewKey();
+    const auto payoutScript2 = GenerateRandomAddress();
+    auto tx_upreg2 = CreateProUpRegTx(chainman.ActiveChain(), *(setup.m_node.mempool), utxos, proTxHash, owner_key,
+                                      operator_key_new.GetPublicKey(), owner_key.GetPubKey().GetID(), payoutScript2,
+                                      setup.coinbaseKey);
+    setup.CreateAndProcessBlock({tx_upreg2}, coinbase_pk);
+    dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
+
+    dmn = dmnman.GetListAtChainTip().GetMN(proTxHash);
+    BOOST_REQUIRE(dmn);
+    BOOST_CHECK(dmn->pdmnState->scriptPayout == payoutScript2);
+    BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::BasicBLS);
+    BOOST_REQUIRE(dmn->pdmnState->IsBanned());
+};
+
 void FuncDIP3Protx(TestChainSetup& setup)
 {
     auto& chainman = *Assert(setup.m_node.chainman.get());
@@ -988,6 +1066,13 @@ BOOST_AUTO_TEST_CASE(v19_activation_legacy)
 {
     TestChainV19BeforeActivationSetup setup;
     FuncV19Activation(setup);
+}
+
+// A pre-V24 registrar update bumps the state version only when the operator key changes
+BOOST_AUTO_TEST_CASE(proupreg_version_handling_before_v24)
+{
+    TestChainV19BeforeActivationSetup setup;
+    FuncProUpRegTxVersionHandlingBeforeV24(setup);
 }
 
 BOOST_AUTO_TEST_CASE(dip3_protx_legacy)

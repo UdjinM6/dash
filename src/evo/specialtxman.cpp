@@ -454,8 +454,15 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
             }
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
             const uint16_t old_version{static_cast<uint16_t>(newState->nVersion)};
-            uint16_t target_version{std::max<uint16_t>(old_version, opt_proTx->nVersion)};
-            if (newState->pubKeyOperator != opt_proTx->pubKeyOperator) {
+            const bool operator_changed{newState->pubKeyOperator != opt_proTx->pubKeyOperator};
+            // Before v24 a registrar update must not raise an *unchanged* masternode's state version:
+            // a v2 ProUpRegTx applied to a still-v1 MN would otherwise upgrade its state where pre-v24
+            // nodes keep it at v1, diverging the deterministic masternode list. An operator-key change
+            // still adopts the update's version (historical behavior, since ResetOperatorFields zeroes
+            // the version first). After v24, versions may always be raised (never lowered).
+            const uint16_t target_version{is_v24_deployed ? std::max<uint16_t>(old_version, opt_proTx->nVersion)
+                                                          : (operator_changed ? opt_proTx->nVersion : old_version)};
+            if (operator_changed) {
                 // reset all operator related fields and put MN into PoSe-banned state in case the operator key changes
                 newState->ResetOperatorFields();
                 newState->BanIfNotBanned(nHeight);
