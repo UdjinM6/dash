@@ -109,6 +109,13 @@ static void SignTransaction(const CTxMemPool& mempool, CMutableTransaction& tx, 
     }
 }
 
+static CScript GenerateRandomAddress()
+{
+    CKey key;
+    key.MakeNewKey(false);
+    return GetScriptForDestination(PKHash(key.GetPubKey()));
+}
+
 static CMutableTransaction CreateProRegTx(const CChain& active_chain, const CTxMemPool& mempool, SimpleUTXOMap& utxos, int port, const CScript& scriptPayout, const CKey& coinbaseKey, CKey& ownerKeyRet, CBLSSecretKey& operatorKeyRet)
 {
     ownerKeyRet.MakeNewKey(true);
@@ -128,19 +135,12 @@ static CMutableTransaction CreateProRegTx(const CChain& active_chain, const CTxM
     CMutableTransaction tx;
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_REGISTER;
-    FundTransaction(active_chain, tx, utxos, scriptPayout, dmn_types::Regular.collat_amount);
+    FundTransaction(active_chain, tx, utxos, GenerateRandomAddress(), dmn_types::Regular.collat_amount);
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
     SetTxPayload(tx, proTx);
     SignTransaction(mempool, tx, coinbaseKey);
 
     return tx;
-}
-
-static CScript GenerateRandomAddress()
-{
-    CKey key;
-    key.MakeNewKey(false);
-    return GetScriptForDestination(PKHash(key.GetPubKey()));
 }
 
 BOOST_AUTO_TEST_SUITE(block_reward_reallocation_tests)
