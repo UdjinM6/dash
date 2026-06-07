@@ -76,7 +76,12 @@ bool IsPayoutListTriviallyValid(const MasternodePayoutShares& payouts, const CKe
         if (!ExtractDestination(payout.scriptPayout, payout_dest)) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-dest");
         }
-        if (payout_dest == CTxDestination(PKHash(keyIDOwner)) || payout_dest == CTxDestination(PKHash(keyIDVoting))) {
+        // ProUpRegTx payloads don't carry an owner key, so that caller passes a null keyIDOwner and
+        // owner-reuse is enforced contextually (against the registered owner) in CheckProUpRegTx. Skip
+        // the comparison when null so legacy (v1-v3) trivial validation stays byte-equivalent to the
+        // pre-DIP-0026 behavior, which never rejected a payout matching PKHash(null).
+        const bool reuses_owner{!keyIDOwner.IsNull() && payout_dest == CTxDestination(PKHash(keyIDOwner))};
+        if (reuses_owner || payout_dest == CTxDestination(PKHash(keyIDVoting))) {
             return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-payee-reuse");
         }
     }

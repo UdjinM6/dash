@@ -181,6 +181,14 @@ BOOST_AUTO_TEST_CASE(multipayout_list_validation)
     CheckPayouts({{GetScriptForDestination(PKHash(owner_id)), 10000}}, owner_id, voting_id, "bad-protx-payee-reuse");
     CheckPayouts({{GetScriptForDestination(PKHash(voting_id)), 10000}}, owner_id, voting_id, "bad-protx-payee-reuse");
 
+    // ProUpRegTx payloads carry no owner key, so the caller passes a null keyIDOwner. A payout must
+    // not be rejected merely because it hashes to PKHash(null); the owner-reuse check is skipped when
+    // the owner key is null (it is enforced contextually against the registered owner instead).
+    CheckPayouts({{GetScriptForDestination(PKHash(CKeyID{})), 10000}}, /*owner=*/CKeyID{}, voting_id, std::nullopt);
+    // Voting-key reuse is still enforced even when the owner key is null.
+    CheckPayouts({{GetScriptForDestination(PKHash(voting_id)), 10000}}, /*owner=*/CKeyID{}, voting_id,
+                 "bad-protx-payee-reuse");
+
     TxValidationState state;
     BOOST_CHECK(!IsPayoutListKeySafe({{payout1, 10000}}, CTxDestination(PKHash(payout_key1.GetPubKey().GetID())),
                                      owner_id, voting_id, /*check_payout_collateral_reuse=*/true, state));
