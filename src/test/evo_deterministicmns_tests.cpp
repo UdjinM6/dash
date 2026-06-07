@@ -497,6 +497,74 @@ void FuncProUpRegTxVersionHandlingBeforeV24(TestChainSetup& setup)
     BOOST_REQUIRE(dmn->pdmnState->IsBanned());
 };
 
+// Regression test: after V24 a v1 (legacy) masternode cannot jump straight to multi-payout (v4). A
+// v4 ProUpRegTx targeting a still-v1 masternode must be rejected with bad-protx-version-upgrade; the
+// masternode has to upgrade to basic (v2) first.
+void FuncProUpRegTxV4OnLegacyRejected(TestChainSetup& setup)
+{
+    auto& chainman = *Assert(setup.m_node.chainman.get());
+    auto& dmnman = *Assert(setup.m_node.dmnman);
+    const CScript coinbase_pk = GetScriptForRawPubKey(setup.coinbaseKey.GetPubKey());
+
+    // Register a v1 masternode while both V19 and V24 are still inactive (legacy scheme).
+    BOOST_REQUIRE(!DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
+    BOOST_REQUIRE(!DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman, Consensus::DEPLOYMENT_V24));
+    auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
+    CKey owner_key;
+    CBLSSecretKey operator_key;
+    CKey collateral_key;
+    collateral_key.MakeNewKey(false);
+    const auto collateralScript = GetScriptForDestination(PKHash(collateral_key.GetPubKey()));
+    auto tx_reg = CreateProRegTx(chainman.ActiveChain(), *(setup.m_node.mempool), utxos, 1, collateralScript,
+                                 setup.coinbaseKey, owner_key, operator_key);
+    const auto proTxHash = tx_reg.GetHash();
+    setup.CreateAndProcessBlock({tx_reg}, coinbase_pk);
+    dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
+    {
+        auto dmn = dmnman.GetListAtChainTip().GetMN(proTxHash);
+        BOOST_REQUIRE(dmn);
+        BOOST_CHECK_EQUAL(dmn->pdmnState->nVersion, ProTxVersion::LegacyBLS);
+    }
+
+    // Activate V19, then keep mining so the (non-EHF) V24 deployment signals in and activates. The
+    // masternode registered above stays v1 throughout (it is never updated here).
+    for (int i = 0; i < 2000 && !DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman, Consensus::DEPLOYMENT_V24); ++i) {
+        setup.CreateAndProcessBlock({}, coinbase_pk);
+        dmnman.UpdatedBlockTip(chainman.ActiveChain().Tip());
+    }
+    BOOST_REQUIRE(DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman.GetConsensus(), Consensus::DEPLOYMENT_V19));
+    BOOST_REQUIRE(DeploymentActiveAfter(chainman.ActiveChain().Tip(), chainman, Consensus::DEPLOYMENT_V24));
+    BOOST_REQUIRE(!bls::bls_legacy_scheme.load());
+    // The masternode must still be v1 after all that mining.
+    BOOST_REQUIRE_EQUAL(dmnman.GetListAtChainTip().GetMN(proTxHash)->pdmnState->nVersion, ProTxVersion::LegacyBLS);
+
+    // Build a well-formed v4 (multi-payout) ProUpRegTx for the still-v1 masternode.
+    CProUpRegTx proTx;
+    proTx.nVersion = ProTxVersion::MultiPayout;
+    proTx.proTxHash = proTxHash;
+    proTx.pubKeyOperator.Set(operator_key.GetPublicKey(), bls::bls_legacy_scheme.load());
+    proTx.keyIDVoting = owner_key.GetPubKey().GetID();
+    proTx.payouts = {{GenerateRandomAddress(), CMasternodePayoutShare::MAX_REWARD}};
+
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
+    FundTransaction(chainman.ActiveChain(), tx, utxos, GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey())),
+                    1 * COIN, setup.coinbaseKey);
+    proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
+    CHashSigner::SignHash(::SerializeHash(proTx), owner_key, proTx.vchSig);
+    SetTxPayload(tx, proTx);
+    SignTransaction(*(setup.m_node.mempool), tx, setup.coinbaseKey);
+
+    TxValidationState val_state;
+    {
+        LOCK(cs_main);
+        BOOST_CHECK(!CheckProUpRegTx(CTransaction(tx), chainman.ActiveChain().Tip(), dmnman,
+                                     chainman.ActiveChainstate().CoinsTip(), chainman, val_state, /*check_sigs=*/true));
+    }
+    BOOST_CHECK_EQUAL(val_state.GetRejectReason(), "bad-protx-version-upgrade");
+};
+
 void FuncDIP3Protx(TestChainSetup& setup)
 {
     auto& chainman = *Assert(setup.m_node.chainman.get());
@@ -1054,6 +1122,28 @@ TestChainV19BeforeActivationSetup::TestChainV19BeforeActivationSetup() :
     assert(!v19_active);
 }
 
+// Like TestChainV19BeforeActivationSetup, but V24 is configured as a plain (non-EHF) versionbits
+// deployment that activates via miner signaling, so it can be switched on *after* a pre-V19 v1
+// registration (CheckProRegTx forbids registering legacy versions once V24 is active). At
+// construction (height 494) neither V19 nor V24 is active yet.
+struct TestChainV24SignalBeforeV19Setup : public TestChainSetup {
+    TestChainV24SignalBeforeV19Setup() :
+        TestChainSetup(494, CBaseChainParams::REGTEST,
+                       {"-testactivationheight=v19@500", "-testactivationheight=v20@500",
+                        "-testactivationheight=mn_rr@500",
+                        // start=0 timeout=inf min_act=0 window=500 thr_start=400 thr_min=300 falloff=5 useehf=0.
+                        // window>494 keeps V24 in DEFINED (non-signaling) state through the 494 setup blocks so
+                        // their hashes match the hardcoded checkpoint; signaling/activation happens only as the
+                        // test mines past height 500.
+                        "-vbparams=v24:0:9999999999:0:500:400:300:5:0"})
+    {
+        assert(!DeploymentActiveAfter(m_node.chainman->ActiveChain().Tip(), m_node.chainman->GetConsensus(),
+                                      Consensus::DEPLOYMENT_V19));
+        assert(!DeploymentActiveAfter(m_node.chainman->ActiveChain().Tip(), *m_node.chainman,
+                                      Consensus::DEPLOYMENT_V24));
+    }
+};
+
 // DIP3 can only be activated with legacy scheme (v19 is activated later)
 BOOST_AUTO_TEST_CASE(dip3_activation_legacy)
 {
@@ -1073,6 +1163,13 @@ BOOST_AUTO_TEST_CASE(proupreg_version_handling_before_v24)
 {
     TestChainV19BeforeActivationSetup setup;
     FuncProUpRegTxVersionHandlingBeforeV24(setup);
+}
+
+// A v4 ProUpRegTx targeting a still-v1 masternode is rejected (must upgrade to v2 first)
+BOOST_AUTO_TEST_CASE(proupreg_v4_on_legacy_rejected)
+{
+    TestChainV24SignalBeforeV19Setup setup;
+    FuncProUpRegTxV4OnLegacyRejected(setup);
 }
 
 BOOST_AUTO_TEST_CASE(dip3_protx_legacy)
