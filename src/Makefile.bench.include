@@ -14,6 +14,7 @@ GENERATED_BENCH_FILES = $(RAW_BENCH_FILES:.raw=.raw.h)
 bench_bench_dash_SOURCES = \
   $(RAW_BENCH_FILES) \
   bench/addrman.cpp \
+  bench/arith_uint256.cpp \
   bench/base58.cpp \
   bench/bech32.cpp \
   bench/bench.cpp \
