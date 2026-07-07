@@ -11,6 +11,7 @@
 #include <llmq/utils.h>
 #include <netaddress.h>
 #include <random.h>
+#include <streams.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -101,6 +102,17 @@ BOOST_AUTO_TEST_CASE(sig_ses_ann_limit_is_per_llmq_type)
     node_state.GetOrCreateSessionFromAnn(other_type_ann);
     BOOST_CHECK_EQUAL(node_state.GetSessionCount(), 2U);
     BOOST_CHECK_EQUAL(node_state.GetSessionCount(Consensus::LLMQType::LLMQ_400_60), 1U);
+}
+
+BOOST_AUTO_TEST_CASE(batched_sig_shares_rejects_oversized_inner_vector)
+{
+    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    stream << VARINT(uint32_t{1});
+    WriteCompactSize(stream, MAX_MSGS_TOTAL_BATCHED_SIGS + 1);
+
+    CBatchedSigShares batched_sig_shares;
+    BOOST_CHECK_THROW(stream >> batched_sig_shares, std::ios_base::failure);
+    BOOST_CHECK(batched_sig_shares.sigShares.empty());
 }
 
 BOOST_AUTO_TEST_CASE(deterministic_outbound_connection_test)

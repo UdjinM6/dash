@@ -99,13 +99,24 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
         }
     } else if (msg_type == NetMsgType::QBSIGSHARES) {
         std::vector<CBatchedSigShares> msgs;
-        vRecv >> msgs;
+        const size_t msgs_size{ReadCompactSize(vRecv)};
+        if (msgs_size > MAX_MSGS_TOTAL_BATCHED_SIGS) {
+            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many batches in QBSIGSHARES message. cnt=%d, max=%d, node=%d\n",
+                     __func__, static_cast<int>(msgs_size), MAX_MSGS_TOTAL_BATCHED_SIGS, pfrom.GetId());
+            BanNode(pfrom.GetId());
+            return;
+        }
+        msgs.reserve(msgs_size);
+        while (msgs.size() < msgs_size) {
+            msgs.emplace_back();
+            vRecv >> msgs.back();
+        }
         const size_t totalSigsCount = std23::ranges::fold_left(msgs, size_t{0}, [](size_t s, const auto& bs) {
             return s + bs.sigShares.size();
         });
         if (totalSigsCount > MAX_MSGS_TOTAL_BATCHED_SIGS) {
             LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- too many sigs in QBSIGSHARES message. cnt=%d, max=%d, node=%d\n",
-                     __func__, msgs.size(), MAX_MSGS_TOTAL_BATCHED_SIGS, pfrom.GetId());
+                     __func__, static_cast<int>(totalSigsCount), MAX_MSGS_TOTAL_BATCHED_SIGS, pfrom.GetId());
             BanNode(pfrom.GetId());
             return;
         }
