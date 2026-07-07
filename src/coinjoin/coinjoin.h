@@ -167,9 +167,39 @@ public:
     {
     }
 
-    SERIALIZE_METHODS(CCoinJoinEntry, obj)
+    template <typename Stream>
+    void Serialize(Stream& s) const
     {
-        READWRITE(obj.vecTxDSIn, obj.txCollateral, obj.vecTxOut);
+        s << vecTxDSIn << txCollateral << vecTxOut;
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
+        vecTxDSIn.clear();
+        vecTxOut.clear();
+
+        const size_t txdsin_size = ReadCompactSize(s);
+        if (txdsin_size > COINJOIN_ENTRY_MAX_SIZE) {
+            throw std::ios_base::failure("CCoinJoinEntry::vecTxDSIn size too large");
+        }
+        vecTxDSIn.reserve(txdsin_size);
+        while (vecTxDSIn.size() < txdsin_size) {
+            vecTxDSIn.emplace_back();
+            s >> vecTxDSIn.back();
+        }
+
+        s >> txCollateral;
+
+        const size_t txout_size = ReadCompactSize(s);
+        if (txout_size > COINJOIN_ENTRY_MAX_SIZE) {
+            throw std::ios_base::failure("CCoinJoinEntry::vecTxOut size too large");
+        }
+        vecTxOut.reserve(txout_size);
+        while (vecTxOut.size() < txout_size) {
+            vecTxOut.emplace_back();
+            s >> vecTxOut.back();
+        }
     }
 
     bool AddScriptSig(const CTxIn& txin);

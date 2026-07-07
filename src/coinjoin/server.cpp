@@ -592,16 +592,23 @@ bool CCoinJoinServer::AddEntry(const CCoinJoinEntry& entry, PoolMessage& nMessag
         return false;
     }
 
-    if (!CoinJoin::IsCollateralValid(m_chainman, m_isman, mempool, *entry.txCollateral)) {
-        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: collateral not valid!\n", __func__);
-        nMessageIDRet = ERR_INVALID_COLLATERAL;
-        return false;
-    }
-
     if (entry.vecTxDSIn.size() > COINJOIN_ENTRY_MAX_SIZE) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: too many inputs! %d/%d\n", __func__, entry.vecTxDSIn.size(), COINJOIN_ENTRY_MAX_SIZE);
         nMessageIDRet = ERR_MAXIMUM;
         ConsumeCollateral(entry.txCollateral);
+        return false;
+    }
+
+    if (entry.vecTxOut.size() > COINJOIN_ENTRY_MAX_SIZE) {
+        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: too many outputs! %d/%d\n", __func__, entry.vecTxOut.size(), COINJOIN_ENTRY_MAX_SIZE);
+        nMessageIDRet = ERR_MAXIMUM;
+        ConsumeCollateral(entry.txCollateral);
+        return false;
+    }
+
+    if (!CoinJoin::IsCollateralValid(m_chainman, m_isman, mempool, *entry.txCollateral)) {
+        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: collateral not valid!\n", __func__);
+        nMessageIDRet = ERR_INVALID_COLLATERAL;
         return false;
     }
 

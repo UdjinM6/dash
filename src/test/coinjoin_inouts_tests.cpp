@@ -14,6 +14,7 @@
 #include <coinjoin/common.h>
 #include <evo/chainhelper.h>
 #include <script/script.h>
+#include <streams.h>
 #include <uint256.h>
 #include <util/check.h>
 #include <util/time.h>
@@ -152,6 +153,29 @@ BOOST_AUTO_TEST_CASE(entry_addscriptsig_matches_and_rejects)
         BOOST_CHECK(entry.vecTxDSIn[1].scriptSig == scriptSig1);
         // First input unchanged.
         BOOST_CHECK(entry.vecTxDSIn[0].scriptSig == scriptSig0);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(entry_rejects_oversized_vectors_before_materializing)
+{
+    {
+        CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+        WriteCompactSize(stream, COINJOIN_ENTRY_MAX_SIZE + 1);
+
+        CCoinJoinEntry entry;
+        BOOST_CHECK_THROW(stream >> entry, std::ios_base::failure);
+        BOOST_CHECK(entry.vecTxDSIn.empty());
+    }
+
+    {
+        CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+        WriteCompactSize(stream, 0);
+        stream << MakeTransactionRef(CMutableTransaction{});
+        WriteCompactSize(stream, COINJOIN_ENTRY_MAX_SIZE + 1);
+
+        CCoinJoinEntry entry;
+        BOOST_CHECK_THROW(stream >> entry, std::ios_base::failure);
+        BOOST_CHECK(entry.vecTxOut.empty());
     }
 }
 
