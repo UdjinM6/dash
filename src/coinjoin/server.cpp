@@ -224,8 +224,21 @@ void CCoinJoinServer::ProcessDSVIN(CNode& peer, CDataStream& vRecv)
 
 void CCoinJoinServer::ProcessDSSIGNFINALTX(CDataStream& vRecv)
 {
+    const size_t max_txins{size_t(CoinJoin::GetMaxPoolParticipants()) * COINJOIN_ENTRY_MAX_SIZE};
+    const size_t txins_size = ReadCompactSize(vRecv);
+    if (txins_size > max_txins) {
+        LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- too many inputs. cnt=%d, max=%d\n",
+                 static_cast<int>(txins_size), static_cast<int>(max_txins));
+        LOCK(cs_coinjoin);
+        RelayStatus(STATUS_REJECTED);
+        return;
+    }
     std::vector<CTxIn> vecTxIn;
-    vRecv >> vecTxIn;
+    vecTxIn.reserve(txins_size);
+    while (vecTxIn.size() < txins_size) {
+        vecTxIn.emplace_back();
+        vRecv >> vecTxIn.back();
+    }
 
     LogPrint(BCLog::COINJOIN, "DSSIGNFINALTX -- vecTxIn.size() %s\n", vecTxIn.size());
 
