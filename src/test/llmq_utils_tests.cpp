@@ -115,6 +115,20 @@ BOOST_AUTO_TEST_CASE(batched_sig_shares_rejects_oversized_inner_vector)
     BOOST_CHECK(batched_sig_shares.sigShares.empty());
 }
 
+BOOST_AUTO_TEST_CASE(batched_sig_shares_accepts_max_inner_vector)
+{
+    CBatchedSigShares batched;
+    batched.sessionId = 1;
+    batched.sigShares.resize(MAX_MSGS_TOTAL_BATCHED_SIGS); // exactly the cap must be accepted
+
+    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    stream << batched;
+
+    CBatchedSigShares roundtripped;
+    BOOST_CHECK_NO_THROW(stream >> roundtripped);
+    BOOST_CHECK_EQUAL(roundtripped.sigShares.size(), MAX_MSGS_TOTAL_BATCHED_SIGS);
+}
+
 BOOST_AUTO_TEST_CASE(deterministic_outbound_connection_test)
 {
     // Test deterministic behavior

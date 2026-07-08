@@ -85,7 +85,9 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
         std::vector<CSigShare> receivedSigShares;
         try {
             ReadLimitedVector(vRecv, receivedSigShares, CSigSharesManager::MAX_MSGS_SIG_SHARES);
-        } catch (const std::ios_base::failure&) {
+        } catch (const std::ios_base::failure& e) {
+            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- rejected %s from peer=%d: %s\n",
+                     __func__, msg_type, pfrom.GetId(), e.what());
             BanNode(pfrom.GetId());
             throw;
         }
@@ -101,7 +103,9 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
         std::vector<CSigSesAnn> msgs;
         try {
             ReadLimitedVector(vRecv, msgs, CSigSharesManager::MAX_MSGS_CNT_QSIGSESANN);
-        } catch (const std::ios_base::failure&) {
+        } catch (const std::ios_base::failure& e) {
+            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- rejected %s from peer=%d: %s\n",
+                     __func__, msg_type, pfrom.GetId(), e.what());
             BanNode(pfrom.GetId());
             throw;
         }
@@ -115,7 +119,9 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
         std::vector<CSigSharesInv> msgs;
         try {
             ReadLimitedVector(vRecv, msgs, CSigSharesManager::MAX_MSGS_CNT_QSIGSHARES);
-        } catch (const std::ios_base::failure&) {
+        } catch (const std::ios_base::failure& e) {
+            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- rejected %s from peer=%d: %s\n",
+                     __func__, msg_type, pfrom.GetId(), e.what());
             BanNode(pfrom.GetId());
             throw;
         }
@@ -129,7 +135,9 @@ void NetSigning::ProcessMessage(CNode& pfrom, const std::string& msg_type, CData
         std::vector<CBatchedSigShares> msgs;
         try {
             ReadBatchedSigShares(vRecv, msgs);
-        } catch (const std::ios_base::failure&) {
+        } catch (const std::ios_base::failure& e) {
+            LogPrint(BCLog::LLMQ_SIGS, "NetSigning::%s -- rejected %s from peer=%d: %s\n",
+                     __func__, msg_type, pfrom.GetId(), e.what());
             BanNode(pfrom.GetId());
             throw;
         }
