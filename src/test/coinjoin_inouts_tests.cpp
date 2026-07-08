@@ -179,6 +179,21 @@ BOOST_AUTO_TEST_CASE(entry_rejects_oversized_vectors_before_materializing)
     }
 }
 
+BOOST_AUTO_TEST_CASE(entry_accepts_max_sized_vectors)
+{
+    CCoinJoinEntry entry;
+    entry.vecTxDSIn.resize(COINJOIN_ENTRY_MAX_SIZE); // exactly the cap must be accepted
+    entry.vecTxOut.resize(COINJOIN_ENTRY_MAX_SIZE);
+
+    CDataStream stream{SER_NETWORK, PROTOCOL_VERSION};
+    stream << entry;
+
+    CCoinJoinEntry roundtripped;
+    BOOST_CHECK_NO_THROW(stream >> roundtripped);
+    BOOST_CHECK_EQUAL(roundtripped.vecTxDSIn.size(), COINJOIN_ENTRY_MAX_SIZE);
+    BOOST_CHECK_EQUAL(roundtripped.vecTxOut.size(), COINJOIN_ENTRY_MAX_SIZE);
+}
+
 BOOST_AUTO_TEST_CASE(queue_timeout_bounds)
 {
     CCoinJoinQueue dsq;
