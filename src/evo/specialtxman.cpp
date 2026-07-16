@@ -41,6 +41,23 @@ static bool AddNetInfoEntries(const std::shared_ptr<NetInfoInterface>& net_info,
     return true;
 }
 
+// The BLS scheme an operator key is stored under must agree with what its state version implies,
+// because CDeterministicMNState's serialization picks the scheme from nVersion. A mismatch makes an
+// in-memory list disagree with the same list reloaded from disk, mnUniquePropertyMap included (it is
+// keyed by the scheme-dependent serialization), which is consensus-relevant.
+//
+// Set() rather than SetLegacy(): the latter only flips the flag and leaves the cached serialization
+// alone, so the key would still encode under the *old* scheme while claiming the new one. Reading
+// Get() first is required so the bytes are decoded under the scheme they were written with. Null
+// keys are left alone: they serialize to zeros under either scheme and are never in the unique
+// property map, and Set()ing one would make it stop comparing equal to a default-constructed key.
+static void NormalizeOperatorKeyScheme(CDeterministicMNState& state_mn, uint16_t nVersion)
+{
+    if (const CBLSPublicKey pubkey{state_mn.pubKeyOperator.Get()}; pubkey.IsValid()) {
+        state_mn.pubKeyOperator.Set(pubkey, nVersion == ProTxVersion::LegacyBLS);
+    }
+}
+
 static bool SetStateVersion(CDeterministicMNState& state_mn, uint16_t nVersion, MnType nType,
                             BlockValidationState& state)
 {
@@ -447,8 +464,13 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
                     newState->platformHTTPPort = 0;
                 }
             }
-            if (is_v24_deployed && !SetStateVersion(*newState, target_version, dmn->nType, state)) {
-                return false;
+            if (is_v24_deployed) {
+                if (!SetStateVersion(*newState, target_version, dmn->nType, state)) {
+                    return false;
+                }
+                // ProUpServTx bumps the state version without carrying an operator key, so the
+                // stored key can be left under a scheme its new version contradicts.
+                NormalizeOperatorKeyScheme(*newState, target_version);
             }
             if (newState->IsBanned()) {
                 // only revive when all keys are set
@@ -491,9 +513,10 @@ bool CSpecialTxProcessor::RebuildListFromBlock(const CBlock& block, gsl::not_nul
             if (!SetStateVersion(*newState, target_version, dmn->nType, state)) {
                 return false;
             }
-            if (operator_changed) {
-                newState->pubKeyOperator.SetLegacy(target_version == ProTxVersion::LegacyBLS);
-            }
+            // Unconditionally, not just when operator_changed: an update re-submitting the *same*
+            // key under a different scheme leaves operator_changed false, because
+            // CBLSLazyPublicKey::operator== ignores the scheme.
+            NormalizeOperatorKeyScheme(*newState, target_version);
             if (target_version >= ProTxVersion::ExtAddr) {
                 newState->payouts = opt_proTx->nVersion >= ProTxVersion::ExtAddr
                     ? opt_proTx->payouts
@@ -1190,6 +1213,26 @@ bool CheckProUpServTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> 
     if (!IsVersionChangeValid(pindexPrev, dmn->pdmnState->nVersion, opt_ptx->nVersion, chainman, state)) {
         // pass the state returned by the function above
         return false;
+    }
+
+    // This transaction carries no operator key of its own, but raising the state version can change
+    // the BLS scheme the stored key is normalized to (see NormalizeOperatorKeyScheme), and
+    // mnUniquePropertyMap is keyed by the scheme-dependent serialization. Operator key uniqueness is
+    // therefore only enforced per encoding, so the re-encoded key may already be claimed by another
+    // masternode. Reject that here: UpdateMN() reports the collision by throwing, which would
+    // otherwise escape while the list is rebuilt for a block template. Mirrors the target version
+    // picked in RebuildListFromBlock, so it is a no-op until the version can actually change.
+    if (DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_V24)) {
+        const uint16_t target_version{
+            std::max<uint16_t>(dmn->pdmnState->nVersion, opt_ptx->nVersion)};
+        CBLSLazyPublicKey normalized_key{dmn->pdmnState->pubKeyOperator};
+        if (const CBLSPublicKey pubkey{normalized_key.Get()}; pubkey.IsValid()) {
+            normalized_key.Set(pubkey, target_version == ProTxVersion::LegacyBLS);
+            if (mnList.HasUniqueProperty(normalized_key) &&
+                mnList.GetUniquePropertyMN(normalized_key)->proTxHash != opt_ptx->proTxHash) {
+                return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-dup-key");
+            }
+        }
     }
 
     // don't allow updating to addresses already used by other MNs

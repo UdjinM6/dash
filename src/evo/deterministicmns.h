@@ -548,10 +548,26 @@ private:
         }
         return true;
     }
+    // GetUniquePropertyHash() serializes its argument, so for CBLSLazyPublicKey the hash depends on
+    // the BLS scheme the key is encoded under, while CBLSLazyWrapper::operator== compares only the
+    // underlying public key and ignores that scheme. Values that hash differently must never compare
+    // equal here, or the map would keep a stale key: a list built incrementally from blocks would
+    // then disagree with the same list reloaded from disk (where the scheme is derived from
+    // nVersion), which is consensus-relevant. For every other property type this is plain ==.
+    template <typename T>
+    [[nodiscard]] static bool IsSameUniqueProperty(const T& a, const T& b)
+    {
+        if constexpr (std::is_same_v<std::decay_t<T>, CBLSLazyPublicKey>) {
+            return a == b && a.IsLegacy() == b.IsLegacy();
+        } else {
+            return a == b;
+        }
+    }
+
     template <typename T>
     [[nodiscard]] bool UpdateUniqueProperty(const CDeterministicMN& dmn, const T& oldValue, const T& newValue)
     {
-        if (oldValue == newValue) {
+        if (IsSameUniqueProperty(oldValue, newValue)) {
             return true;
         }
         static const T nullValue{};
