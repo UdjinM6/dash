@@ -140,8 +140,10 @@ public:
     [[nodiscard]] UniValue ToJson() const;
 
     /**
-     * Note: this check validates only some trivial consensus rules
-     * Use `CheckProRegTx` or GetValidatedPayload<T> helper for full validation
+     * Note: this check validates only some trivial consensus rules. GetValidatedPayload<T>
+     * adds payload decoding and the deployment-based version cap, but neither covers collateral,
+     * the masternode list, signatures, input hashes or version transitions.
+     * Use `CheckProRegTx` for full validation.
      */
     bool IsTriviallyValid(TxValidationState& state) const;
 };
@@ -205,8 +207,10 @@ public:
     [[nodiscard]] UniValue ToJson() const;
 
     /**
-     * Note: this check validates only some trivial consensus rules
-     * Use `CheckProUpServTx` or GetValidatedPayload<T> helper for full validation
+     * Note: this check validates only some trivial consensus rules. GetValidatedPayload<T>
+     * adds payload decoding and the deployment-based version cap, but neither covers collateral,
+     * the masternode list, signatures, input hashes or version transitions.
+     * Use `CheckProUpServTx` for full validation.
      */
     bool IsTriviallyValid(TxValidationState& state) const;
 };
@@ -269,8 +273,10 @@ public:
     [[nodiscard]] UniValue ToJson() const;
 
     /**
-     * Note: this check validates only some trivial consensus rules
-     * Use `CheckProUpRegTx` or GetValidatedPayload<T> helper for full validation
+     * Note: this check validates only some trivial consensus rules. GetValidatedPayload<T>
+     * adds payload decoding and the deployment-based version cap, but neither covers collateral,
+     * the masternode list, signatures, input hashes or version transitions.
+     * Use `CheckProUpRegTx` for full validation.
      */
     bool IsTriviallyValid(TxValidationState& state) const;
 };
@@ -323,8 +329,10 @@ public:
     [[nodiscard]] UniValue ToJson() const;
 
     /**
-     * Note: this check validates only some trivial consensus rules
-     * Use `CheckProUpRevTx` or GetValidatedPayload<T> helper for full validation
+     * Note: this check validates only some trivial consensus rules. GetValidatedPayload<T>
+     * adds payload decoding and the deployment-based version cap, but neither covers collateral,
+     * the masternode list, signatures, input hashes or version transitions.
+     * Use `CheckProUpRevTx` for full validation.
      */
     bool IsTriviallyValid(TxValidationState& state) const;
 };

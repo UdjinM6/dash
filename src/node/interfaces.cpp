@@ -110,6 +110,16 @@ std::vector<CScript> GetOwnerPayoutScripts(const CDeterministicMNState& state)
     return ret;
 }
 
+// Every masternode in the list has at least one owner payout: IsPayoutListTriviallyValid() rejects
+// an empty list, and a pre-ExtAddr state always yields one entry from scriptPayout. Falling back to
+// an empty script would silently hand callers an unspendable payout instead of surfacing the broken
+// invariant.
+CScript FirstOwnerPayoutScript(const std::vector<CScript>& script_payouts)
+{
+    Assert(!script_payouts.empty());
+    return script_payouts.front();
+}
+
 class MnEntryImpl : public MnEntry
 {
 private:
@@ -122,7 +132,7 @@ public:
         MnEntry{dmn},
         m_dmn{Assert(dmn)},
         m_script_payouts{GetOwnerPayoutScripts(*m_dmn->pdmnState)},
-        m_script_payout{m_script_payouts.empty() ? CScript() : m_script_payouts.front()}
+        m_script_payout{FirstOwnerPayoutScript(m_script_payouts)}
     {
     }
     ~MnEntryImpl() = default;
