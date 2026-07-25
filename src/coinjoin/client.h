@@ -165,6 +165,8 @@ private:
     const llmq::CInstantSendManager& m_isman;
     //! Non-owning pointer; null when relay_txes is disabled (no queue processing).
     CoinJoinQueueManager* const m_queueman;
+    //! Non-owning pointer to the tracker shared by all wallets, see CoinJoinSessionTxTracker.
+    CoinJoinSessionTxTracker* const m_sessiontx_tracker;
 
     mutable Mutex cs_deqsessions;
     // TODO: or map<denom, CCoinJoinClientSession> ??
@@ -190,7 +192,8 @@ public:
     CCoinJoinClientManager& operator=(const CCoinJoinClientManager&) = delete;
     explicit CCoinJoinClientManager(const std::shared_ptr<wallet::CWallet>& wallet, CDeterministicMNManager& dmnman,
                                     CMasternodeMetaMan& mn_metaman, const CMasternodeSync& mn_sync,
-                                    const llmq::CInstantSendManager& isman, CoinJoinQueueManager* queueman);
+                                    const llmq::CInstantSendManager& isman, CoinJoinQueueManager* queueman,
+                                    CoinJoinSessionTxTracker* sessiontx_tracker);
     ~CCoinJoinClientManager();
 
     void ProcessMessage(CNode& peer, Chainstate& active_chainstate, CConnman& connman, const CTxMemPool& mempool, std::string_view msg_type, CDataStream& vRecv) EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
@@ -210,6 +213,10 @@ public:
     void ProcessPendingDsaRequest(CConnman& connman) EXCLUSIVE_LOCKS_REQUIRED(!cs_deqsessions);
 
     void UpdatedSuccessBlock();
+
+    //! Remember the outpoints we signed for a session, so that we do not announce the transaction
+    //! that ends up spending them, see CoinJoinSessionTxTracker.
+    void NoteSignedOutpoints(const std::vector<COutPoint>& outpoints);
 
     void UpdatedBlockTip(const CBlockIndex* pindex);
 

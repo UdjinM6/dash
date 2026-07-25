@@ -39,6 +39,8 @@ public:
 
 public:
     bool hasQueue(const uint256& hash) const override;
+    void noteSessionSpend(const CTransaction& tx) override;
+    bool isSessionSpend(const uint256& txid) const override;
     bool doForClient(const std::string& name, const std::function<void(CCoinJoinClientManager&)>& func) override EXCLUSIVE_LOCKS_REQUIRED(!cs_wallet_manager_map);
     MessageProcessingResult processMessage(CNode& peer, Chainstate& chainstate, CConnman& connman, CTxMemPool& mempool,
                                            std::string_view msg_type, CDataStream& vRecv) override EXCLUSIVE_LOCKS_REQUIRED(!cs_ProcessDSQueue, !cs_wallet_manager_map);
@@ -66,6 +68,10 @@ private:
     // after all CCoinJoinClientManager instances (which hold a raw pointer to it).
     // Null when relay_txes is false (no queue processing).
     const std::unique_ptr<CoinJoinQueueManager> m_queueman;
+
+    // Declared before the wallet map for the same reason as m_queueman: the
+    // CCoinJoinClientManager instances hold a raw pointer to it.
+    CoinJoinSessionTxTracker m_sessiontx_tracker;
 
     mutable Mutex cs_ProcessDSQueue;
 
@@ -140,6 +146,16 @@ bool CJWalletManagerImpl::hasQueue(const uint256& hash) const
     return false;
 }
 
+void CJWalletManagerImpl::noteSessionSpend(const CTransaction& tx)
+{
+    m_sessiontx_tracker.NoteTransaction(tx);
+}
+
+bool CJWalletManagerImpl::isSessionSpend(const uint256& txid) const
+{
+    return m_sessiontx_tracker.Contains(txid);
+}
+
 bool CJWalletManagerImpl::doForClient(const std::string& name, const std::function<void(CCoinJoinClientManager&)>& func)
 {
     LOCK(cs_wallet_manager_map);
@@ -177,7 +193,8 @@ void CJWalletManagerImpl::addWallet(const std::shared_ptr<wallet::CWallet>& wall
     LOCK(cs_wallet_manager_map);
     m_wallet_manager_map.try_emplace(wallet->GetName(),
                                      std::make_unique<CCoinJoinClientManager>(wallet, m_dmnman, m_mn_metaman, m_mn_sync,
-                                                                              m_isman, m_queueman.get()));
+                                                                              m_isman, m_queueman.get(),
+                                                                              &m_sessiontx_tracker));
 }
 
 void CJWalletManagerImpl::flushWallet(const std::string& name)

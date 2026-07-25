@@ -13,9 +13,13 @@
 #include <netaddress.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <random.h>
+#include <saltedhasher.h>
 #include <serialize.h>
 #include <sync.h>
 #include <timedata.h>
+#include <unordered_lru_cache.h>
+#include <util/hasher.h>
 #include <util/translation.h>
 #include <version.h>
 
@@ -402,6 +406,137 @@ public:
     }
     //! TRY_LOCK variant of AddQueue: returns false if the lock cannot be acquired.
     bool TryAddQueue(CCoinJoinQueue dsq) EXCLUSIVE_LOCKS_REQUIRED(!cs_vecqueue);
+};
+
+/**
+ * Remembers the final mixing transactions this node took part in, so that it can avoid
+ * announcing them to the rest of the network.
+ *
+ * A participant learns the session transaction directly from the coordinating masternode,
+ * long before the network sees it through the coordinator's deliberately delayed inventory
+ * relay. Announcing it that early would make the participant look like the transaction's
+ * origin to a network-wide observer, which -- since every participant of a round would do so
+ * at the same time -- would expose the whole participant set of that round. That is precisely
+ * what mixing exists to hide, so we stay quiet and let the coordinator publish. Propagation
+ * does not suffer: the transaction reaches the network through the coordinator either way.
+ *
+ * A participant cannot identify the session transaction by its id: Dash has no segwit, so
+ * signatures are covered by the txid, and a participant only ever holds its own -- the
+ * coordinator merges everyone else's in afterwards. Sessions are therefore recognised by the
+ * outpoints of the inputs we signed, and NoteTransaction() resolves those to a txid once the
+ * transaction itself shows up, so that the relay path stays a single hash lookup. Matching costs
+ * one probe per input of each newly accepted transaction; only the relay path is a plain lookup.
+ *
+ * Matching on inputs is deliberately broad. Session signatures are made with
+ * SIGHASH_ALL|SIGHASH_ANYONECANPAY, so they commit to their own input and to the outputs but not
+ * to the other inputs -- which means the coordinator can build variants of the session
+ * transaction that still spend ours -- as can anyone else who has seen the signature, by copying
+ * it into a variant of their own. Every such variant is derived from our session, so suppressing
+ * all of them is the point. For the same reason outpoints are kept after a session fails: a usable
+ * signature is still out there, and forgetting the outpoint would let a variant be published that
+ * we then announce. Our own ordinary payments are unaffected: they are broadcast through the
+ * wallet rather than accepted from a peer, so they never pass through NoteTransaction().
+ *
+ * Both sets are LRU caches, so entries age out once they stop being used rather than merely
+ * because newer entries came along. Suppression is still not unlimited: a transaction nobody
+ * mentions for MAX_TRACKED newer insertions is forgotten, and could then be announced by us.
+ *
+ * Suppression also expires on its own, after a randomised delay of hours. Without that, a
+ * coordinator could announce the finished transaction to its participants alone and to nobody
+ * else: every participant would suppress it, so it would sit unconfirmed in exactly their
+ * mempools, holding their mixing inputs hostage until it expired from the mempool days later.
+ * Our own relay used to be the redundancy that made such silence harmless, and suppressing it
+ * is what takes that away, so the suppression has to end by itself. Once it does, the wallet's
+ * ordinary rebroadcast picks the transaction up and announces it.
+ *
+ * The delay is long enough that the round is unambiguously over by the time it elapses, so the
+ * simultaneity that identifies a participant set is gone. On a healthy round it never matters:
+ * the transaction confirms in a block or two, and a confirmed transaction is never rebroadcast.
+ * When it does matter, the participants' deadlines are independent, so whichever elapses first
+ * publishes the transaction for everyone and only that one node -- picked at random among them,
+ * rather than all of them -- says anything at all. Expiry only lifts the suppression: the
+ * announcement itself waits for the wallet's next rebroadcast, an hour to three later on its own
+ * randomised timer, so the delay below is a lower bound on how long we stay quiet rather than the
+ * moment we speak.
+ */
+class CoinJoinSessionTxTracker
+{
+public:
+    //! How many signed outpoints, and how many matched transactions, to remember -- each cache
+    //! holds up to this many entries, at a few tens of bytes apiece. A mixing round contributes
+    //! one entry per input of ours to the outpoint cache but only one to the txid cache, so the
+    //! outpoint cache turns over first and is what bounds how far back suppression reaches.
+    //! Passed as the caches' truncation threshold as well, so that they hold at most this many
+    //! entries instead of growing to twice as many before trimming.
+    static constexpr size_t MAX_TRACKED{1000};
+
+    //! Bounds on how long a transaction stays suppressed. Anything comfortably past the end of a
+    //! round will do; these are hours so that a stuck transaction is not held back for long, and
+    //! randomised so that participants of the same round do not come off suppression together.
+    static constexpr int64_t MIN_SUPPRESS_SECONDS{2 * 60 * 60};
+    static constexpr int64_t MAX_SUPPRESS_SECONDS{6 * 60 * 60};
+
+private:
+    mutable Mutex cs_tracker;
+
+    //! Mutable because the LRU bookkeeping updates on lookup, as in the guarded-mutable caches
+    //! in InstantSend and masternode metadata.
+    mutable unordered_lru_cache<COutPoint, bool, SaltedOutpointHasher, MAX_TRACKED, MAX_TRACKED>
+        m_signed_outpoints GUARDED_BY(cs_tracker);
+    //! Maps a transaction we took part in to the time its suppression stops applying.
+    mutable Uint256LruHashMap<int64_t, MAX_TRACKED, MAX_TRACKED> m_txids GUARDED_BY(cs_tracker);
+    //! Draws the suppression delays. Kept as a member rather than reaching for GetRand() so that
+    //! it can be seeded deterministically: GetRand() builds a fresh context per call, which under
+    //! g_mock_deterministic_tests returns the same number every time and would leave every
+    //! deadline identical -- the one thing the delay must not be.
+    FastRandomContext m_rng GUARDED_BY(cs_tracker);
+
+public:
+    //! deterministic_rng is for tests that need a reproducible spread of deadlines; left false,
+    //! the context seeds itself securely on first use.
+    explicit CoinJoinSessionTxTracker(bool deterministic_rng = false) :
+        m_rng{deterministic_rng} {}
+
+    //! Record the outpoints of the inputs this node signed for a mixing session.
+    void NoteSignedOutpoints(const std::vector<COutPoint>& outpoints) EXCLUSIVE_LOCKS_REQUIRED(!cs_tracker)
+    {
+        LOCK(cs_tracker);
+        for (const auto& outpoint : outpoints) {
+            m_signed_outpoints.insert(outpoint, true);
+        }
+    }
+
+    //! If this transaction spends an outpoint we signed for in a session, remember it as ours and
+    //! set the time its suppression stops applying. A transaction we already know keeps the
+    //! deadline it was given, so that repeated notes cannot hold it back. Only one evicted from
+    //! the cache and then accepted afresh can pick up a new deadline, and being accepted again
+    //! means it had left our mempool in the meantime.
+    void NoteTransaction(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(!cs_tracker)
+    {
+        LOCK(cs_tracker);
+        const uint256& txid = tx.GetHash();
+        if (m_txids.exists(txid)) return;
+        for (const auto& txin : tx.vin) {
+            if (m_signed_outpoints.exists(txin.prevout)) {
+                const int64_t delay{MIN_SUPPRESS_SECONDS +
+                                    int64_t(m_rng.randrange(MAX_SUPPRESS_SECONDS - MIN_SUPPRESS_SECONDS + 1))};
+                m_txids.insert(txid, GetTime() + delay);
+                return;
+            }
+        }
+    }
+
+    //! True while this node must stay quiet about a transaction it took part in, as established
+    //! by an earlier NoteTransaction(). Goes false once the suppression deadline passes, so that
+    //! a transaction nobody else published still gets announced eventually. Looking it up marks
+    //! it as still relevant.
+    bool Contains(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(!cs_tracker)
+    {
+        LOCK(cs_tracker);
+        int64_t suppress_until{0};
+        if (!m_txids.get(txid, suppress_until)) return false;
+        return GetTime() < suppress_until;
+    }
 };
 
 // Various helpers and dstx manager implementation

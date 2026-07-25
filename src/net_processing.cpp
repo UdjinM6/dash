@@ -2498,6 +2498,18 @@ void PeerManagerImpl::RelayTransaction(const uint256& txid)
 
 void PeerManagerImpl::_RelayTransaction(const uint256& txid)
 {
+    // Never announce a transaction that spends an outpoint we signed for a mixing session. As a
+    // participant we are a direct peer of the coordinating masternode, so we see it ahead of the
+    // rest of the network; announcing it would make us look like its origin, and since every
+    // participant of the session would do so at the same time, an observer could recover the
+    // whole participant set of that round. The masternode publishes the transaction regardless,
+    // so propagation does not suffer.
+    if (m_cj_walletman && m_cj_walletman->isSessionSpend(txid)) {
+        LogPrint(BCLog::COINJOIN, "%s -- not announcing a transaction spending our mixing session outpoints, txid=%s\n",
+                 __func__, txid.ToString());
+        return;
+    }
+
     const CInv inv{m_dstxman.GetDSTX(txid) ? MSG_DSTX : MSG_TX, txid};
     READ_LOCK(m_peer_mutex);
     for(auto& it : m_peer_map) {
@@ -3243,6 +3255,9 @@ bool PeerManagerImpl::ProcessOrphanTx(NodeId node_id)
 
         if (result.m_result_type == MempoolAcceptResult::ResultType::VALID) {
             LogPrint(BCLog::MEMPOOL, "   accepted orphan tx %s\n", orphanHash.ToString());
+            // As on the ordinary acceptance path, recognise a spend of our mixing session's
+            // outpoints before relaying it -- see CoinJoinSessionTxTracker.
+            if (m_cj_walletman) m_cj_walletman->noteSessionSpend(*porphanTx);
             _RelayTransaction(porphanTx->GetHash());
             m_orphanage.AddChildrenToWorkSet(*porphanTx, node_id);
             m_orphanage.EraseTx(orphanHash);
@@ -4722,6 +4737,10 @@ void PeerManagerImpl::ProcessMessage(
             }
 
             ForgetTx(tx.GetHash());
+            // A participant cannot know the id of its mixing session's transaction in advance, so
+            // recognise it here by the outpoints we signed. This has to happen before the relay
+            // below, which is what then stays quiet about it.
+            if (m_cj_walletman) m_cj_walletman->noteSessionSpend(tx);
             _RelayTransaction(tx.GetHash());
             m_orphanage.AddChildrenToWorkSet(tx, peer->m_id);
 

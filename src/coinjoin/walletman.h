@@ -26,6 +26,7 @@ class CMasternodeMetaMan;
 class CMasternodeSync;
 class CNode;
 class CScheduler;
+class CTransaction;
 class CTxMemPool;
 namespace llmq {
 class CInstantSendManager;
@@ -48,6 +49,12 @@ public:
 
 public:
     virtual bool hasQueue(const uint256& hash) const = 0;
+    //! Remember tx if it spends an outpoint one of our wallets signed for a mixing session, so
+    //! that isSessionSpend() recognises it from then on.
+    virtual void noteSessionSpend(const CTransaction& tx) = 0;
+    //! True if this transaction spends an outpoint one of our wallets signed for a mixing
+    //! session. Such transactions must not be announced by us, see CoinJoinSessionTxTracker.
+    virtual bool isSessionSpend(const uint256& txid) const = 0;
     //! Execute func under the wallet manager lock for the client identified by name.
     //! Returns true if the client was found and func was called, false otherwise.
     virtual bool doForClient(const std::string& name, const std::function<void(CCoinJoinClientManager&)>& func) = 0;

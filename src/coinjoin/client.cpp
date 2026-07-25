@@ -44,13 +44,15 @@ using wallet::ReserveDestination;
 CCoinJoinClientManager::CCoinJoinClientManager(const std::shared_ptr<wallet::CWallet>& wallet,
                                                CDeterministicMNManager& dmnman, CMasternodeMetaMan& mn_metaman,
                                                const CMasternodeSync& mn_sync, const llmq::CInstantSendManager& isman,
-                                               CoinJoinQueueManager* queueman) :
+                                               CoinJoinQueueManager* queueman,
+                                               CoinJoinSessionTxTracker* sessiontx_tracker) :
     m_wallet{wallet},
     m_dmnman{dmnman},
     m_mn_metaman{mn_metaman},
     m_mn_sync{mn_sync},
     m_isman{isman},
-    m_queueman{queueman}
+    m_queueman{queueman},
+    m_sessiontx_tracker{sessiontx_tracker}
 {
 }
 
@@ -561,6 +563,19 @@ bool CCoinJoinClientSession::SignFinalTransaction(CNode& peer, Chainstate& activ
         return false;
     }
 
+    // Remember the outpoints of the inputs we just signed. We cannot record the transaction's id
+    // instead: the coordinator still has to merge in the other participants' signatures, which are
+    // covered by the id. Nobody can spend these outpoints without the signatures we are about to
+    // hand over, so whatever ends up spending them is derived from this session, and we must stay
+    // quiet about it -- the masternode publishes it, and us announcing it too would give away that
+    // we are one of the session's participants (see CoinJoinSessionTxTracker).
+    std::vector<COutPoint> signed_outpoints;
+    signed_outpoints.reserve(signed_inputs.size());
+    for (const auto& txin : signed_inputs) {
+        signed_outpoints.push_back(txin.prevout);
+    }
+    m_clientman.NoteSignedOutpoints(signed_outpoints);
+
     // push all of our signatures to the Masternode
     WalletCJLogPrint(m_wallet, "CCoinJoinClientSession::%s -- pushing signed inputs to the masternode, finalMutableTransaction=%s", __func__, finalMutableTransaction.ToString()); /* Continued */
     CNetMsgMaker msgMaker(peer.GetCommonVersion());
@@ -590,6 +605,12 @@ void CCoinJoinClientSession::CompletedTransaction(PoolMessage nMessageID)
 void CCoinJoinClientManager::UpdatedSuccessBlock()
 {
     nCachedLastSuccessBlock = nCachedBlockHeight;
+}
+
+void CCoinJoinClientManager::NoteSignedOutpoints(const std::vector<COutPoint>& outpoints)
+{
+    if (m_sessiontx_tracker == nullptr) return;
+    m_sessiontx_tracker->NoteSignedOutpoints(outpoints);
 }
 
 bool CCoinJoinClientManager::WaitForAnotherBlock() const
