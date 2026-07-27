@@ -360,6 +360,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
     // Store commitment in DB
     auto cacheKey = std::make_pair(llmq_params.type, quorumHash);
     m_evoDb.Write(std::make_pair(DB_MINED_COMMITMENT, cacheKey), std::make_pair(qc, blockHash));
+    ++m_mined_commitment_generation;
 
     if (rotation_enabled) {
         m_evoDb.Write(BuildInversedHeightKeyIndexed(llmq_params.type, nHeight, int(qc.quorumIndex)), pQuorumBaseBlockIndex->nHeight);
@@ -398,6 +399,7 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, gsl::not_null<const C
         }
 
         m_evoDb.Erase(std::make_pair(DB_MINED_COMMITMENT, std::make_pair(qc.llmqType, qc.quorumHash)));
+        ++m_mined_commitment_generation;
 
         const auto& llmq_params_opt = Params().GetLLMQ(qc.llmqType);
         assert(llmq_params_opt.has_value());

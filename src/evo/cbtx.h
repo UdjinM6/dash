@@ -74,6 +74,17 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
                                const llmq::CQuorumBlockProcessor& quorum_block_processor, uint256& merkleRootRet,
                                BlockValidationState& state);
 
+/**
+ * Drop the process-lifetime caches behind CalcCbTxMerkleRootQuorums.
+ *
+ * Validation does not need this: the caches follow the quorum block processor's
+ * mined-commitment generation and notice branch changes on their own. It exists for
+ * tests, which share one set of process-wide caches across fixtures that each build
+ * their own block index, and which can write mined commitments straight to evoDb
+ * without going through the processor that maintains the generation.
+ */
+void InvalidateCachedQcHashes();
+
 std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex);
 
 #endif // BITCOIN_EVO_CBTX_H

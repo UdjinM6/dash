@@ -18,6 +18,7 @@
 
 #include <gsl/pointers.h>
 
+#include <atomic>
 #include <optional>
 
 class BlockValidationState;
@@ -54,6 +55,17 @@ private:
 
     mutable std::map<Consensus::LLMQType, Uint256LruHashMap<bool>> mapHasMinedCommitmentCache GUARDED_BY(minableCommitmentsCs);
 
+    // Bumped on every mined-commitment write and erase.
+    //
+    // Mined commitments are branch-dependent: a disconnect can replace the commitment
+    // mined for a quorum base without changing the set of active quorum base blocks.
+    // Consumers that cache data derived from mined commitments therefore cannot tell
+    // from the base blocks alone that their cache went stale; comparing this counter
+    // lets them notice. It only ever moves forward, so an evoDb transaction that is
+    // rolled back leaves it ahead and makes consumers drop their caches, which is
+    // wasteful but never wrong.
+    std::atomic<uint64_t> m_mined_commitment_generation{0};
+
 public:
     CQuorumBlockProcessor() = delete;
     CQuorumBlockProcessor(const CQuorumBlockProcessor&) = delete;
@@ -83,6 +95,10 @@ public:
     bool HasMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash) const
         EXCLUSIVE_LOCKS_REQUIRED(!minableCommitmentsCs);
     std::pair<CFinalCommitment, uint256> GetMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash) const;
+
+    //! Changes whenever mined-commitment state is written or erased. See
+    //! m_mined_commitment_generation for why callers need this.
+    uint64_t GetMinedCommitmentGeneration() const { return m_mined_commitment_generation.load(); }
 
     std::vector<const CBlockIndex*> GetMinedCommitmentsUntilBlock(Consensus::LLMQType llmqType, gsl::not_null<const CBlockIndex*> pindex, size_t maxCount) const;
     std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> GetMinedAndActiveCommitmentsUntilBlock(gsl::not_null<const CBlockIndex*> pindex) const;
