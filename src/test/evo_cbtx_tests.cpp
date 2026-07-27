@@ -13,7 +13,6 @@
 #include <consensus/merkle.h>
 #include <consensus/validation.h>
 #include <evo/cbtx.h>
-#include <evo/cbtx_cache.h>
 #include <evo/evodb.h>
 #include <evo/specialtx.h>
 #include <evo/specialtxman.h>
@@ -160,70 +159,6 @@ const CBlockIndex* GenesisIndex(const node::NodeContext& node)
 }
 } // anonymous namespace
 
-// Outer cache keys on active quorum base blocks; inner LRU keys on base hashes.
-// Neither includes the mined CFinalCommitment, so InvalidateCachedQcHashes is what
-// makes an evoDb commitment swap for an unchanged base list visible again.
-//
-// BasicTestingSetup clears both cache layers around every fixture, so the cache is
-// already empty here and is left empty for the next test.
-BOOST_FIXTURE_TEST_CASE(qc_hash_cache_invalidated_on_commitment_branch_change, RegTestingSetup)
-{
-    auto& evoDb = *Assert(m_node.evodb);
-    auto& qblockman = *Assert(m_node.llmq_ctx)->quorum_block_processor;
-    const auto& params = GetLLMQParams(Consensus::LLMQType::LLMQ_TEST);
-
-    const CBlockIndex* pindex_genesis = GenesisIndex(m_node);
-    BOOST_REQUIRE(pindex_genesis != nullptr);
-    const uint256 quorum_hash = pindex_genesis->GetBlockHash();
-
-    const CFinalCommitment qc_a = MakeDistinctCommitment(params, quorum_hash, /*salt=*/0x11);
-    const CFinalCommitment qc_b = MakeDistinctCommitment(params, quorum_hash, /*salt=*/0x22);
-    BOOST_REQUIRE(::SerializeHash(qc_a) != ::SerializeHash(qc_b));
-
-    const uint256 mined_hash_a = GetTestBlockHash(1);
-    const uint256 mined_hash_b = GetTestBlockHash(2);
-    const uint256 scan_hash = GetTestBlockHash(3);
-    constexpr int mined_height = 1;
-
-    CBlockIndex pindex_scan;
-    pindex_scan.nHeight = mined_height;
-    pindex_scan.pprev = const_cast<CBlockIndex*>(pindex_genesis);
-    pindex_scan.phashBlock = &scan_hash;
-
-    {
-        auto dbTx = evoDb.BeginTransaction();
-        WriteMinedCommitment(evoDb, qc_a, mined_hash_a, mined_height);
-        dbTx->Commit();
-    }
-
-    const CBlock block = MakeEmptyBlock();
-    ExpectQuorumMerkleRoot(block, &pindex_scan, qblockman, qc_a);
-
-    // Swap evoDb to commitment B without changing the active base-block list.
-    {
-        auto dbTx = evoDb.BeginTransaction();
-        WriteMinedCommitment(evoDb, qc_b, mined_hash_b, mined_height);
-        dbTx->Commit();
-    }
-
-    // What the caches serve before invalidation is deliberately not asserted: it is
-    // an artifact of the current keying (today it is still commitment A), not a
-    // contract. Pinning it here would fail a future fix that makes the keys
-    // commitment-aware instead.
-    {
-        uint256 merkle_root;
-        BlockValidationState state;
-        BOOST_REQUIRE(CalcCbTxMerkleRootQuorums(block, &pindex_scan, qblockman, merkle_root, state));
-        BOOST_TEST_MESSAGE("pre-invalidation merkle root: " << merkle_root.ToString());
-    }
-
-    InvalidateCachedQcHashes();
-    ExpectQuorumMerkleRoot(block, &pindex_scan, qblockman, qc_b);
-}
-
-// UndoBlock must invalidate the process-lifetime caches so a replacement
-// commitment is observed after disconnect.
-//
 // Activate DIP0003 immediately so GetCommitmentsFromBlock accepts the payload
 // at a low height without a long fake chain.
 struct Dip3ActiveSetup : public RegTestingSetup {
@@ -233,6 +168,49 @@ struct Dip3ActiveSetup : public RegTestingSetup {
     }
 };
 
+// The mined-commitment generation must move whenever mined commitment state changes,
+// since that is the only signal the CbTx qc-hash caches have that a branch swap
+// replaced the commitment mined for an otherwise unchanged quorum base.
+BOOST_FIXTURE_TEST_CASE(mined_commitment_generation_changes_on_undo, Dip3ActiveSetup)
+{
+    auto& evoDb = *Assert(m_node.evodb);
+    auto& qblockman = *Assert(m_node.llmq_ctx)->quorum_block_processor;
+    const auto& params = GetLLMQParams(Consensus::LLMQType::LLMQ_TEST);
+
+    const CBlockIndex* pindex_genesis = GenesisIndex(m_node);
+    BOOST_REQUIRE(pindex_genesis != nullptr);
+
+    const CFinalCommitment qc = MakeDistinctCommitment(params, pindex_genesis->GetBlockHash(), /*salt=*/0x55);
+    const uint256 mined_hash = GetTestBlockHash(21);
+    constexpr int mined_height = 1;
+
+    {
+        auto dbTx = evoDb.BeginTransaction();
+        WriteMinedCommitment(evoDb, qc, mined_hash, mined_height);
+        dbTx->Commit();
+    }
+
+    CBlockIndex pindex_mined;
+    pindex_mined.nHeight = mined_height;
+    pindex_mined.pprev = const_cast<CBlockIndex*>(pindex_genesis);
+    pindex_mined.phashBlock = &mined_hash;
+
+    CBlock block_with_qc = MakeEmptyBlock();
+    block_with_qc.vtx.emplace_back(MakeCommitmentTx(qc, mined_height));
+
+    const uint64_t generation_before = qblockman.GetMinedCommitmentGeneration();
+    {
+        LOCK(cs_main);
+        auto dbTx = evoDb.BeginTransaction();
+        BOOST_REQUIRE(qblockman.UndoBlock(block_with_qc, &pindex_mined));
+        dbTx->Commit();
+    }
+    BOOST_CHECK(qblockman.GetMinedCommitmentGeneration() != generation_before);
+}
+
+// End to end: disconnecting the block that mined a commitment must make a replacement
+// commitment for the same quorum base visible, even though the active base-block list
+// that keys the caches is unchanged across the swap.
 BOOST_FIXTURE_TEST_CASE(qc_hash_cache_invalidated_by_undoblock, Dip3ActiveSetup)
 {
     auto& evoDb = *Assert(m_node.evodb);
