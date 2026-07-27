@@ -251,11 +251,20 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
     }
 
     bls::bls_legacy_scheme.store(true);
+
+    // The CbTx qc-hash caches are process-wide while the block index they hold raw
+    // CBlockIndex* into is rebuilt per fixture. The mined-commitment generation catches
+    // this for fixtures that mine through CQuorumBlockProcessor, but not for tests that
+    // write commitments straight to evoDb, and the outer cache's hit test is a pointer
+    // comparison that a recycled address can make lie. Drop the caches on both ends of
+    // a fixture so no test can observe another test's state.
+    InvalidateCachedQcHashes();
 }
 
 BasicTestingSetup::~BasicTestingSetup()
 {
     SetMockTime(0s); // Reset mocktime for following tests
+    InvalidateCachedQcHashes(); // see the note in the constructor
     LogInstance().DisconnectTestLogger();
     fs::remove_all(m_path_root);
     gArgs.ClearArgs();
