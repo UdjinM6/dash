@@ -62,6 +62,7 @@
 #include <coinjoin/coinjoin.h>
 #include <coinjoin/walletman.h>
 #include <evo/cbtx.h>
+#include <evo/cbtx_cache.h>
 #include <evo/chainhelper.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
@@ -251,11 +252,18 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
     }
 
     bls::bls_legacy_scheme.store(true);
+
+    // The CbTx qc-hash caches live for the whole process while the block index they
+    // point into is rebuilt per fixture. Drop them on both ends of a fixture so tests
+    // never observe another test's commitments (or dangling CBlockIndex pointers that
+    // could compare equal to a freshly allocated index at the same address).
+    InvalidateCachedQcHashes();
 }
 
 BasicTestingSetup::~BasicTestingSetup()
 {
     SetMockTime(0s); // Reset mocktime for following tests
+    InvalidateCachedQcHashes(); // see the note in the constructor
     LogInstance().DisconnectTestLogger();
     fs::remove_all(m_path_root);
     gArgs.ClearArgs();
