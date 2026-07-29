@@ -93,12 +93,13 @@ public:
         for (auto it = map.begin(); it != map.end(); ++it) {
             sortedIterators.emplace_back(it);
         }
-        std::sort(sortedIterators.begin(), sortedIterators.end(), [](const iterator& it1, const iterator& it2) {
-            return it1->second < it2->second;
-        });
-
         size_type tooMuch = map.size() - nMaxSize;
         assert(tooMuch > 0);
+        // Only the entries below the eviction boundary have to be identified, their relative order does not matter
+        std::nth_element(sortedIterators.begin(), sortedIterators.begin() + tooMuch, sortedIterators.end(),
+                         [](const iterator& it1, const iterator& it2) {
+                             return it1->second < it2->second;
+                         });
         sortedIterators.resize(tooMuch);
 
         for (auto& it : sortedIterators) {
