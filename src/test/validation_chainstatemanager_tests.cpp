@@ -22,7 +22,6 @@
 #include <validation.h>
 #include <validationinterface.h>
 
-#include <chainlock/handler.h>
 #include <evo/evodb.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/signing.h>
@@ -105,9 +104,6 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
 
     BOOST_CHECK(!manager.SnapshotBlockhash().has_value());
 
-    if (m_node.clhandler) {
-        m_node.clhandler->Stop();
-    }
     DashChainstateSetupClose(m_node);
 
     // Create a snapshot-based chainstate.
@@ -152,9 +148,6 @@ BOOST_AUTO_TEST_CASE(chainstatemanager)
     // Let scheduler events finish running to avoid accessing memory that is going to be unloaded
     SyncWithValidationInterfaceQueue();
 
-    if (m_node.clhandler) {
-        m_node.clhandler->Stop();
-    }
     DashChainstateSetupClose(m_node);
     // dmnman holds a reference to m_node.evodb, it mustn't outlive it
     m_node.dmnman.reset();
