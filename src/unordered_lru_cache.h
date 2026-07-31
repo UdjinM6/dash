@@ -29,6 +29,7 @@ public:
     {
         // either specify maxSize through template arguments or the constructor and fail otherwise
         assert(_maxSize != 0);
+        // truncate_if_needed() only runs past truncateThreshold, so this is what keeps maxSize inside the vector
         assert(truncateThreshold >= maxSize);
     }
 
