@@ -62,10 +62,14 @@ class ProTxVersionTest(DashTestFramework):
         return {peer['id'] for peer in self.nodes[node_idx].getpeerinfo()}
 
     def wait_for_peers_disconnected(self, node_idx, peer_ids):
-        def all_disconnected():
-            current_peer_ids = self.get_peer_ids(node_idx)
-            return all(peer_id not in current_peer_ids for peer_id in peer_ids)
-        self.wait_until(all_disconnected)
+        """Wait until none of `peer_ids` is connected to node `node_idx` anymore.
+
+        Don't wait for getconnectioncount() to hit zero instead: intra-quorum connections are
+        re-established concurrently, as the masternode remains a member of previously formed
+        quorums, so zero might never be observable.
+        """
+        assert peer_ids, "no peers to wait for, the disconnect assertion would be vacuous"
+        self.wait_until(lambda: peer_ids.isdisjoint(self.get_peer_ids(node_idx)))
 
     def run_test(self):
         # Connect all nodes to node1 so that we always have the whole network connected
@@ -208,9 +212,7 @@ class ProTxVersionTest(DashTestFramework):
         assert_equal(node.protx('info', legacy_mn.proTxHash)['state']['version'], 3)
         # Changing the operator key makes every peer drop its existing connections to this
         # masternode. Wait for that to happen and then reconnect its node back to let sync_all
-        # finish correctly. Don't expect getconnectioncount() to hit zero: intra-quorum
-        # connections are re-established concurrently, as the masternode remains a member of
-        # previously formed quorums.
+        # finish correctly.
         self.wait_for_peers_disconnected(legacy_mn.nodeIdx, old_peer_ids)
         self.connect_nodes(legacy_mn.nodeIdx, 0)
         self.sync_all()
@@ -251,9 +253,7 @@ class ProTxVersionTest(DashTestFramework):
         assert_equal(self.nodes[0].getrawtransaction(protx_result, 1, tip)['confirmations'], 1)
         # Revoking a MN makes every peer drop its existing connections to it. Wait for that to
         # happen and then reconnect the corresponding node back to let sync_blocks finish
-        # correctly. Don't expect getconnectioncount() to hit zero: intra-quorum connections are
-        # re-established concurrently, as the masternode remains a member of previously formed
-        # quorums.
+        # correctly.
         self.wait_for_peers_disconnected(node_idx, old_peer_ids)
         self.connect_nodes(node_idx, 0)
         self.sync_all()
