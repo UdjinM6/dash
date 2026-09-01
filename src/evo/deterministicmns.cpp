@@ -911,7 +911,7 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(gsl::not_n
         }
 
         if (auto stale = GetStaleList(pindex->GetBlockHash())) {
-            snapshot = std::move(*stale);
+            snapshot = *stale;
             break;
         }
 
