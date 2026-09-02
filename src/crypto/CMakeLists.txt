@@ -2,6 +2,12 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or https://opensource.org/license/mit/.
 
+# The parent scope appends APPEND_CPPFLAGS and APPEND_CFLAGS to
+# CMAKE_C_COMPILE_OBJECT only after this directory has been added, so the copy
+# inherited here predates them. Upstream has no C sources here to miss out;
+# Dash has the sphlib X11 backends below.
+string(APPEND CMAKE_C_COMPILE_OBJECT " ${APPEND_CPPFLAGS} ${APPEND_CFLAGS}")
+
 set(crypto_base_sources
   aes.cpp
   chacha20.cpp
