@@ -1012,6 +1012,37 @@ void CTxMemPool::removeProTxKeyChangedConflicts(const CTransaction &tx, const ui
     }
 }
 
+void CTxMemPool::removeProTxVotingPayeeConflicts(const uint256& proTxHash, const CKeyID& keyIDVoting, uint16_t refType)
+{
+    const CTxDestination voting_dest{PKHash(keyIDVoting)};
+    std::set<uint256> conflictingTxs;
+    for (auto its = mapProTxRefs.equal_range(proTxHash); its.first != its.second; ++its.first) {
+        auto txit = mapTx.find(its.first->second);
+        if (txit == mapTx.end() || txit->GetTx().nType != refType) {
+            continue;
+        }
+        CTxDestination dest;
+        if (refType == TRANSACTION_PROVIDER_UPDATE_SHARE) {
+            const auto other = GetTxPayload<CProUpShareTx>(txit->GetTx());
+            if (!other || !ExtractDestination(other->scriptReward, dest)) {
+                continue;
+            }
+        } else if (const auto other = GetTxPayload<CProUpSharedRegTx>(txit->GetTx())) {
+            dest = PKHash(other->keyIDVoting);
+        }
+        if (dest == voting_dest) {
+            conflictingTxs.emplace(txit->GetTx().GetHash());
+        }
+    }
+    for (const auto& txHash : conflictingTxs) {
+        auto txit = mapTx.find(txHash);
+        if (txit == mapTx.end()) {
+            continue;
+        }
+        removeRecursive(txit->GetTx(), MemPoolRemovalReason::CONFLICT);
+    }
+}
+
 void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
 {
     removeProTxSpentCollateralConflicts(tx);
@@ -1100,6 +1131,21 @@ void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
 
         removeProTxPubKeyConflicts(tx, opt_proTx->pubKeyOperator);
         removeProTxKeyChangedConflicts(tx, opt_proTx->proTxHash, ::SerializeHash(opt_proTx->pubKeyOperator));
+        removeProTxVotingPayeeConflicts(opt_proTx->proTxHash, opt_proTx->keyIDVoting, TRANSACTION_PROVIDER_UPDATE_SHARE);
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SHARE) {
+        const auto opt_proTx = GetTxPayload<CProUpShareTx>(tx);
+        if (!opt_proTx) {
+            LogPrint(BCLog::MEMPOOL, "%s: ERROR: Invalid transaction payload, tx: %s\n", __func__, tx_hash.ToString());
+            return;
+        }
+
+        CTxDestination dest;
+        if (ExtractDestination(opt_proTx->scriptReward, dest)) {
+            if (const auto* reward_key{std::get_if<PKHash>(&dest)}) {
+                removeProTxVotingPayeeConflicts(opt_proTx->proTxHash, ToKeyID(*reward_key),
+                                                TRANSACTION_PROVIDER_UPDATE_SHARED_REGISTRAR);
+            }
+        }
     }
 }
 

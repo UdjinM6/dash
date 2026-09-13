@@ -294,6 +294,38 @@ class MasternodeSharesTest(DashTestFramework):
         assert_equal(state["pubKeyOperator"], pending_operator)
         assert_equal(state["shares"][0]["rewardAddress"], reward)
 
+    def test_voting_payee_conflict_eviction(self, node, protx_hash):
+        self.log.info("A confirmed voting-key or share reward update evicts the pending counterpart it invalidated")
+        fee_addresses = [node.getnewaddress() for _ in range(4)]
+        funding_txid = node.sendmany("", {address: 1 for address in fee_addresses})
+        node.syncwithvalidationinterfacequeue()
+        self.bump_mocktime(10 * 60 + 1)
+        funding_block = self.generate(node, 1, sync_fun=self.no_op)[0]
+        assert funding_txid in node.getblock(funding_block)["tx"]
+
+        for confirm_registrar in (True, False):
+            voting = node.getnewaddress()
+            registrar_fee, share_fee = fee_addresses.pop(), fee_addresses.pop()
+            prepared = node.protx("shared_update_registrar_prepare", protx_hash, "", voting, registrar_fee)
+            registrar = node.protx("shared_combine", prepared["tx"], node.protx("shared_sign", prepared["tx"]))
+            share_update = node.protx("shared_update_share", protx_hash, 0, voting, share_fee, False)
+            pending, confirmed = (share_update, registrar) if confirm_registrar else (registrar, share_update)
+            self.sync_all()
+            self.disconnect_nodes(0, 1)
+            pending_txid = node.sendrawtransaction(pending)
+            # Simulate another miner that never saw the pending update confirming its counterpart.
+            other = self.nodes[1]
+            confirmed_txid = other.sendrawtransaction(confirmed)
+            self.bump_mocktime(10 * 60 + 1)
+            confirmed_block = self.generate(other, 1, sync_fun=self.no_op)[0]
+            assert confirmed_txid in other.getblock(confirmed_block)["tx"]
+            self.connect_nodes(0, 1)
+            self.sync_blocks()
+            state = node.protx("info", protx_hash)["state"]
+            confirmed_address = state["votingAddress"] if confirm_registrar else state["shares"][0]["rewardAddress"]
+            assert_equal(confirmed_address, voting)
+            assert pending_txid not in node.getrawmempool()
+
     def test_separate_participant_wallets(self):
         self.log.info("Eight separate wallets fund and authorize a shared masternode")
         node = self.nodes[0]
@@ -1053,6 +1085,7 @@ class MasternodeSharesTest(DashTestFramework):
         assert_equal(node.protx("info", protx_hash4)["state"]["shares"][0]["rewardAddress"], reward7)
 
         self.test_pending_registrar_update(node, protx_hash4)
+        self.test_voting_payee_conflict_eviction(node, protx_hash4)
 
         self.log.info("Shared state survives a node restart")
         state_before_restart = node.protx("info", protx_hash4)["state"]
