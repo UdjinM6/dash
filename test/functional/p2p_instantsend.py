@@ -6,7 +6,7 @@
 import random
 from io import BytesIO
 
-from test_framework.messages import COutPoint, msg_isdlock, msg_qsendrecsigs
+from test_framework.messages import COutPoint, hash256, msg_isdlock, msg_qsendrecsigs
 from test_framework.p2p import P2PInterface
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import assert_equal, assert_raises_rpc_error, force_finish_mnsync
@@ -61,6 +61,9 @@ class InstantSendTest(DashTestFramework):
         self.test_block_doublespend()
         self.test_isdlock_relayed_to_recsigs_observer()
         self.test_genesis_cycle_islock_isolated()
+        self.test_forged_islock_other_peer_isolated()
+        self.test_chainlocked_islock_isolated()
+        self.test_pending_islock_queue_full_isolated()
         self.test_instantsend_after_restart()
 
     def test_block_doublespend(self):
@@ -209,6 +212,94 @@ class InstantSendTest(DashTestFramework):
         with target.assert_debug_log(["doing verification on old active set", "verified locks. count=0"], timeout=20):
             target.setinstantsendworkeractive(True)
             self.wait_until(lambda: target.getrawtransaction(txid, True)["instantlock"], timeout=20)
+        peer.sync_with_ping()
+        assert peer.is_connected
+
+        target.disconnect_p2ps()
+        self.reconnect_isolated_node(self.isolated_idx, 0)
+
+    def create_genuine_islock(self, target, connected):
+        controller = self.nodes[0]
+        txid = controller.sendtoaddress(controller.getnewaddress(), 1)
+        self.wait_for_instantlock(txid, nodes=connected)
+        islock = msg_isdlock()
+        islock.deserialize(BytesIO(bytes.fromhex(controller.getislocks([txid])[0]["hex"])))
+        target.sendrawtransaction(controller.getrawtransaction(txid))
+        return txid, islock
+
+    def test_forged_islock_other_peer_isolated(self):
+        self.log.info("A forged ISDLOCK from one peer must not drop a genuine lock from another peer in the same batch")
+        target = self.nodes[self.isolated_idx]
+        connected = [n for i, n in enumerate(self.nodes) if i != self.isolated_idx]
+        self.isolate_node(self.isolated_idx)
+        target.setnetworkactive(True)
+        forger = target.add_p2p_connection(P2PInterface())
+        honest = target.add_p2p_connection(P2PInterface())
+
+        txid, genuine = self.create_genuine_islock(target, connected)
+        forged = msg_isdlock(1, [COutPoint(random.getrandbits(256), 0)], random.getrandbits(256), genuine.cycleHash, genuine.sig)
+        target.setinstantsendworkeractive(False)
+        forger.send_message(forged)
+        honest.send_message(genuine)
+        forger.sync_with_ping()
+        honest.sync_with_ping()
+        with target.assert_debug_log(["doing verification on old active set"], timeout=20):
+            target.setinstantsendworkeractive(True)
+            self.wait_until(lambda: target.getrawtransaction(txid, True)["instantlock"], timeout=20)
+        forger.sync_with_ping()
+        honest.sync_with_ping()
+        assert forger.is_connected and honest.is_connected
+
+        target.disconnect_p2ps()
+        self.reconnect_isolated_node(self.isolated_idx, 0)
+
+    def test_chainlocked_islock_isolated(self):
+        self.log.info("An ISDLOCK queued before its transaction is ChainLocked must be dropped on verification")
+        target = self.nodes[self.isolated_idx]
+        connected = [n for i, n in enumerate(self.nodes) if i != self.isolated_idx]
+        self.isolate_node(self.isolated_idx)
+        target.setnetworkactive(True)
+        peer = target.add_p2p_connection(P2PInterface())
+
+        txid, genuine = self.create_genuine_islock(target, connected)
+        target.setinstantsendworkeractive(False)
+        peer.send_message(genuine)
+        peer.sync_with_ping()
+        self.connect_nodes(self.isolated_idx, 0)
+        block_hash = self.generate(self.nodes[0], 1)[0]
+        self.wait_for_chainlocked_block(target, block_hash)
+        assert txid in target.getblock(block_hash)["tx"]
+        with target.assert_debug_log([f"txlock={txid}", "dropping islock as it already got a ChainLock"], timeout=20):
+            target.setinstantsendworkeractive(True)
+        assert_equal(target.getislocks([txid]), ["None"])
+
+        target.disconnect_p2ps()
+
+    def test_pending_islock_queue_full_isolated(self):
+        self.log.info("A full pending ISDLOCK queue drops new locks and drains in capped batches")
+        MAX_PENDING_INSTANTSEND_LOCKS = 1024
+        target = self.nodes[self.isolated_idx]
+        connected = [n for i, n in enumerate(self.nodes) if i != self.isolated_idx]
+        self.isolate_node(self.isolated_idx)
+        target.setnetworkactive(True)
+        peer = target.add_p2p_connection(P2PInterface())
+        genesis_hash = int(target.getblockhash(0), 16)
+
+        txid, genuine = self.create_genuine_islock(target, connected)
+
+        def genesis_lock():
+            return msg_isdlock(1, [COutPoint(random.getrandbits(256), 0)], random.getrandbits(256), genesis_hash, genuine.sig)
+
+        overflow = genesis_lock()
+        target.setinstantsendworkeractive(False)
+        with target.assert_debug_log([f"pending islock queue full ({MAX_PENDING_INSTANTSEND_LOCKS}), dropping islock={hash256(overflow.serialize())[::-1].hex()}"]):
+            for _ in range(MAX_PENDING_INSTANTSEND_LOCKS - 1):
+                peer.send_message(genesis_lock())
+            peer.send_message(genuine)
+            peer.send_message(overflow)
+            peer.sync_with_ping()
+        target.setinstantsendworkeractive(True)
+        self.wait_until(lambda: target.getrawtransaction(txid, True)["instantlock"], timeout=60)
         peer.sync_with_ping()
         assert peer.is_connected
 
