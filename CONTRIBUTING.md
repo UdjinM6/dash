@@ -228,7 +228,7 @@ pull request to pull request.
 
 When a pull request conflicts with the target branch, you may be asked to rebase it on top of the current target branch.
 
-    git fetch https://github.com/dashpay/dash develop  # Fetch the latest upstream commit
+    git fetch https://github.com/dashpay/dash <target-branch>  # Fetch the latest upstream commit
     git rebase FETCH_HEAD  # Rebuild commits on top of the new base
 
 Avoid rebasing a non-conflicting pull request on top of the updated target
@@ -314,7 +314,7 @@ In general, all pull requests must:
   - Follow code style guidelines ([C++](doc/developer-notes.md), [functional tests](test/functional/README.md));
   - Not break the existing test suite;
   - Where bugs are fixed, come with steps to reproduce or an explanation of
-    the issue and and reasoning for the way the bug was fixed;
+    the issue and reasoning for the way the bug was fixed;
   - Change relevant comments and documentation when behaviour of code changes.
 
 Patches that change Dash consensus rules are considerably more involved than
@@ -480,7 +480,7 @@ This allows you to easily cherry-pick merges and look into logs of bitcoin witho
 To pull the most up-to-date merges first make sure bitcoin is up-to-date:
 
 ```
-git fetch bitcoin
+git fetch --no-tags bitcoin
 git fetch --no-tags bitcoin 'refs/tags/v*:refs/tags/bitcoin/v*'
 ```
 

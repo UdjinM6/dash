@@ -2,13 +2,15 @@
 
 _Provide a general summary of your changes in the Title above. The title must
 follow the format described in
-[CONTRIBUTING.md](/CONTRIBUTING.md#creating-the-pull-request)._
+[CONTRIBUTING.md](https://github.com/dashpay/dash/blob/HEAD/CONTRIBUTING.md#creating-the-pull-request)._
 
 _Do not manually line wrap text; allow the GitHub UI to dynamically wrap lines._
 
 _Pull requests without a rationale and clear improvement may be closed
-immediately. [CONTRIBUTING.md](/CONTRIBUTING.md) describes what is expected of
-a pull request, including tests, refactoring and backports._
+immediately.
+[CONTRIBUTING.md](https://github.com/dashpay/dash/blob/HEAD/CONTRIBUTING.md)
+describes what is expected of a pull request, including tests, refactoring and
+backports._
 
 
 ## Issue being fixed or feature implemented
