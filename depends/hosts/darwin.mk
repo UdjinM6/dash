@@ -41,6 +41,14 @@ darwin_STRIP=$(shell $(SHELL) $(.SHELLFLAGS) "command -v llvm-strip")
 #
 #         Adds the desired paths from the SDK
 #
+#     -ffile-prefix-map=$(OSX_SDK)=/macos-sdk
+#
+#         The SDK lives wherever the builder put it, and the Guix container
+#         shares it at that same host path. Without this, anything that records
+#         the name of an SDK header - __FILE__, __builtin_FILE(), debug info -
+#         embeds a builder-specific absolute path and the release binaries stop
+#         being reproducible across builders.
+#
 #     -platform_version
 #
 #         Indicate to the linker the platform, the oldest supported version,
@@ -72,11 +80,11 @@ darwin_env_unset=env -u C_INCLUDE_PATH -u CPLUS_INCLUDE_PATH
 endif
 
 darwin_CC=$(darwin_env_unset) $(clang_prog) --target=$(host) \
-              -isysroot$(OSX_SDK) -nostdlibinc \
+              -isysroot$(OSX_SDK) -ffile-prefix-map=$(OSX_SDK)=/macos-sdk -nostdlibinc \
               -iwithsysroot/usr/include -iframeworkwithsysroot/System/Library/Frameworks
 
 darwin_CXX=$(darwin_env_unset) $(clangxx_prog) --target=$(host) \
-               -isysroot$(OSX_SDK) -nostdlibinc \
+               -isysroot$(OSX_SDK) -ffile-prefix-map=$(OSX_SDK)=/macos-sdk -nostdlibinc \
                -iwithsysroot/usr/include/c++/v1 \
                -iwithsysroot/usr/include -iframeworkwithsysroot/System/Library/Frameworks
 
