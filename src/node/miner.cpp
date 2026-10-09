@@ -637,7 +637,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
         // holding the key change back, which pending updates could otherwise do forever.
         CTxMemPool::setEntries serviceUpdates;
         for (const auto& entry : ancestors) {
-            for (const auto& update : mempool.GetServiceUpdatesBeforeKeyChange(entry)) {
+            for (const auto& update : mempool.GetServiceUpdatesBeforeKeyChange(entry, pindexPrev)) {
                 if (inBlock.count(update) || serviceUpdates.count(update)) {
                     continue;
                 }
@@ -652,7 +652,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
                                                             return target && keyChangedMNs.count(*target);
                                                         })};
                 if (!followsKeyChange && TestPackageTransactions(updatePackage) &&
-                    !mempool.IsUnorderableServiceUpdate(update->GetTx(), updatePackage)) {
+                    !mempool.IsUnorderableServiceUpdate(update->GetTx(), updatePackage, pindexPrev)) {
                     serviceUpdates.insert(updatePackage.begin(), updatePackage.end());
                 }
             }
@@ -709,7 +709,7 @@ void BlockAssembler::addPackageTxs(const CTxMemPool& mempool, int& nPackagesSele
                 validPackage = false;
                 break;
             }
-            if (const auto target = mempool.GetKeyChangeTarget(*entry)) {
+            if (const auto target = mempool.GetKeyChangeTarget(*entry, pindexPrev)) {
                 packageKeyChangedMNs.push_back(*target);
             }
             if (std::optional<uint8_t> signal = extractEHFSignal(tx); signal != std::nullopt) {
