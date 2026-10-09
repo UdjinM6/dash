@@ -427,12 +427,6 @@ void Chainstate::MaybeUpdateMempoolForReorg(
 
     AssertLockHeld(cs_main);
     AssertLockHeld(m_mempool->cs);
-    // The mempool checks provider transactions against the masternode list at the tip, which the
-    // block tip notifications move only after this. Move it now, so a transaction re-added below is
-    // not checked against the list of a disconnected block.
-    if (fAddToMempool && m_chain.Tip()) {
-        m_special_tx.UpdatedMNListTip(m_chain.Tip());
-    }
     std::vector<uint256> vHashUpdate;
     {
         // disconnectpool is ordered so that the front is the most recently-confirmed
@@ -911,7 +905,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
 
     if (m_isman && m_isman->IsWaitingForTx(hash)) {
         m_pool.removeConflicts(tx);
-        m_pool.removeProTxConflicts(tx);
+        m_pool.removeProTxConflicts(tx, m_active_chainstate.m_chain.Tip());
         m_pool.removeAssetUnlockConflicts(tx);
     } else {
         // Check for conflicts with in-memory transactions
@@ -1112,7 +1106,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     const CBlockIndex* tip{m_active_chainstate.m_chain.Tip()};
     if (!CheckSpecialTxForMempool(tx, GetSpecialTxRules(tip, m_active_chainstate.m_chainman), state)) return false;
 
-    if (m_pool.existsProviderTxConflict(tx) || m_pool.IsUnorderableServiceUpdate(tx, *ancestors)) {
+    if (m_pool.existsProviderTxConflict(tx, tip) || m_pool.IsUnorderableServiceUpdate(tx, *ancestors, tip)) {
         return state.Invalid(TxValidationResult::TX_CONFLICT, "protx-dup");
     }
 
@@ -1130,7 +1124,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // stall reachable across the boundary. This is mempool policy, which is allowed to be stricter
     // than consensus: a node that rejects the second transaction still accepts a block containing it,
     // so no chain can split over this.
-    if (m_pool.existsProviderTxCrossSchemeConflict(tx)) {
+    if (m_pool.existsProviderTxCrossSchemeConflict(tx, tip)) {
         return state.Invalid(TxValidationResult::TX_CONFLICT, "protx-dup");
     }
 
@@ -1259,7 +1253,7 @@ bool MemPoolAccept::Finalize(const ATMPArgs& args, Workspace& ws)
     m_pool.removeAssetUnlockConflicts(tx);
 
     // Store transaction in memory
-    m_pool.addUnchecked(*entry, ws.m_ancestors, validForFeeEstimation);
+    m_pool.addUnchecked(*entry, ws.m_ancestors, m_active_chainstate.m_chain.Tip(), validForFeeEstimation);
     CAmount nValueOut = tx.GetValueOut();
     unsigned int nSigOps = GetTransactionSigOpCount(tx, m_view, STANDARD_SCRIPT_VERIFY_FLAGS);
 
@@ -3674,7 +3668,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
              Ticks<MillisecondsDouble>(time_chainstate) / num_blocks_total);
     // Remove conflicting transactions from the mempool.;
     if (m_mempool) {
-        m_mempool->removeForBlock(blockConnecting.vtx, pindexNew->nHeight);
+        m_mempool->removeForBlock(blockConnecting.vtx, pindexNew->nHeight, pindexNew->pprev);
         m_mempool->removeExpiredAssetUnlock(pindexNew->nHeight);
         disconnectpool.removeForBlock(blockConnecting.vtx);
     }

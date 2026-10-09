@@ -201,6 +201,7 @@ struct entry_time {};
 struct ancestor_score {};
 
 class CBlockPolicyEstimator;
+class CDeterministicMNList;
 class CDeterministicMNManager;
 
 namespace llmq {
@@ -504,8 +505,11 @@ public:
     // Note that addUnchecked is ONLY called from ATMP outside of tests
     // and any other callers may break wallet's in-mempool tracking (due to
     // lack of CValidationInterface::TransactionAddedToMempool callbacks).
+    // The second version records provider transactions against the masternode list at pindex, the
+    // block the mempool is consistent with; the first one uses no masternode list.
     void addUnchecked(const CTxMemPoolEntry& entry, bool validFeeEstimate = true) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
-    void addUnchecked(const CTxMemPoolEntry& entry, setEntries& setAncestors, bool validFeeEstimate = true) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
+    void addUnchecked(const CTxMemPoolEntry& entry, setEntries& setAncestors, const CBlockIndex* pindex,
+                      bool validFeeEstimate = true) EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
 
     void addAddressIndex(const CTxMemPoolEntry& entry, const CCoinsViewCache& view);
     void getAddressIndex(const std::vector<CMempoolAddressDeltaKey>& addresses,
@@ -534,27 +538,34 @@ public:
      *  (collateral spent, or collateral reused by a replacement ProRegTx), since such TXs can never
      *  be mined afterwards and would abort block assembly with "bad-protx-hash". */
     void removeProTxReferences(const uint256& proTxHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void removeProTxSpentCollateralConflicts(const CTransaction &tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void removeProTxSpentCollateralConflicts(const CTransaction& tx, const CDeterministicMNList& mnList) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeProTxKeyChangedConflicts(const CTransaction &tx, const uint256& proTxHash, const uint256& newKeyHash) EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** Remove pending TXs of refType for proTxHash that pair the P2PKH destination of keyIDVoting with a
      *  share reward script: ProUpShareTxs paying it, or ProUpSharedRegTxs setting it as the voting key. */
     void removeProTxVotingPayeeConflicts(const uint256& proTxHash, const CKeyID& keyIDVoting, uint16_t refType) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void removeProTxConflicts(const CTransaction &tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** Remove the pending TXs that tx conflicts with, finding the masternodes it affects in the list
+     *  at pindex. */
+    void removeProTxConflicts(const CTransaction& tx, const CBlockIndex* pindex) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** pindexPrev is the block vtx builds on, whose masternode list has the masternodes vtx affects. */
+    void removeForBlock(const std::vector<CTransactionRef>& vtx, unsigned int nBlockHeight,
+                        const CBlockIndex* pindexPrev) EXCLUSIVE_LOCKS_REQUIRED(cs);
     void removeExpiredAssetUnlock(int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    /** If entry changes or revokes the operator key a masternode has at the chain tip, return that
-     *  masternode. Decided against the current list rather than isKeyChangeProTx, which records the list
-     *  at admission and goes stale when a reorg changes the key under a transaction staying in the pool. */
-    std::optional<uint256> GetKeyChangeTarget(const CTxMemPoolEntry& entry) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /** If entry changes or revokes the operator key a masternode has at pindex, return that
+     *  masternode. Decided against that list rather than isKeyChangeProTx, which records the list at
+     *  admission and goes stale when a reorg changes the key under a transaction staying in the pool. */
+    std::optional<uint256> GetKeyChangeTarget(const CTxMemPoolEntry& entry, const CBlockIndex* pindex) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** If key_change changes or revokes a masternode's operator key, return that masternode's pending
      *  ProUpServTxs that do not descend from it. They are signed with the key being replaced, and mined
      *  after key_change in the same block they would restore the previous operator's service fields. */
-    std::vector<txiter> GetServiceUpdatesBeforeKeyChange(txiter key_change) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    std::vector<txiter> GetServiceUpdatesBeforeKeyChange(txiter key_change, const CBlockIndex* pindex) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** Is tx a ProUpServTx that block assembly could not reliably mine ahead of a key change of its
      *  masternode? That is one with a pending operator key change among its ancestors, which it can only
      *  be mined after, or with a pending asset lock or unlock or MNHF signal, whose own checks in block
      *  assembly could keep it, and the key change it was to precede, out of the block. */
-    bool IsUnorderableServiceUpdate(const CTransaction& tx, const setEntries& ancestors) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    bool IsUnorderableServiceUpdate(const CTransaction& tx, const setEntries& ancestors, const CBlockIndex* pindex) const
+        EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     bool CompareDepthAndScore(const uint256& hasha, const uint256& hashb);
     bool isSpent(const COutPoint& outpoint) const;
@@ -762,7 +773,8 @@ public:
      *  sharing its txid. The caller has fully validated the new instance. */
     void ReplaceAssetUnlockInstance(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
 
-    bool existsProviderTxConflict(const CTransaction &tx) const;
+    /** Checked against the masternode list at pindex, the block tx would be mined on top of. */
+    bool existsProviderTxConflict(const CTransaction& tx, const CBlockIndex* pindex) const;
 
     /**
      * Does another in-flight transaction already claim this transaction's operator key under the
@@ -779,7 +791,7 @@ public:
      * stalling an honest miner. Policy may be stricter than consensus here, since a node that rejects
      * the second transaction still accepts a block containing it.
      */
-    bool existsProviderTxCrossSchemeConflict(const CTransaction& tx) const;
+    bool existsProviderTxCrossSchemeConflict(const CTransaction& tx, const CBlockIndex* pindex) const;
 
     size_t DynamicMemoryUsage() const;
 
@@ -862,7 +874,11 @@ private:
     /**
      * addUnchecked extension for Dash-specific transactions (ProTx).
      */
-    void addUncheckedProTx(indexed_transaction_set::iterator& newit, const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void addUncheckedProTx(indexed_transaction_set::iterator& newit, const CTransaction& tx, const CBlockIndex* pindex)
+        EXCLUSIVE_LOCKS_REQUIRED(cs);
+
+    /** The masternode list at pindex, or an empty one without a block. */
+    CDeterministicMNList GetMNList(const CBlockIndex* pindex) const;
 
     /** Before calling removeUnchecked for a given transaction,
      *  UpdateForRemoveFromMempool must be called on the entire (dependent) set
