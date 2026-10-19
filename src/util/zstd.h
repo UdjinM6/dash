@@ -5,11 +5,16 @@
 #ifndef BITCOIN_UTIL_ZSTD_H
 #define BITCOIN_UTIL_ZSTD_H
 
+#include <serialize.h>
 #include <span.h>
 
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <vector>
+
+class AutoFile;
+struct ZSTD_DCtx_s;
 
 namespace util {
 
@@ -27,6 +32,38 @@ std::vector<std::byte> ZstdCompress(Span<const std::byte> in, int level);
  * Returns nullopt for a malformed frame, an unknown content size, or a content size above max_out.
  */
 std::optional<std::vector<std::byte>> ZstdDecompress(Span<const std::byte> in, size_t max_out);
+
+/**
+ * Reads a record of size bytes from the current position of a file. A compressed record is one
+ * zstd frame, decompressed chunk by chunk while the caller reads, so neither the frame nor its
+ * contents are ever held in memory as a whole; a plain record is passed through. Throws
+ * std::ios_base::failure on a truncated or corrupt frame, when reading past its end, and for a
+ * compressed record in builds without zstd support.
+ */
+class ZstdFileReader
+{
+    AutoFile& m_file;
+    const bool m_compressed;
+    size_t m_remaining; //!< bytes of the record not read from the file yet
+    std::unique_ptr<ZSTD_DCtx_s, void (*)(ZSTD_DCtx_s*)> m_stream;
+    std::vector<std::byte> m_in;
+    std::vector<std::byte> m_out;
+    Span<const std::byte> m_pending; //!< compressed bytes read from the file, not consumed by zstd yet
+    Span<const std::byte> m_unread;  //!< decompressed bytes not returned to the caller yet
+    bool m_frame_done{false};
+
+public:
+    ZstdFileReader(AutoFile& file, size_t size, bool compressed);
+    void read(Span<std::byte> dst);
+    void ignore(size_t n);
+
+    template <typename T>
+    ZstdFileReader& operator>>(T&& obj)
+    {
+        ::Unserialize(*this, obj);
+        return *this;
+    }
+};
 
 } // namespace util
 

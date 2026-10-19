@@ -8,6 +8,13 @@
 
 #include <util/zstd.h>
 
+#include <streams.h>
+#include <tinyformat.h>
+
+#include <algorithm>
+#include <cstdio>
+#include <ios>
+
 #ifdef ENABLE_ZSTD
 #include <zstd.h>
 #endif
@@ -21,6 +28,20 @@ bool ZstdAvailable()
 #else
     return false;
 #endif
+}
+
+void ZstdFileReader::ignore(size_t n)
+{
+    if (!m_compressed) {
+        if (std::fseek(m_file.Get(), static_cast<long>(n), SEEK_CUR) != 0) throw std::ios_base::failure("ZstdFileReader::ignore: fseek failed");
+        return;
+    }
+    std::byte buf[1024];
+    while (n > 0) {
+        const size_t now{std::min(n, sizeof(buf))};
+        read({buf, now});
+        n -= now;
+    }
 }
 
 #ifdef ENABLE_ZSTD
@@ -53,6 +74,47 @@ std::optional<std::vector<std::byte>> ZstdDecompress(Span<const std::byte> in, s
     return out;
 }
 
+ZstdFileReader::ZstdFileReader(AutoFile& file, size_t size, bool compressed)
+    : m_file{file},
+      m_compressed{compressed},
+      m_remaining{size},
+      m_stream{compressed ? ZSTD_createDStream() : nullptr, [](ZSTD_DCtx_s* stream) { ZSTD_freeDStream(stream); }}
+{
+    if (!m_compressed) return;
+    if (!m_stream) throw std::ios_base::failure("ZstdFileReader: ZSTD_createDStream failed");
+    m_in.resize(ZSTD_DStreamInSize());
+    m_out.resize(ZSTD_DStreamOutSize());
+}
+
+void ZstdFileReader::read(Span<std::byte> dst)
+{
+    if (!m_compressed) return m_file.read(dst);
+    while (!dst.empty()) {
+        if (!m_unread.empty()) {
+            const size_t n{std::min(dst.size(), m_unread.size())};
+            std::copy_n(m_unread.begin(), n, dst.begin());
+            m_unread = m_unread.subspan(n);
+            dst = dst.subspan(n);
+            continue;
+        }
+        if (m_frame_done) throw std::ios_base::failure("ZstdFileReader::read: end of data");
+        if (m_pending.empty()) {
+            if (m_remaining == 0) throw std::ios_base::failure("ZstdFileReader::read: truncated frame");
+            const Span<std::byte> chunk{Span{m_in}.first(std::min(m_remaining, m_in.size()))};
+            m_file.read(chunk);
+            m_remaining -= chunk.size();
+            m_pending = chunk;
+        }
+        ZSTD_inBuffer in{m_pending.data(), m_pending.size(), 0};
+        ZSTD_outBuffer out{m_out.data(), m_out.size(), 0};
+        const size_t ret{ZSTD_decompressStream(m_stream.get(), &out, &in)};
+        if (ZSTD_isError(ret)) throw std::ios_base::failure(strprintf("ZstdFileReader::read: %s", ZSTD_getErrorName(ret)));
+        m_pending = m_pending.subspan(in.pos);
+        m_unread = Span{m_out}.first(out.pos);
+        m_frame_done = ret == 0;
+    }
+}
+
 #else
 
 int ZstdMaxLevel() { return 0; }
@@ -60,6 +122,15 @@ int ZstdMaxLevel() { return 0; }
 std::vector<std::byte> ZstdCompress(Span<const std::byte>, int) { return {}; }
 
 std::optional<std::vector<std::byte>> ZstdDecompress(Span<const std::byte>, size_t) { return std::nullopt; }
+
+ZstdFileReader::ZstdFileReader(AutoFile& file, size_t size, bool compressed)
+    : m_file{file}, m_compressed{compressed}, m_remaining{size}, m_stream{nullptr, [](ZSTD_DCtx_s*) {}} {}
+
+void ZstdFileReader::read(Span<std::byte> dst)
+{
+    if (m_compressed) throw std::ios_base::failure("ZstdFileReader::read: compressed record, but this build has no zstd support");
+    m_file.read(dst);
+}
 
 #endif // ENABLE_ZSTD
 
