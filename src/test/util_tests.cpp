@@ -1991,6 +1991,7 @@ BOOST_AUTO_TEST_CASE(util_zstd_roundtrip)
         BOOST_CHECK(util::ZstdCompress(data, 3).empty());
         BOOST_CHECK(!util::ZstdDecompress(data, data.size()));
         BOOST_CHECK_EQUAL(util::ZstdMaxLevel(), 0);
+        BOOST_CHECK_EQUAL(util::ZstdLevel(), 0);
         return;
     }
 

@@ -10,6 +10,7 @@
 
 #include <streams.h>
 #include <tinyformat.h>
+#include <util/system.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -27,6 +28,24 @@ bool ZstdAvailable()
     return true;
 #else
     return false;
+#endif
+}
+
+int DefaultZstdLevel()
+{
+#ifdef ENABLE_ZSTD
+    return DEFAULT_ZSTD_LEVEL;
+#else
+    return 0;
+#endif
+}
+
+int ZstdLevel()
+{
+#ifdef ENABLE_ZSTD
+    return gArgs.GetIntArg("-blockcompression", DEFAULT_ZSTD_LEVEL);
+#else
+    return 0;
 #endif
 }
 

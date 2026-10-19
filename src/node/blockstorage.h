@@ -39,6 +39,8 @@ class ZstdFileReader;
 
 namespace node {
 static constexpr bool DEFAULT_STOPAFTERBLOCKIMPORT{false};
+/** Higher levels cost several times more CPU per block for no measurable gain */
+static constexpr int MAX_RECOMMENDED_BLOCK_COMPRESSION_LEVEL{5};
 
 /** The pre-allocation chunk size for blk?????.dat files (since 0.8) */
 static const unsigned int BLOCKFILE_CHUNK_SIZE = 0x1000000; // 16 MiB
@@ -239,6 +241,9 @@ public:
 
     /** True if any block files have ever been pruned. */
     bool m_have_pruned = false;
+
+    /** True if any zstd-compressed block or undo record has ever been written, which a build without zstd cannot read. */
+    bool m_have_compressed_records = false;
 
     //! Check whether the block associated with this index entry is pruned or not.
     bool IsBlockPruned(const CBlockIndex* pblockindex) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
