@@ -18,7 +18,7 @@ struct ZSTD_DCtx_s;
 
 namespace util {
 
-static constexpr int DEFAULT_ZSTD_LEVEL{0};
+static constexpr int DEFAULT_ZSTD_LEVEL{3};
 
 /** Whether this build links libzstd. Without it only level 0 is accepted and compressed data cannot be read. */
 bool ZstdAvailable();
