@@ -514,7 +514,7 @@ CBlockFileInfo* BlockManager::GetBlockFileInfo(size_t n)
     return &m_blockfile_info.at(n);
 }
 
-static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const uint256& hashBlock, const CMessageHeader::MessageStartChars& messageStart)
+static bool UndoWriteToDisk(Span<const std::byte> payload, uint32_t size_field, FlatFilePos& pos, const uint256& checksum, const CMessageHeader::MessageStartChars& messageStart)
 {
     // Open history file to append
     AutoFile fileout{OpenUndoFile(pos)};
@@ -524,23 +524,17 @@ static bool UndoWriteToDisk(const CBlockUndo& blockundo, FlatFilePos& pos, const
     }
 
     // Write index header
-    unsigned int nSize = GetSerializeSize(blockundo, CLIENT_VERSION);
-    fileout << messageStart << nSize;
+    fileout << messageStart << size_field;
 
-    // Write undo data
+    // Write undo data and checksum
     long fileOutPos = ftell(fileout.Get());
     if (fileOutPos < 0) {
         LogError("%s: ftell failed\n", __func__);
         return false;
     }
     pos.nPos = (unsigned int)fileOutPos;
-    fileout << blockundo;
-
-    // calculate & write checksum
-    HashWriter hasher{};
-    hasher << hashBlock;
-    hasher << blockundo;
-    fileout << hasher.GetHash();
+    fileout.write(payload);
+    fileout << checksum;
 
     return true;
 }
@@ -555,7 +549,7 @@ bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex)
     }
 
     // Open history file to read
-    AutoFile filein{OpenUndoFile(pos, true)};
+    AutoFile filein{OpenUndoFile(RecordHeaderPos(pos), true)};
     if (filein.IsNull()) {
         LogError("%s: OpenUndoFile failed\n", __func__);
         return false;
@@ -563,18 +557,21 @@ bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex)
 
     // Read block
     uint256 hashChecksum;
-    HashVerifier verifier{filein}; // Use HashVerifier as reserializing may lose data, c.f. commit d342424301013ec47dc146a4beb49d5c9319d80a
+    uint256 computed;
     try {
+        util::ZstdFileReader undo_in{OpenRecordPayload(filein)};
+        HashVerifier verifier{undo_in}; // Use HashVerifier as reserializing may lose data, c.f. commit d342424301013ec47dc146a4beb49d5c9319d80a
         verifier << pindex->pprev->GetBlockHash();
         verifier >> blockundo;
         filein >> hashChecksum;
+        computed = verifier.GetHash();
     } catch (const std::exception& e) {
         LogError("%s: Deserialize or I/O error - %s\n", __func__, e.what());
         return false;
     }
 
     // Verify checksum
-    if (hashChecksum != verifier.GetHash()) {
+    if (hashChecksum != computed) {
         LogError("%s: Checksum mismatch\n", __func__);
         return false;
     }
@@ -798,21 +795,26 @@ static bool WriteBlockToDisk(Span<const std::byte> payload, uint32_t size_field,
     return true;
 }
 
-/** Serialize the block for storage, as a zstd frame when that is smaller. Returns the payload and its size field. */
-static std::pair<DataStream, uint32_t> BuildBlockRecordPayload(const CBlock& block)
+/** Store serialized data as a zstd frame when that is smaller. Returns the record payload and its size field. */
+static std::pair<DataStream, uint32_t> BuildRecordPayload(DataStream data)
 {
-    DataStream ss;
-    ss << block;
     const int level{util::ZstdLevel()};
     if (level > 0) {
-        const std::vector<std::byte> compressed{util::ZstdCompress(MakeByteSpan(ss), level)};
-        if (!compressed.empty() && compressed.size() < ss.size()) {
+        const std::vector<std::byte> compressed{util::ZstdCompress(MakeByteSpan(data), level)};
+        if (!compressed.empty() && compressed.size() < data.size()) {
             const uint32_t size_field{static_cast<uint32_t>(compressed.size()) | BLOCK_RECORD_COMPRESSED};
             return {DataStream{compressed}, size_field};
         }
     }
-    const uint32_t size_field{static_cast<uint32_t>(ss.size())};
-    return {std::move(ss), size_field};
+    const uint32_t size_field{static_cast<uint32_t>(data.size())};
+    return {std::move(data), size_field};
+}
+
+static std::pair<DataStream, uint32_t> BuildBlockRecordPayload(const CBlock& block)
+{
+    DataStream ss;
+    ss << block;
+    return BuildRecordPayload(std::move(ss));
 }
 
 bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValidationState& state, CBlockIndex& block)
@@ -820,12 +822,21 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
     AssertLockHeld(::cs_main);
     // Write undo information to disk
     if (block.GetUndoPos().IsNull()) {
+        DataStream undo_data;
+        undo_data << blockundo;
+        // the checksum covers the previous block hash and the serialized undo data, compressed or not
+        HashWriter hasher{};
+        hasher << block.pprev->GetBlockHash();
+        hasher.write(MakeByteSpan(undo_data));
+        const uint256 checksum{hasher.GetHash()};
+        const auto [payload, size_field]{BuildRecordPayload(std::move(undo_data))};
         FlatFilePos _pos;
-        if (!FindUndoPos(state, block.nFile, _pos, ::GetSerializeSize(blockundo, CLIENT_VERSION) + 40)) {
+        if (!FindUndoPos(state, block.nFile, _pos, payload.size() + BLOCK_SERIALIZATION_HEADER_SIZE + uint256::size())) {
             LogError("ConnectBlock(): FindUndoPos failed\n");
             return false;
         }
-        if (!UndoWriteToDisk(blockundo, _pos, block.pprev->GetBlockHash(), GetParams().MessageStart())) {
+        if (size_field & BLOCK_RECORD_COMPRESSED) m_have_compressed_records = true;
+        if (!UndoWriteToDisk(MakeByteSpan(payload), size_field, _pos, checksum, GetParams().MessageStart())) {
             return AbortNode(state, "Failed to write undo data");
         }
         // rev files are written in block height order, whereas blk files are written as blocks come in (often out of order)

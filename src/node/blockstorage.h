@@ -49,9 +49,9 @@ static const unsigned int UNDOFILE_CHUNK_SIZE = 0x100000; // 1 MiB
 /** The maximum size of a blk?????.dat file (since 0.8) */
 static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
 
-/** Size of header written by WriteBlockToDisk before a serialized CBlock */
+/** Size of header written before the payload of each block and undo record */
 static constexpr size_t BLOCK_SERIALIZATION_HEADER_SIZE = CMessageHeader::MESSAGE_START_SIZE + sizeof(unsigned int);
-/** Set in the size field of a block record whose payload is one zstd frame of the serialized CBlock */
+/** Set in the size field of a block or undo record whose payload is one zstd frame of the serialized data */
 static constexpr uint32_t BLOCK_RECORD_COMPRESSED{0x80000000};
 static constexpr uint32_t BLOCK_RECORD_SIZE_MASK{~BLOCK_RECORD_COMPRESSED};
 
