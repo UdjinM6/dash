@@ -57,6 +57,7 @@ bool CBlockIndexHeightOnlyComparator::operator()(const CBlockIndex* pa, const CB
 }
 
 static FILE* OpenUndoFile(const FlatFilePos& pos, bool fReadOnly = false);
+static uint32_t ReadRecordSizeField(AutoFile& filein);
 static FlatFileSeq BlockFileSeq();
 static FlatFileSeq UndoFileSeq();
 
@@ -559,10 +560,17 @@ bool UndoReadFromDisk(CBlockUndo& blockundo, const CBlockIndex* pindex)
     uint256 hashChecksum;
     uint256 computed;
     try {
-        util::ZstdFileReader undo_in{OpenRecordPayload(filein)};
+        const uint32_t size_field{ReadRecordSizeField(filein)};
+        const uint32_t payload_size{size_field & BLOCK_RECORD_SIZE_MASK};
+        const bool compressed{(size_field & BLOCK_RECORD_COMPRESSED) != 0};
+        util::ZstdFileReader undo_in{filein, payload_size, compressed};
         HashVerifier verifier{undo_in}; // Use HashVerifier as reserializing may lose data, c.f. commit d342424301013ec47dc146a4beb49d5c9319d80a
         verifier << pindex->pprev->GetBlockHash();
         verifier >> blockundo;
+        // the decompressor may stop before the end of the frame, the checksum follows the stored payload
+        if (compressed && std::fseek(filein.Get(), pos.nPos + payload_size, SEEK_SET) != 0) {
+            throw std::ios_base::failure("fseek to undo checksum failed");
+        }
         filein >> hashChecksum;
         computed = verifier.GetHash();
     } catch (const std::exception& e) {

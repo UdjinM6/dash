@@ -192,6 +192,32 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_undo_record)
     BOOST_CHECK_EQUAL(ReadUndoSizeField(write_undo(plain_index)), serialized_size);
     check_read(plain_index);
     gArgs.ForceSetArg("-blockcompression", ToString(util::DEFAULT_ZSTD_LEVEL));
+
+    // a frame followed by bytes the decompressor never needs (here a 200 KB skippable frame) still finds its checksum
+    DataStream undo_data;
+    undo_data << undo;
+    std::vector<std::byte> payload{util::ZstdCompress(MakeByteSpan(undo_data), 3)};
+    DataStream skippable;
+    skippable << uint32_t{0x184D2A50} << uint32_t{200000};
+    payload.insert(payload.end(), skippable.begin(), skippable.end());
+    payload.resize(payload.size() + 200000);
+    HashWriter hasher{};
+    hasher << prev_hash;
+    hasher.write(MakeByteSpan(undo_data));
+    CBlockIndex trailing_index{params->GenesisBlock()};
+    {
+        AutoFile file{fsbridge::fopen(gArgs.GetBlocksDirPath() / "rev00000.dat", "rb+")};
+        BOOST_REQUIRE_EQUAL(fseek(file.Get(), blockman.GetBlockFileInfo(0)->nUndoSize, SEEK_SET), 0);
+        file << params->MessageStart() << (static_cast<uint32_t>(payload.size()) | BLOCK_RECORD_COMPRESSED);
+        LOCK(::cs_main);
+        trailing_index.pprev = &prev;
+        trailing_index.nFile = 0;
+        trailing_index.nUndoPos = ftell(file.Get());
+        trailing_index.nStatus |= BLOCK_HAVE_UNDO;
+        file.write(payload);
+        file << hasher.GetHash();
+    }
+    check_read(trailing_index);
 }
 
 BOOST_FIXTURE_TEST_CASE(blockmanager_scan_unlink_already_pruned_files, TestChain100Setup)
