@@ -5661,6 +5661,7 @@ void ChainstateManager::LoadExternalBlockFile(
     const CChainParams& params{GetParams()};
 
     int nLoaded = 0;
+    int skipped_compressed{0};
     try {
         unsigned int nMaxBlockSize = MaxBlockSize();
         // This takes over fileIn and calls fclose() on it in the CBufferedFile destructor
@@ -5714,7 +5715,8 @@ void ChainstateManager::LoadExternalBlockFile(
                         if (util::ZstdAvailable()) {
                             LogPrint(BCLog::REINDEX, "%s: Could not decompress block at file offset 0x%x\n", __func__, nBlockPos);
                         } else {
-                            LogWarning("%s: Skipping zstd-compressed block at file offset 0x%x, this build has no zstd support\n", __func__, nBlockPos);
+                            LogPrint(BCLog::REINDEX, "%s: Skipping zstd-compressed block at file offset 0x%x, this build has no zstd support\n", __func__, nBlockPos);
+                            ++skipped_compressed;
                         }
                         continue;
                     }
@@ -5843,6 +5845,9 @@ void ChainstateManager::LoadExternalBlockFile(
         AbortNode(std::string("System error: ") + e.what());
     }
     LogPrintf("Loaded %i blocks from external file in %dms\n", nLoaded, Ticks<std::chrono::milliseconds>(SteadyClock::now() - start));
+    if (skipped_compressed > 0) {
+        LogWarning("Skipped %i zstd-compressed blocks from external file, this build has no zstd support\n", skipped_compressed);
+    }
 }
 
 void ChainstateManager::CheckBlockIndex()
