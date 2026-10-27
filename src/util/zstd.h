@@ -52,13 +52,13 @@ class ZstdFileReader
 {
     AutoFile& m_file;
     const bool m_compressed;
-    size_t m_remaining; //!< bytes of the record not read from the file yet
+    [[maybe_unused]] size_t m_remaining; //!< bytes of the record not read from the file yet
     std::unique_ptr<ZSTD_DCtx_s, void (*)(ZSTD_DCtx_s*)> m_stream;
     std::vector<std::byte> m_in;
     std::vector<std::byte> m_out;
     Span<const std::byte> m_pending; //!< compressed bytes read from the file, not consumed by zstd yet
     Span<const std::byte> m_unread;  //!< decompressed bytes not returned to the caller yet
-    bool m_frame_done{false};
+    [[maybe_unused]] bool m_frame_done{false};
 
 public:
     ZstdFileReader(AutoFile& file, size_t size, bool compressed);
