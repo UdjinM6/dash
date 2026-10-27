@@ -2058,6 +2058,20 @@ BOOST_AUTO_TEST_CASE(util_zstd_roundtrip)
         BOOST_CHECK(std::ranges::equal(tail, Span{data}.subspan(1234)));
     }
     {
+        // a frame that decompresses to more than the caller allows
+        AutoFile file{fsbridge::fopen(path, "rb")};
+        util::ZstdFileReader reader{file, compressed.size(), /*compressed=*/true, /*max_out=*/data.size() - 1};
+        std::vector<std::byte> streamed(data.size());
+        BOOST_CHECK_THROW(reader.read(streamed), std::ios_base::failure);
+    }
+    {
+        AutoFile file{fsbridge::fopen(path, "rb")};
+        util::ZstdFileReader reader{file, compressed.size(), /*compressed=*/true, /*max_out=*/data.size()};
+        std::vector<std::byte> streamed(data.size());
+        reader.read(streamed);
+        BOOST_CHECK(streamed == data);
+    }
+    {
         // the frame cut short by the recorded size
         AutoFile file{fsbridge::fopen(path, "rb")};
         util::ZstdFileReader reader{file, compressed.size() / 2, /*compressed=*/true};

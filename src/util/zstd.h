@@ -9,6 +9,7 @@
 #include <span.h>
 
 #include <cstddef>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -45,14 +46,17 @@ std::optional<std::vector<std::byte>> ZstdDecompress(Span<const std::byte> in, s
  * Reads a record of size bytes from the current position of a file. A compressed record is one
  * zstd frame, decompressed chunk by chunk while the caller reads, so neither the frame nor its
  * contents are ever held in memory as a whole; a plain record is passed through. Throws
- * std::ios_base::failure on a truncated or corrupt frame, when reading past its end, and for a
- * compressed record in builds without zstd support.
+ * std::ios_base::failure on a truncated or corrupt frame, when reading past its end, when a
+ * compressed record decompresses to more than max_out bytes, and for a compressed record in builds
+ * without zstd support.
  */
 class ZstdFileReader
 {
     AutoFile& m_file;
     const bool m_compressed;
     [[maybe_unused]] size_t m_remaining; //!< bytes of the record not read from the file yet
+    [[maybe_unused]] const size_t m_max_out; //!< most bytes a compressed record may decompress to
+    [[maybe_unused]] size_t m_decompressed{0};
     std::unique_ptr<ZSTD_DCtx_s, void (*)(ZSTD_DCtx_s*)> m_stream;
     std::vector<std::byte> m_in;
     std::vector<std::byte> m_out;
@@ -61,7 +65,7 @@ class ZstdFileReader
     [[maybe_unused]] bool m_frame_done{false};
 
 public:
-    ZstdFileReader(AutoFile& file, size_t size, bool compressed);
+    ZstdFileReader(AutoFile& file, size_t size, bool compressed, size_t max_out = std::numeric_limits<size_t>::max());
     void read(Span<std::byte> dst);
     void ignore(size_t n);
 

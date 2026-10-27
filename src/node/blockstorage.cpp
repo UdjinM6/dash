@@ -6,6 +6,7 @@
 
 #include <chain.h>
 #include <clientversion.h>
+#include <consensus/consensus.h>
 #include <consensus/validation.h>
 #include <flatfile.h>
 #include <hash.h>
@@ -907,7 +908,7 @@ static uint32_t ReadRecordSizeField(AutoFile& filein)
 util::ZstdFileReader OpenRecordPayload(AutoFile& filein)
 {
     const uint32_t size_field{ReadRecordSizeField(filein)};
-    return {filein, size_field & BLOCK_RECORD_SIZE_MASK, (size_field & BLOCK_RECORD_COMPRESSED) != 0};
+    return {filein, size_field & BLOCK_RECORD_SIZE_MASK, (size_field & BLOCK_RECORD_COMPRESSED) != 0, MaxBlockSize()};
 }
 
 std::optional<uint256> ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams)

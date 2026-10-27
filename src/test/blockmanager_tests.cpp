@@ -5,6 +5,7 @@
 #include <chainparams.h>
 #include <clientversion.h>
 #include <consensus/amount.h>
+#include <consensus/consensus.h>
 #include <consensus/merkle.h>
 #include <hash.h>
 #include <node/blockstorage.h>
@@ -120,6 +121,17 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_record)
     BOOST_CHECK_EQUAL(blockman.SaveBlockToDisk(block, 1, &known).nPos, pos.nPos);
     BOOST_CHECK_EQUAL(blockman.GetBlockFileInfo(0)->nSize, size_after_write);
     BOOST_CHECK(blockman.m_have_compressed_records);
+
+    // a compressed record that decompresses to more than the largest valid block is not read
+    CBlock oversized{block};
+    CMutableTransaction oversized_coinbase{coinbase};
+    oversized_coinbase.vout[0].scriptPubKey = CScript() << OP_RETURN << std::vector<unsigned char>(MaxBlockSize() + 1000000, 0x42);
+    oversized.vtx[0] = MakeTransactionRef(oversized_coinbase);
+    oversized.hashMerkleRoot = BlockMerkleRoot(oversized);
+    while (!CheckProofOfWork(oversized.GetHash(), oversized.nBits, params->GetConsensus())) ++oversized.nNonce;
+    const FlatFilePos oversized_pos{blockman.SaveBlockToDisk(oversized, 2, nullptr)};
+    BOOST_REQUIRE(ReadSizeField(oversized_pos) & BLOCK_RECORD_COMPRESSED);
+    BOOST_CHECK(!ReadBlockFromDisk(read_block, oversized_pos, params->GetConsensus()));
 
     // compression disabled: the record holds the serialized block
     gArgs.ForceSetArg("-blockcompression", "0");

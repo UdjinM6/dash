@@ -267,7 +267,7 @@ void UnlinkPrunedFiles(const std::set<int>& setFilesToPrune);
 /** Functions for disk access for blocks */
 /** Position of the 8-byte header of the record whose payload starts at pos, null when pos leaves no room for one */
 FlatFilePos RecordHeaderPos(const FlatFilePos& pos);
-/** Read the header of the record the file is positioned at and return a reader for its payload, decompressing it when flagged */
+/** Read the header of the block record the file is positioned at and return a reader for its payload; a compressed payload is decompressed to at most MaxBlockSize() bytes */
 util::ZstdFileReader OpenRecordPayload(AutoFile& filein);
 std::optional<uint256> ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams);
 bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus::Params& consensusParams);

@@ -97,10 +97,11 @@ std::optional<std::vector<std::byte>> ZstdDecompress(Span<const std::byte> in, s
     return out;
 }
 
-ZstdFileReader::ZstdFileReader(AutoFile& file, size_t size, bool compressed)
+ZstdFileReader::ZstdFileReader(AutoFile& file, size_t size, bool compressed, size_t max_out)
     : m_file{file},
       m_compressed{compressed},
       m_remaining{size},
+      m_max_out{max_out},
       m_stream{compressed ? ZSTD_createDStream() : nullptr, [](ZSTD_DCtx_s* stream) { ZSTD_freeDStream(stream); }}
 {
     if (!m_compressed) return;
@@ -132,6 +133,8 @@ void ZstdFileReader::read(Span<std::byte> dst)
         ZSTD_outBuffer out{m_out.data(), m_out.size(), 0};
         const size_t ret{ZSTD_decompressStream(m_stream.get(), &out, &in)};
         if (ZSTD_isError(ret)) throw std::ios_base::failure(strprintf("ZstdFileReader::read: %s", ZSTD_getErrorName(ret)));
+        if (out.pos > m_max_out - m_decompressed) throw std::ios_base::failure("ZstdFileReader::read: record decompresses to more than its limit");
+        m_decompressed += out.pos;
         m_pending = m_pending.subspan(in.pos);
         m_unread = Span{m_out}.first(out.pos);
         m_frame_done = ret == 0;
@@ -146,8 +149,8 @@ std::vector<std::byte> ZstdCompress(Span<const std::byte>, int) { return {}; }
 
 std::optional<std::vector<std::byte>> ZstdDecompress(Span<const std::byte>, size_t) { return std::nullopt; }
 
-ZstdFileReader::ZstdFileReader(AutoFile& file, size_t size, bool compressed)
-    : m_file{file}, m_compressed{compressed}, m_remaining{size}, m_stream{nullptr, [](ZSTD_DCtx_s*) {}} {}
+ZstdFileReader::ZstdFileReader(AutoFile& file, size_t size, bool compressed, size_t max_out)
+    : m_file{file}, m_compressed{compressed}, m_remaining{size}, m_max_out{max_out}, m_stream{nullptr, [](ZSTD_DCtx_s*) {}} {}
 
 void ZstdFileReader::read(Span<std::byte> dst)
 {
