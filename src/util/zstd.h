@@ -36,8 +36,8 @@ int ZstdLevel();
 std::vector<std::byte> ZstdCompress(Span<const std::byte> in, int level);
 
 /**
- * Decompress a single zstd frame whose content size is recorded in the frame header.
- * Returns nullopt for a malformed frame, an unknown content size, or a content size above max_out.
+ * Decompress the zstd frame at the start of `in`, whether or not its header records the content size.
+ * Returns nullopt for a malformed or truncated frame, or one that decompresses to more than max_out bytes.
  */
 std::optional<std::vector<std::byte>> ZstdDecompress(Span<const std::byte> in, size_t max_out);
 

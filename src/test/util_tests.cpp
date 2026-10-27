@@ -2014,6 +2014,21 @@ BOOST_AUTO_TEST_CASE(util_zstd_roundtrip)
     BOOST_CHECK(!util::ZstdDecompress(Span{compressed}.first(compressed.size() / 2), data.size()));
     BOOST_CHECK(!util::ZstdDecompress(data, data.size()));
 
+    // a frame whose header does not record the content size: 128 KiB window, one raw last block
+    DataStream unsized;
+    unsized << uint32_t{0xFD2FB528} << uint8_t{0x00} << uint8_t{(17 - 10) << 3};
+    const uint32_t block_header{1 | (static_cast<uint32_t>(data.size()) << 3)};
+    unsized << uint8_t(block_header) << uint8_t(block_header >> 8) << uint8_t(block_header >> 16);
+    unsized.write(data);
+    const auto restored_unsized{util::ZstdDecompress(MakeByteSpan(unsized), data.size())};
+    BOOST_REQUIRE(restored_unsized);
+    BOOST_CHECK(*restored_unsized == data);
+    BOOST_CHECK(!util::ZstdDecompress(MakeByteSpan(unsized), data.size() - 1));
+    BOOST_CHECK(!util::ZstdDecompress(MakeByteSpan(unsized).first(unsized.size() - 1), data.size()));
+    // only the first frame is decompressed, like ZstdFileReader does
+    unsized << uint32_t{0xdeadbeef};
+    BOOST_CHECK(util::ZstdDecompress(MakeByteSpan(unsized), data.size()) == data);
+
     BOOST_CHECK(util::ZstdMaxLevel() >= 19);
 
     // streaming reader over a file holding the frame followed by other data

@@ -80,16 +80,20 @@ std::vector<std::byte> ZstdCompress(Span<const std::byte> in, int level)
 
 std::optional<std::vector<std::byte>> ZstdDecompress(Span<const std::byte> in, size_t max_out)
 {
+    const size_t frame_size{ZSTD_findFrameCompressedSize(in.data(), in.size())};
+    if (ZSTD_isError(frame_size)) return std::nullopt;
     // zstd.h spells these sentinels as 0ULL - 1 and 0ULL - 2, which the unsigned-overflow sanitizer flags unless they are constant-folded
     constexpr unsigned long long content_size_unknown{ZSTD_CONTENTSIZE_UNKNOWN};
     constexpr unsigned long long content_size_error{ZSTD_CONTENTSIZE_ERROR};
-    const unsigned long long content_size{ZSTD_getFrameContentSize(in.data(), in.size())};
-    if (content_size == content_size_unknown || content_size == content_size_error || content_size > max_out) {
+    const unsigned long long content_size{ZSTD_getFrameContentSize(in.data(), frame_size)};
+    if (content_size == content_size_error || (content_size != content_size_unknown && content_size > max_out)) {
         return std::nullopt;
     }
-    std::vector<std::byte> out(content_size);
-    const size_t written{ZSTD_decompress(out.data(), out.size(), in.data(), in.size())};
-    if (ZSTD_isError(written) || written != out.size()) return std::nullopt;
+    // one-shot decompression keeps its history in the output buffer, so memory stays bounded by max_out whatever window the frame declares
+    std::vector<std::byte> out(content_size == content_size_unknown ? max_out : content_size);
+    const size_t written{ZSTD_decompress(out.data(), out.size(), in.data(), frame_size)};
+    if (ZSTD_isError(written)) return std::nullopt;
+    out.resize(written);
     return out;
 }
 
