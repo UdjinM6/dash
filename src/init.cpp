@@ -2118,9 +2118,6 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                 return LoadChainstate(chainman, cache_sizes, options, *node.evodb, *node.dmnman, *node.special_tx);
             });
         }
-        if (status == node::ChainstateLoadStatus::SUCCESS && !util::ZstdAvailable() && !options.reindex && chainman.m_blockman.m_have_compressed_records) {
-            return InitError(strprintf(_("The block files contain zstd-compressed records, but this build of %s has no zstd support. Use a build with zstd support, or restart with -reindex to re-download the blocks."), PACKAGE_NAME));
-        }
         if (status == node::ChainstateLoadStatus::SUCCESS) {
             uiInterface.InitMessage(_("Verifying blocks…").translated);
             if (chainman.m_blockman.m_have_pruned && options.check_blocks > chainman.GetParams().MinBlocksToKeep()) {
