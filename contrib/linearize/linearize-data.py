@@ -18,18 +18,32 @@ import time
 import glob
 from collections import namedtuple
 
+# Decompress the first zstd frame in data; raise if it holds more than max_size bytes or the backend finds it malformed
 try:
     from compression import zstd as _zstd  # Python >= 3.14
-    zstd_decompress = _zstd.decompress
+
+    def zstd_decompress(data, max_size):
+        decompressor = _zstd.ZstdDecompressor()
+        out = decompressor.decompress(data, max_length=max_size)
+        if not decompressor.eof:
+            raise ValueError("zstd frame is truncated or holds more than %i bytes" % max_size)
+        return out
 except ImportError:
     try:
         import zstandard
-        zstd_decompress = zstandard.ZstdDecompressor().decompress
+
+        def zstd_decompress(data, max_size):
+            # max_output_size only bounds frames that do not record their content size
+            if zstandard.frame_content_size(data) > max_size:
+                raise ValueError("zstd frame holds more than %i bytes" % max_size)
+            return zstandard.ZstdDecompressor().decompress(data, max_output_size=max_size)
     except ImportError:
         zstd_decompress = None
 
 # High bit of the record size field: the payload is one zstd frame of the block
 BLOCK_RECORD_COMPRESSED = 0x80000000
+# MaxBlockSize() in src/consensus/consensus.h
+MAX_BLOCK_SIZE = 2000000
 
 settings = {}
 
@@ -179,7 +193,7 @@ class BlockDataCopier:
         with open(self.inFileName(extent.fn), "rb") as f:
             f.seek(extent.offset)
             if extent.compressed:
-                return zstd_decompress(f.read(extent.size))[80:]
+                return zstd_decompress(f.read(extent.size), MAX_BLOCK_SIZE)[80:]
             return f.read(extent.size)
 
     def copyOneBlock(self):
@@ -206,7 +220,7 @@ class BlockDataCopier:
                     return
 
             inhdr = self.inF.read(8)
-            if (not inhdr or (inhdr[0] == "\0")):
+            if (len(inhdr) < 8 or (inhdr[0] == "\0")):
                 self.inF.close()
                 self.inF = None
                 self.inFn = self.inFn + 1
@@ -227,8 +241,12 @@ class BlockDataCopier:
                     print("Compressed block records need the 'zstandard' module or Python >= 3.14")
                     sys.exit(1)
                 payload_len = su[0] & ~BLOCK_RECORD_COMPRESSED
+                if payload_len > MAX_BLOCK_SIZE:
+                    # Not a block record, keep searching for the magic bytes
+                    self.inF.seek(-7, os.SEEK_CUR)
+                    continue
                 payload_offset = self.inF.tell()
-                rawblock = zstd_decompress(self.inF.read(payload_len))
+                rawblock = zstd_decompress(self.inF.read(payload_len), MAX_BLOCK_SIZE)
                 blk_hdr = rawblock[:80]
                 rawblock = rawblock[80:]
                 inLen = len(rawblock)
