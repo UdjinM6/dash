@@ -163,34 +163,42 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_undo_record)
     const uint256 prev_hash{params->GenesisBlock().GetHash()};
     CBlockIndex prev{params->GenesisBlock()};
     prev.phashBlock = &prev_hash;
-    const auto write_undo{[&](CBlockIndex& index) {
+    const auto write_undo{[&](CBlockIndex& index, const CBlockUndo& data) {
         LOCK(::cs_main);
         index.pprev = &prev;
         index.nFile = 0;
         BlockValidationState state;
-        BOOST_REQUIRE(blockman.WriteUndoDataForBlock(undo, state, index));
+        BOOST_REQUIRE(blockman.WriteUndoDataForBlock(data, state, index));
         return index.GetUndoPos();
     }};
-    const auto check_read{[&](const CBlockIndex& index) {
+    const auto check_read{[&](const CBlockIndex& index, const CBlockUndo& expected) {
         CBlockUndo read_undo;
         BOOST_CHECK(UndoReadFromDisk(read_undo, &index));
-        BOOST_CHECK(SerializeHash(read_undo) == SerializeHash(undo));
+        BOOST_CHECK(SerializeHash(read_undo) == SerializeHash(expected));
     }};
 
     CBlockIndex index{params->GenesisBlock()};
-    const FlatFilePos pos{write_undo(index)};
+    const FlatFilePos pos{write_undo(index, undo)};
     const uint32_t size_field{ReadUndoSizeField(pos)};
     BOOST_CHECK(size_field & BLOCK_RECORD_COMPRESSED);
     BOOST_CHECK((size_field & BLOCK_RECORD_SIZE_MASK) < serialized_size);
     // the undo file accounts for the stored record followed by its checksum
     BOOST_CHECK_EQUAL(blockman.GetBlockFileInfo(0)->nUndoSize, pos.nPos + (size_field & BLOCK_RECORD_SIZE_MASK) + uint256::size());
-    check_read(index);
+    check_read(index, undo);
+
+    // compression enabled, but the record does not shrink: it is stored plain
+    const CBlockUndo empty_undo;
+    CBlockIndex empty_index{params->GenesisBlock()};
+    const FlatFilePos empty_pos{write_undo(empty_index, empty_undo)};
+    BOOST_CHECK_EQUAL(ReadUndoSizeField(empty_pos), ::GetSerializeSize(empty_undo, CLIENT_VERSION));
+    BOOST_CHECK_EQUAL(blockman.GetBlockFileInfo(0)->nUndoSize, empty_pos.nPos + ::GetSerializeSize(empty_undo, CLIENT_VERSION) + uint256::size());
+    check_read(empty_index, empty_undo);
 
     // compression disabled: the record holds the serialized undo data
     gArgs.ForceSetArg("-blockcompression", "0");
     CBlockIndex plain_index{params->GenesisBlock()};
-    BOOST_CHECK_EQUAL(ReadUndoSizeField(write_undo(plain_index)), serialized_size);
-    check_read(plain_index);
+    BOOST_CHECK_EQUAL(ReadUndoSizeField(write_undo(plain_index, undo)), serialized_size);
+    check_read(plain_index, undo);
     gArgs.ForceSetArg("-blockcompression", ToString(util::DEFAULT_ZSTD_LEVEL));
 
     // a frame followed by bytes the decompressor never needs (here a 200 KB skippable frame) still finds its checksum
@@ -217,7 +225,7 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_undo_record)
         file.write(payload);
         file << hasher.GetHash();
     }
-    check_read(trailing_index);
+    check_read(trailing_index, undo);
 }
 
 BOOST_FIXTURE_TEST_CASE(blockmanager_scan_unlink_already_pruned_files, TestChain100Setup)
