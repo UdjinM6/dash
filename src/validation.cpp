@@ -7023,7 +7023,7 @@ static ChainstateManager::Options&& Flatten(ChainstateManager::Options&& opts)
 
 ChainstateManager::ChainstateManager(Options options)
     : m_options{Flatten(std::move(options))},
-      m_blockman{{m_options.chainparams}} {}
+      m_blockman{{.chainparams = m_options.chainparams, .block_compression = m_options.block_compression}} {}
 
 ChainstateManager::~ChainstateManager()
 {

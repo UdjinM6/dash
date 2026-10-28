@@ -88,9 +88,9 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_record)
     const auto params{CreateChainParams(ArgsManager{}, CBaseChainParams::REGTEST)};
     node::BlockManager::Options blockman_opts{
         .chainparams = *params,
+        .block_compression = 3,
     };
     BlockManager blockman{blockman_opts};
-    gArgs.ForceSetArg("-blockcompression", "3");
 
     // a block whose coinbase carries 20 KB of repeated bytes, so that it compresses
     CBlock block{params->GenesisBlock()};
@@ -133,15 +133,18 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_record)
     BOOST_REQUIRE(ReadSizeField(oversized_pos) & BLOCK_RECORD_COMPRESSED);
     BOOST_CHECK(!ReadBlockFromDisk(read_block, oversized_pos, params->GetConsensus()));
 
-    // compression disabled: the record holds the serialized block
-    gArgs.ForceSetArg("-blockcompression", "0");
-    const FlatFilePos plain_pos{blockman.SaveBlockToDisk(block, 2, nullptr)};
+    // compression disabled: the record holds the serialized block (written from the start of the block file again)
+    node::BlockManager::Options plain_opts{
+        .chainparams = *params,
+        .block_compression = 0,
+    };
+    BlockManager plain_blockman{plain_opts};
+    const FlatFilePos plain_pos{plain_blockman.SaveBlockToDisk(block, 2, nullptr)};
     BOOST_CHECK_EQUAL(ReadSizeField(plain_pos), serialized_size);
     BOOST_CHECK(ReadBlockFromDisk(read_block, plain_pos, params->GetConsensus()) == block.GetHash());
-    gArgs.ForceSetArg("-blockcompression", ToString(util::DEFAULT_ZSTD_LEVEL));
 
     // a record written by software without compression support is still readable
-    FlatFilePos legacy_pos{0, blockman.GetBlockFileInfo(0)->nSize};
+    FlatFilePos legacy_pos{0, plain_blockman.GetBlockFileInfo(0)->nSize};
     {
         AutoFile file{OpenBlockFile(legacy_pos)};
         file << params->MessageStart() << serialized_size;
@@ -157,9 +160,9 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_undo_record)
     const auto params{CreateChainParams(ArgsManager{}, CBaseChainParams::REGTEST)};
     node::BlockManager::Options blockman_opts{
         .chainparams = *params,
+        .block_compression = 3,
     };
     BlockManager blockman{blockman_opts};
-    gArgs.ForceSetArg("-blockcompression", "3");
     // undo data goes next to the block file, so block file 0 has to exist
     BOOST_REQUIRE(!blockman.SaveBlockToDisk(params->GenesisBlock(), 0, nullptr).IsNull());
 
@@ -175,12 +178,12 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_undo_record)
     const uint256 prev_hash{params->GenesisBlock().GetHash()};
     CBlockIndex prev{params->GenesisBlock()};
     prev.phashBlock = &prev_hash;
-    const auto write_undo{[&](CBlockIndex& index, const CBlockUndo& data) {
+    const auto write_undo{[&](BlockManager& manager, CBlockIndex& index, const CBlockUndo& data) {
         LOCK(::cs_main);
         index.pprev = &prev;
         index.nFile = 0;
         BlockValidationState state;
-        BOOST_REQUIRE(blockman.WriteUndoDataForBlock(data, state, index));
+        BOOST_REQUIRE(manager.WriteUndoDataForBlock(data, state, index));
         return index.GetUndoPos();
     }};
     const auto check_read{[&](const CBlockIndex& index, const CBlockUndo& expected) {
@@ -190,7 +193,7 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_undo_record)
     }};
 
     CBlockIndex index{params->GenesisBlock()};
-    const FlatFilePos pos{write_undo(index, undo)};
+    const FlatFilePos pos{write_undo(blockman, index, undo)};
     const uint32_t size_field{ReadUndoSizeField(pos)};
     BOOST_CHECK(size_field & BLOCK_RECORD_COMPRESSED);
     BOOST_CHECK((size_field & BLOCK_RECORD_SIZE_MASK) < serialized_size);
@@ -201,17 +204,10 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_undo_record)
     // compression enabled, but the record does not shrink: it is stored plain
     const CBlockUndo empty_undo;
     CBlockIndex empty_index{params->GenesisBlock()};
-    const FlatFilePos empty_pos{write_undo(empty_index, empty_undo)};
+    const FlatFilePos empty_pos{write_undo(blockman, empty_index, empty_undo)};
     BOOST_CHECK_EQUAL(ReadUndoSizeField(empty_pos), ::GetSerializeSize(empty_undo, CLIENT_VERSION));
     BOOST_CHECK_EQUAL(blockman.GetBlockFileInfo(0)->nUndoSize, empty_pos.nPos + ::GetSerializeSize(empty_undo, CLIENT_VERSION) + uint256::size());
     check_read(empty_index, empty_undo);
-
-    // compression disabled: the record holds the serialized undo data
-    gArgs.ForceSetArg("-blockcompression", "0");
-    CBlockIndex plain_index{params->GenesisBlock()};
-    BOOST_CHECK_EQUAL(ReadUndoSizeField(write_undo(plain_index, undo)), serialized_size);
-    check_read(plain_index, undo);
-    gArgs.ForceSetArg("-blockcompression", ToString(util::DEFAULT_ZSTD_LEVEL));
 
     // a frame followed by bytes the decompressor never needs (here a 200 KB skippable frame) still finds its checksum
     DataStream undo_data;
@@ -238,6 +234,17 @@ BOOST_AUTO_TEST_CASE(blockmanager_compressed_undo_record)
         file << hasher.GetHash();
     }
     check_read(trailing_index, undo);
+
+    // compression disabled: the record holds the serialized undo data (written from the start of the undo file again)
+    node::BlockManager::Options plain_opts{
+        .chainparams = *params,
+        .block_compression = 0,
+    };
+    BlockManager plain_blockman{plain_opts};
+    BOOST_REQUIRE(!plain_blockman.SaveBlockToDisk(params->GenesisBlock(), 0, nullptr).IsNull());
+    CBlockIndex plain_index{params->GenesisBlock()};
+    BOOST_CHECK_EQUAL(ReadUndoSizeField(write_undo(plain_blockman, plain_index, undo)), serialized_size);
+    check_read(plain_index, undo);
 }
 
 BOOST_FIXTURE_TEST_CASE(blockmanager_scan_unlink_already_pruned_files, TestChain100Setup)

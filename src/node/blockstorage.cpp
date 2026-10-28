@@ -815,19 +815,18 @@ static bool WriteBlockToDisk(Span<const std::byte> payload, uint32_t size_field,
 }
 
 /** Serialized data as a zstd frame, when compression is enabled and makes it smaller */
-static std::optional<std::vector<std::byte>> CompressRecordPayload(Span<const std::byte> data)
+static std::optional<std::vector<std::byte>> CompressRecordPayload(Span<const std::byte> data, int level)
 {
-    const int level{util::ZstdLevel()};
-    if (level == 0) return std::nullopt;
+    if (level <= 0) return std::nullopt;
     std::vector<std::byte> compressed{util::ZstdCompress(data, level)};
     if (compressed.empty() || compressed.size() >= data.size()) return std::nullopt;
     return compressed;
 }
 
 /** Store serialized data as a zstd frame when that is smaller. Returns the record payload and its size field. */
-static std::pair<DataStream, uint32_t> BuildRecordPayload(DataStream data)
+static std::pair<DataStream, uint32_t> BuildRecordPayload(DataStream data, int level)
 {
-    if (const auto compressed{CompressRecordPayload(MakeByteSpan(data))}) {
+    if (const auto compressed{CompressRecordPayload(MakeByteSpan(data), level)}) {
         const uint32_t size_field{static_cast<uint32_t>(compressed->size()) | BLOCK_RECORD_COMPRESSED};
         return {DataStream{*compressed}, size_field};
     }
@@ -835,11 +834,11 @@ static std::pair<DataStream, uint32_t> BuildRecordPayload(DataStream data)
     return {std::move(data), size_field};
 }
 
-static std::pair<DataStream, uint32_t> BuildBlockRecordPayload(const CBlock& block)
+static std::pair<DataStream, uint32_t> BuildBlockRecordPayload(const CBlock& block, int level)
 {
     DataStream ss;
     ss << block;
-    return BuildRecordPayload(std::move(ss));
+    return BuildRecordPayload(std::move(ss), level);
 }
 
 bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValidationState& state, CBlockIndex& block)
@@ -849,10 +848,10 @@ bool BlockManager::WriteUndoDataForBlock(const CBlockUndo& blockundo, BlockValid
     if (block.GetUndoPos().IsNull()) {
         // only compression needs the serialized undo data in memory, a plain record is streamed to the file
         std::optional<std::vector<std::byte>> compressed;
-        if (util::ZstdLevel() > 0) {
+        if (m_opts.block_compression > 0) {
             DataStream undo_data;
             undo_data << blockundo;
-            compressed = CompressRecordPayload(MakeByteSpan(undo_data));
+            compressed = CompressRecordPayload(MakeByteSpan(undo_data), m_opts.block_compression);
         }
         const size_t payload_size{compressed ? compressed->size() : ::GetSerializeSize(blockundo, CLIENT_VERSION)};
         FlatFilePos _pos;
@@ -984,7 +983,7 @@ FlatFilePos BlockManager::SaveBlockToDisk(const CBlock& block, int nHeight, cons
             if (*stored & BLOCK_RECORD_COMPRESSED) m_have_compressed_records = true;
         }
     } else {
-        std::tie(payload, size_field) = BuildBlockRecordPayload(block);
+        std::tie(payload, size_field) = BuildBlockRecordPayload(block, m_opts.block_compression);
         nBlockSize = payload.size();
         // when known, blockPos.nPos points at the offset of the block data in the blk file. that already accounts for
         // the serialization header present in the file (the 4 magic message start bytes + the 4 length bytes = 8 bytes = BLOCK_SERIALIZATION_HEADER_SIZE).
