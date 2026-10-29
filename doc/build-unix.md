@@ -65,8 +65,8 @@ executables, which are based on BerkeleyDB 4.8. If you do not care about wallet 
 To build Dash Core without wallet, see [*Disable-wallet mode*](#disable-wallet-mode)
 
 zstd compresses block and undo files on disk (see: `--with-zstd`, package `libzstd-dev`
-on Debian and Ubuntu, `libzstd-devel` on Fedora); a build without it cannot read block files written
-with it.
+on Debian and Ubuntu, `libzstd-devel` on Fedora); a build without it cannot read block files that
+contain compressed records.
 
 Optional port mapping libraries (see: `--with-miniupnpc` and `--with-natpmp`):
 
@@ -158,8 +158,8 @@ pass `--with-incompatible-bdb` to configure. Otherwise, you can build Berkeley D
 To build Dash Core without wallet, see [*Disable-wallet mode*](#disable-wallet-mode)
 
 zstd compresses block and undo files on disk (see: `--with-zstd`, package `libzstd-dev`
-on Debian and Ubuntu, `libzstd-devel` on Fedora); a build without it cannot read block files written
-with it.
+on Debian and Ubuntu, `libzstd-devel` on Fedora); a build without it cannot read block files that
+contain compressed records.
 
 Optional port mapping libraries (see: `--with-miniupnpc` and `--with-natpmp`):
 
