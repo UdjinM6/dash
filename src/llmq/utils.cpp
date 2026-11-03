@@ -33,7 +33,7 @@
 std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex);
 
 namespace {
-using QuorumMembers = std::vector<CDeterministicMNCPtr>;
+using llmq::utils::QuorumMembers;
 
 std::string ToString(const QuorumMembers& members)
 {
@@ -326,17 +326,17 @@ void BuildQuorumSnapshot(const Consensus::LLMQParams& llmqParams, const Consensu
     }
 }
 
-std::vector<QuorumMembers> BuildNewQuorumQuarterMembers(const Consensus::LLMQParams& llmqParams,
-                                                        const llmq::UtilParameters& util_params,
-                                                        const CDeterministicMNList& allMns,
-                                                        const PreviousQuorumQuarters& previousQuarters,
-                                                        const uint256& modifier,
-                                                        int cycleBaseHeight,
-                                                        bool storeSnapshot)
+// nullopt only when the step walk's skip list overflows; no snapshot is stored then
+std::optional<std::vector<QuorumMembers>> BuildNewQuorumQuarterMembers(const Consensus::LLMQParams& llmqParams,
+                                                                       const llmq::UtilParameters& util_params,
+                                                                       const CDeterministicMNList& allMns,
+                                                                       const PreviousQuorumQuarters& previousQuarters,
+                                                                       const uint256& modifier, int cycleBaseHeight,
+                                                                       bool storeSnapshot, bool step_walk)
 {
     if (!llmqParams.useRotation || cycleBaseHeight % llmqParams.dkgInterval != 0) {
         ASSERT_IF_DEBUG(false);
-        return {};
+        return std::vector<QuorumMembers>{};
     }
 
     size_t nQuorums = static_cast<size_t>(llmqParams.signingActiveQuorumCount);
@@ -345,7 +345,7 @@ std::vector<QuorumMembers> BuildNewQuorumQuarterMembers(const Consensus::LLMQPar
     size_t quorumSize = static_cast<size_t>(llmqParams.size);
     auto quarterSize{quorumSize / 4};
 
-    if (allMns.GetCounts().enabled() < quarterSize) {
+    if (!step_walk && allMns.GetCounts().enabled() < quarterSize) {
         return quarterQuorumMembers;
     }
 
@@ -415,10 +415,19 @@ std::vector<QuorumMembers> BuildNewQuorumQuarterMembers(const Consensus::LLMQPar
             return false;
         }
     };
-    auto walk = llmq::utils::WalkLegacyQuarters(sortedCombinedMnsList.size(), nQuorums, quarterSize, usedCounts,
-                                                can_add);
-    if (!walk) {
-        return std::vector<QuorumMembers>(nQuorums);
+    std::optional<llmq::utils::QuarterWalkResult> walk;
+    if (step_walk) {
+        walk = llmq::utils::WalkNewQuarters(sortedCombinedMnsList.size(), nQuorums, quarterSize, can_add);
+        if (!walk) {
+            LogPrintf("%s -- skip list overflow, llmqType[%d] h[%d]\n", __func__, std23::to_underlying(llmqParams.type),
+                      cycleBaseHeight);
+            return std::nullopt;
+        }
+    } else {
+        walk = llmq::utils::WalkLegacyQuarters(sortedCombinedMnsList.size(), nQuorums, quarterSize, usedCounts, can_add);
+        if (!walk) {
+            return std::vector<QuorumMembers>(nQuorums);
+        }
     }
     for (const size_t i : util::irange(nQuorums)) {
         for (const size_t pos : walk->quarters[i]) {
@@ -428,83 +437,37 @@ std::vector<QuorumMembers> BuildNewQuorumQuarterMembers(const Consensus::LLMQPar
 
     if (storeSnapshot) {
         llmq::CQuorumSnapshot quorumSnapshot{};
+        // With every quarter full, the step walk selected what the legacy walk would have, so store what it would
+        // have stored and the cycle is rebuilt exactly as before
+        bool short_quarters{false};
+        if (step_walk) {
+            short_quarters = std::ranges::any_of(walk->quarters, [&](const auto& q) { return q.size() < quarterSize; });
+            if (!short_quarters) {
+                walk->skip_list = llmq::utils::LegacySkipListForWalk(sortedCombinedMnsList.size(), *walk);
+            }
+        }
         BuildQuorumSnapshot(llmqParams, util_params.m_chainman.GetConsensus(), allMns, MnsUsedAtH, quorumSnapshot,
                             walk->skip_list, util_params.m_base_index);
+        if (short_quarters) quorumSnapshot.mnSkipListMode = SnapshotSkipMode::MODE_SHORT_QUARTERS;
         util_params.m_qsnapman.StoreSnapshotForBlock(llmqParams.type, util_params.m_base_index, quorumSnapshot);
     }
 
     return quarterQuorumMembers;
 }
 
-// Computes the members of all quorum indexes of the cycle starting at cycleBaseHeight, which
-// is not required to be mined yet: everything is derived from the cycle's work block. Pass
-// storeSnapshot=false when predicting a future cycle.
 std::vector<QuorumMembers> ComputeQuorumMembersByQuarterRotation(const Consensus::LLMQParams& llmqParams,
                                                                  const llmq::UtilParameters& util_params,
                                                                  gsl::not_null<const CBlockIndex*> pWorkBlockIndex,
                                                                  int cycleBaseHeight, const uint256& modifier,
                                                                  bool predicting)
 {
-    const int cycleLength = llmqParams.dkgInterval;
-    if (!llmqParams.useRotation || cycleBaseHeight % llmqParams.dkgInterval != 0) {
-        ASSERT_IF_DEBUG(false);
-        return {};
-    }
-    const auto nQuorums{static_cast<size_t>(llmqParams.signingActiveQuorumCount)};
-
-    CDeterministicMNList allMns = util_params.m_dmnman.GetListForBlock(pWorkBlockIndex);
-    LogPrint(BCLog::LLMQ, "ComputeQuorumMembersByQuarterRotation llmqType[%d] nHeight[%d] allMns[%d]\n",
-             std23::to_underlying(llmqParams.type), cycleBaseHeight, allMns.GetCounts().enabled());
-
-    PreviousQuorumQuarters previousQuarters(nQuorums);
-    auto prev_cycles{previousQuarters.GetCycles()};
-    for (size_t idx{0}; idx < prev_cycles.size(); idx++) {
-        prev_cycles[idx]->m_cycle_index = pWorkBlockIndex->GetAncestor(cycleBaseHeight - (cycleLength * (idx + 1)));
-        if (prev_cycles[idx]->m_cycle_index == nullptr) {
-            if (predicting) return {};
-            break;
+    auto quarters = llmq::utils::ComputeRotationQuarters(llmqParams, util_params, pWorkBlockIndex, cycleBaseHeight,
+                                                         modifier, predicting);
+    std::vector<QuorumMembers> quorumMembers(quarters.size());
+    for (const size_t i : util::irange(quarters.size())) {
+        for (auto& quarter : quarters[i]) {
+            std::move(quarter.begin(), quarter.end(), std::back_inserter(quorumMembers[i]));
         }
-        if (auto opt_snap = util_params.m_qsnapman.GetSnapshotForBlock(llmqParams.type, prev_cycles[idx]->m_cycle_index);
-            opt_snap.has_value()) {
-            prev_cycles[idx]->m_snap = opt_snap.value();
-        } else {
-            if (predicting) return {};
-            // TODO: Check if it is triggered from outside (P2P, block validation) and maybe throw an exception
-            // assert(false);
-            break;
-        }
-        prev_cycles[idx]->m_members = GetQuorumQuarterMembersBySnapshot(llmqParams, util_params.m_dmnman,
-                                                                        util_params.m_chainman.GetConsensus(),
-                                                                        prev_cycles[idx]->m_cycle_index,
-                                                                        prev_cycles[idx]->m_snap,
-                                                                        cycleBaseHeight);
-    }
-
-    auto newQuarterMembers = BuildNewQuorumQuarterMembers(llmqParams, util_params, allMns, previousQuarters, modifier,
-                                                          cycleBaseHeight, /*storeSnapshot=*/!predicting);
-    // TODO: Check if it is triggered from outside (P2P, block validation) and maybe throw an exception
-    // assert (!newQuarterMembers.empty());
-
-    if (LogAcceptDebug(BCLog::LLMQ)) {
-        for (const size_t i : util::irange(nQuorums)) {
-            std::stringstream ss;
-            for (size_t idx = prev_cycles.size(); idx > 0; --idx) {
-                const size_t cycle = idx - 1;
-                ss << strprintf(" %dCmns[%s]", cycle, ToString(prev_cycles[cycle]->m_members[i]));
-            }
-            ss << strprintf(" new[%s]", ToString(newQuarterMembers[i]));
-            LogPrint(BCLog::LLMQ, "QuarterComposition h[%d] i[%d]:%s\n", cycleBaseHeight, i, ss.str());
-        }
-    }
-
-    std::vector<QuorumMembers> quorumMembers(nQuorums);
-    for (const size_t i : util::irange(nQuorums)) {
-        // Move elements from previous quarters into quorumMembers
-        for (auto* prev_cycle : prev_cycles | std::views::reverse) {
-            std::move(prev_cycle->m_members[i].begin(), prev_cycle->m_members[i].end(),
-                      std::back_inserter(quorumMembers[i]));
-        }
-        std::move(newQuarterMembers[i].begin(), newQuarterMembers[i].end(), std::back_inserter(quorumMembers[i]));
         if (LogAcceptDebug(BCLog::LLMQ)) {
             LogPrint(BCLog::LLMQ, "QuorumComposition h[%d] i[%d]: [%s]\n", cycleBaseHeight, i,
                      ToString(quorumMembers[i]));
@@ -718,6 +681,88 @@ void BlsCheck::swap(BlsCheck& obj) noexcept
     std::swap(m_id_string, obj.m_id_string);
 }
 
+// Computes the quarters of all quorum indexes of the cycle starting at cycleBaseHeight, which
+// is not required to be mined yet: everything is derived from the cycle's work block. No
+// snapshot is stored when predicting a future cycle.
+std::vector<std::array<QuorumMembers, 4>> ComputeRotationQuarters(const Consensus::LLMQParams& llmqParams,
+                                                                  const UtilParameters& util_params,
+                                                                  gsl::not_null<const CBlockIndex*> pWorkBlockIndex,
+                                                                  int cycleBaseHeight, const uint256& modifier,
+                                                                  bool predicting)
+{
+    const int cycleLength = llmqParams.dkgInterval;
+    if (!llmqParams.useRotation || cycleBaseHeight % llmqParams.dkgInterval != 0) {
+        ASSERT_IF_DEBUG(false);
+        return {};
+    }
+    const auto nQuorums{static_cast<size_t>(llmqParams.signingActiveQuorumCount)};
+    const ChainstateManager& chainman{util_params.m_chainman};
+    // A predicted cycle isn't mined yet, so it can't be one of the historical legacy cycles
+    const bool step_walk{predicting || !IsLegacyRotationCycle(chainman.GetConsensus(), *util_params.m_base_index)};
+
+    CDeterministicMNList allMns = util_params.m_dmnman.GetListForBlock(pWorkBlockIndex);
+    LogPrint(BCLog::LLMQ, "ComputeQuorumMembersByQuarterRotation llmqType[%d] nHeight[%d] allMns[%d]\n",
+             std23::to_underlying(llmqParams.type), cycleBaseHeight, allMns.GetCounts().enabled());
+
+    PreviousQuorumQuarters previousQuarters(nQuorums);
+    auto prev_cycles{previousQuarters.GetCycles()};
+    for (size_t idx{0}; idx < prev_cycles.size(); idx++) {
+        prev_cycles[idx]->m_cycle_index = pWorkBlockIndex->GetAncestor(cycleBaseHeight - (cycleLength * (idx + 1)));
+        if (prev_cycles[idx]->m_cycle_index == nullptr) {
+            if (predicting) return {};
+            break;
+        }
+        if (auto opt_snap = util_params.m_qsnapman.GetSnapshotForBlock(llmqParams.type, prev_cycles[idx]->m_cycle_index);
+            opt_snap.has_value()) {
+            prev_cycles[idx]->m_snap = opt_snap.value();
+        } else {
+            if (predicting) return {};
+            // TODO: Check if it is triggered from outside (P2P, block validation) and maybe throw an exception
+            // assert(false);
+            break;
+        }
+        prev_cycles[idx]->m_members = GetQuorumQuarterMembersBySnapshot(llmqParams, util_params.m_dmnman,
+                                                                        chainman.GetConsensus(),
+                                                                        prev_cycles[idx]->m_cycle_index,
+                                                                        prev_cycles[idx]->m_snap,
+                                                                        cycleBaseHeight);
+    }
+
+    auto newQuarterMembers = BuildNewQuorumQuarterMembers(llmqParams, util_params, allMns, previousQuarters, modifier,
+                                                          cycleBaseHeight, /*storeSnapshot=*/!predicting, step_walk);
+    if (!newQuarterMembers) {
+        return {};
+    }
+    // TODO: Check if it is triggered from outside (P2P, block validation) and maybe throw an exception
+    // assert (!newQuarterMembers->empty());
+
+    if (LogAcceptDebug(BCLog::LLMQ)) {
+        for (const size_t i : util::irange(nQuorums)) {
+            std::stringstream ss;
+            for (size_t idx = prev_cycles.size(); idx > 0; --idx) {
+                const size_t cycle = idx - 1;
+                ss << strprintf(" %dCmns[%s]", cycle, ToString(prev_cycles[cycle]->m_members[i]));
+            }
+            ss << strprintf(" new[%s]", ToString((*newQuarterMembers)[i]));
+            LogPrint(BCLog::LLMQ, "QuarterComposition h[%d] i[%d]:%s\n", cycleBaseHeight, i, ss.str());
+        }
+    }
+
+    std::vector<std::array<QuorumMembers, 4>> quarters(nQuorums);
+    for (const size_t i : util::irange(nQuorums)) {
+        quarters[i] = {std::move(previousQuarters.quarterHMinus3C.m_members[i]),
+                       std::move(previousQuarters.quarterHMinus2C.m_members[i]),
+                       std::move(previousQuarters.quarterHMinusC.m_members[i]), std::move((*newQuarterMembers)[i])};
+    }
+    return quarters;
+}
+
+bool IsLegacyRotationCycle(const Consensus::Params& params, const CBlockIndex& cycle_base)
+{
+    return std::ranges::find(params.llmqLegacyRotationCycles, cycle_base.GetBlockHash()) !=
+           params.llmqLegacyRotationCycles.end();
+}
+
 std::optional<std::vector<CDeterministicMNCPtr>> ComputeQuorumMembersFromWorkBlock(
     Consensus::LLMQType llmqType, const UtilParameters& util_params, gsl::not_null<const CBlockIndex*> pWorkBlockIndex,
     int quorumHeight)
@@ -837,6 +882,9 @@ QuorumMembers GetAllQuorumMembers(Consensus::LLMQType llmqType, const UtilParame
         auto q = ComputeQuorumMembersByQuarterRotation(llmq_params, util_params.replace_index(pCycleQuorumBaseBlockIndex),
                                                        pWorkBlockIndex, cycleQuorumBaseHeight, modifier,
                                                        /*predicting=*/false);
+        if (q.empty()) {
+            return {};
+        }
         quorumMembers = q[quorumIndex];
 
         LOCK(cs_indexed_members);
