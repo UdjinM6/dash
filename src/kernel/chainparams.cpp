@@ -1028,6 +1028,7 @@ public:
         UpdateLLMQTestParameters(opts, Consensus::LLMQType::LLMQ_TEST);
         UpdateLLMQTestParameters(opts, Consensus::LLMQType::LLMQ_TEST_INSTANTSEND);
         UpdateLLMQTestParameters(opts, Consensus::LLMQType::LLMQ_TEST_PLATFORM);
+        UpdateLLMQTestParameters(opts, Consensus::LLMQType::LLMQ_TEST_DIP0024);
         UpdateLLMQInstantSendDIP0024(opts);
         // V20 features for CbTx (credit pool, CL) have no meaning without masternodes
         assert(consensus.V20Height >= consensus.DIP0003Height);
@@ -1145,7 +1146,7 @@ private:
      */
     void UpdateLLMQTestParameters(const RegTestOptions& opts, const Consensus::LLMQType llmqType)
     {
-        assert(llmqType == Consensus::LLMQType::LLMQ_TEST || llmqType == Consensus::LLMQType::LLMQ_TEST_INSTANTSEND || llmqType == Consensus::LLMQType::LLMQ_TEST_PLATFORM);
+        assert(llmqType == Consensus::LLMQType::LLMQ_TEST || llmqType == Consensus::LLMQType::LLMQ_TEST_INSTANTSEND || llmqType == Consensus::LLMQType::LLMQ_TEST_PLATFORM || llmqType == Consensus::LLMQType::LLMQ_TEST_DIP0024);
 
         const auto it = opts.llmq_test_parameters.find(llmqType);
         if (it == opts.llmq_test_parameters.end()) return;
