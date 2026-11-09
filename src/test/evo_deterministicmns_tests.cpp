@@ -38,6 +38,7 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <array>
 #include <map>
 #include <optional>
 #include <set>
@@ -1343,7 +1344,8 @@ void FuncTestMempoolReorg(TestChainSetup& setup)
 // removeProTxKeyChangedConflicts() collects those into a std::set<uint256> before removing any of
 // them. When one conflicting TX is an in-mempool descendant of another, removeRecursive() on the
 // ancestor also erases the descendant, so the descendant's txid in the snapshot no longer resolves.
-// Dereferencing that stale iterator aborted the node; it must be skipped instead.
+// Dereferencing that stale iterator aborted the node; it must be skipped instead. The reverse order,
+// where the descendant is removed on its own before its ancestor, must clear the mempool as well.
 //
 // Reachable from CTxMemPool::removeForBlock() (any block carrying such a ProTx).
 void FuncTestMempoolProTxKeyChangedConflictChain(TestChainSetup& setup)
@@ -1353,15 +1355,29 @@ void FuncTestMempoolProTxKeyChangedConflictChain(TestChainSetup& setup)
     auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
     const CScript scriptPayout = GetScriptForDestination(PKHash(setup.coinbaseKey.GetPubKey()));
 
-    CKey ownerKey;
-    CBLSSecretKey operatorKey;
-    // Only the resulting proTxHash matters here; the registration never has to be mined because
-    // a pending ProUpServ of a masternode missing from the list is evicted by any operator key change.
-    auto tx_reg = CreateProRegTx(chainman, utxos, 1, scriptPayout, setup.coinbaseKey, ownerKey, operatorKey);
-    const uint256 proTxHash = tx_reg.GetHash();
+    // A fixed operator key and proTxHash make every txid below reproducible across runs. The
+    // registration itself is not needed: a pending ProUpServ of a masternode missing from the list
+    // is evicted by any operator key change.
+    const uint256 proTxHash{uint256::ONE};
+    std::array<uint8_t, 32> operator_key_bytes{};
+    operator_key_bytes.back() = 1;
+    const CBLSSecretKey operatorKey{operator_key_bytes};
+    BOOST_REQUIRE(operatorKey.IsValid());
 
-    // Parent ProUpServ for that masternode.
-    auto tx_parent = CreateProUpServTx(chainman, utxos, proTxHash, operatorKey, 2, CScript(), setup.coinbaseKey);
+    // Parent ProUpServ for that masternode. Grind its fee until its txid sorts mid-range (uint256
+    // compares bytes in memory order, so data()[0] is the most significant one), leaving room for
+    // the child grind below to land on either side of it.
+    const SimpleUTXOMap utxos_unspent{utxos};
+    CMutableTransaction tx_parent;
+    bool parent_mid_range{false};
+    for (CAmount fee = 0; fee < 1000 && !parent_mid_range; ++fee) {
+        utxos = utxos_unspent;
+        tx_parent = CreateProUpServTx(chainman, utxos, proTxHash, operatorKey, 2, CScript(), setup.coinbaseKey,
+                                      ProTxVersion::GetMax(!bls::bls_legacy_scheme, /*is_extended_addr=*/false), fee);
+        const uint8_t top_byte{tx_parent.GetHash().data()[0]};
+        parent_mid_range = top_byte >= 0x40 && top_byte < 0xc0;
+    }
+    BOOST_REQUIRE(parent_mid_range);
     BOOST_REQUIRE(!tx_parent.vout.empty());
 
     // Child ProUpServ for the same masternode, spending the parent's first output.
@@ -1383,34 +1399,37 @@ void FuncTestMempoolProTxKeyChangedConflictChain(TestChainSetup& setup)
     payload.sig = operatorKey.Sign(::SerializeHash(payload), bls::bls_legacy_scheme);
     SetTxPayload(tx_child, payload);
 
-    // Grind the child's output value until the parent's txid sorts before the child's: the
-    // snapshot is an ordered set, so this makes the parent get removed first, taking the child
-    // with it, and only then is the child's now-stale txid revisited. Only the output value has to
-    // change -- inputsHash covers the inputs alone, so the payload and its BLS signature stay put,
-    // and re-signing replaces the scriptSig outright.
-    bool parent_sorts_first{false};
-    for (CAmount fee = 1000; fee < 2000 && !parent_sorts_first; ++fee) {
-        tx_child.vout[0].nValue = tx_parent.vout[0].nValue - fee;
-        BOOST_REQUIRE(SignSignature(keystore, CTransaction(tx_parent), tx_child, 0, SIGHASH_ALL));
-        parent_sorts_first = tx_parent.GetHash() < tx_child.GetHash();
-    }
-    BOOST_REQUIRE(parent_sorts_first);
-
-    // The revocation that invalidates both pending ProUpServ transactions.
+    // The revocation that invalidates both pending ProUpServ transactions. It is funded from coins
+    // the parent does not spend, so only the key change can evict the chain.
     auto tx_revoke = CreateProUpRevTx(chainman, utxos, proTxHash, operatorKey, setup.coinbaseKey);
+    const std::vector<CTransactionRef> block_txs{std::make_shared<CTransaction>(tx_revoke)};
 
-    CTxMemPool testPool{MemPoolOptionsForTest(setup.m_node)};
-    TestMemPoolEntryHelper entry;
-    LOCK2(cs_main, testPool.cs);
+    // The snapshot is an ordered set. Parent first: removing the parent takes the child with it,
+    // and only then is the child's now-stale txid revisited. Child first: the child is removed on
+    // its own, then the parent. Grind the child's output value to get each order; only the output
+    // value has to change -- inputsHash covers the inputs alone, so the payload and its BLS
+    // signature stay put, and re-signing replaces the scriptSig outright.
+    for (const bool parent_first : {true, false}) {
+        bool order_reached{false};
+        for (CAmount fee = 1000; fee < 2000 && !order_reached; ++fee) {
+            tx_child.vout[0].nValue = tx_parent.vout[0].nValue - fee;
+            BOOST_REQUIRE(SignSignature(keystore, CTransaction(tx_parent), tx_child, 0, SIGHASH_ALL));
+            order_reached = (tx_parent.GetHash() < tx_child.GetHash()) == parent_first;
+        }
+        BOOST_REQUIRE(order_reached);
 
-    testPool.addUnchecked(entry.FromTx(tx_parent));
-    testPool.addUnchecked(entry.FromTx(tx_child));
-    BOOST_CHECK_EQUAL(testPool.size(), 2U);
+        CTxMemPool testPool{MemPoolOptionsForTest(setup.m_node)};
+        TestMemPoolEntryHelper entry;
+        LOCK2(cs_main, testPool.cs);
 
-    // Pre-fix this aborted the process instead of returning.
-    std::vector<CTransactionRef> block_txs{std::make_shared<CTransaction>(tx_revoke)};
-    testPool.removeForBlock(block_txs, chainman.ActiveChain().Height() + 1);
-    BOOST_CHECK_EQUAL(testPool.size(), 0U);
+        testPool.addUnchecked(entry.FromTx(tx_parent));
+        testPool.addUnchecked(entry.FromTx(tx_child));
+        BOOST_CHECK_EQUAL(testPool.size(), 2U);
+
+        // Pre-fix the parent-first order aborted the process instead of returning.
+        testPool.removeForBlock(block_txs, chainman.ActiveChain().Height() + 1);
+        BOOST_CHECK_EQUAL(testPool.size(), 0U);
+    }
 }
 
 // Re-types a registration as an EvoNode with internal collateral claiming the given Platform node ID.
