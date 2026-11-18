@@ -42,6 +42,7 @@
 #include <validation.h>
 
 #include <algorithm>
+#include <chrono>
 #include <iomanip>
 #include <map>
 #include <optional>
@@ -998,6 +999,79 @@ static RPCHelpMan quorum_rotationinfo()
     };
 }
 
+// BENCH ONLY (not for merge): time CQuorumBlockProcessor::GetSigningRecords() on real chain data.
+static RPCHelpMan benchsigningrecords()
+{
+    return RPCHelpMan{
+        "benchsigningrecords",
+        "BENCH ONLY: time CQuorumBlockProcessor::GetSigningRecords() at a block of the active chain.\n",
+        {
+            {"height", RPCArg::Type::NUM, RPCArg::DefaultHint{"tip height rounded down to a multiple of 288"}, "Gathering block height"},
+            {"window", RPCArg::Type::NUM, RPCArg::Default{4032}, "Window in blocks"},
+            {"probe", RPCArg::Type::BOOL, RPCArg::Default{false}, "Also time GetAllQuorumMembers() for the rotated InstantSend quorum based at the gathering block, before and after the gather"},
+        },
+        RPCResult{RPCResult::Type::ANY, "", ""},
+        RPCExamples{""},
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    using Clock = std::chrono::steady_clock;
+    const auto ms_since = [](Clock::time_point start) {
+        return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
+    };
+
+    const NodeContext& node = EnsureAnyNodeContext(request.context);
+    const ChainstateManager& chainman = EnsureChainman(node);
+    const LLMQContext& llmq_ctx = EnsureLLMQContext(node);
+    const int window{request.params[1].isNull() ? 4032 : request.params[1].getInt<int>()};
+    const bool probe{!request.params[2].isNull() && request.params[2].get_bool()};
+
+    const CBlockIndex* pindex{nullptr};
+    {
+        LOCK(cs_main);
+        const int tip{chainman.ActiveChain().Height()};
+        const int height{request.params[0].isNull() ? tip - tip % 288 : request.params[0].getInt<int>()};
+        pindex = chainman.ActiveChain()[height];
+    }
+    if (pindex == nullptr) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "height out of range");
+    }
+
+    const auto is_type{Params().GetConsensus().llmqTypeDIP0024InstantSend};
+    const auto time_members = [&](UniValue& obj, const std::string& prefix) {
+        const auto start{Clock::now()};
+        const auto members = llmq::utils::GetAllQuorumMembers(is_type, {*CHECK_NONFATAL(node.dmnman), *llmq_ctx.qsnapman,
+                                                                        chainman, pindex});
+        obj.pushKV(prefix + "_ms", ms_since(start));
+        obj.pushKV(prefix + "_members", static_cast<int>(members.size()));
+    };
+
+    UniValue ret(UniValue::VOBJ);
+    ret.pushKV("height", pindex->nHeight);
+    ret.pushKV("window", window);
+    if (probe) time_members(ret, "probe_before");
+
+    const auto start{Clock::now()};
+    const auto records = llmq_ctx.quorum_block_processor->GetSigningRecords(pindex, window);
+    const double total_ms{ms_since(start)};
+    const auto bench{llmq::g_signing_records_bench};
+
+    if (probe) time_members(ret, "probe_after");
+    ret.pushKV("ok", records != nullptr);
+    ret.pushKV("total_ms", total_ms);
+    ret.pushKV("aggregate_cache_hit", bench.aggregate_cache_hit);
+    ret.pushKV("commitments", bench.commitments);
+    ret.pushKV("signer_cache_misses", bench.signer_cache_misses);
+    ret.pushKV("masternodes", bench.masternodes);
+    ret.pushKV("enumerate_ms", bench.enumerate_us / 1000.0);
+    ret.pushKV("read_commitments_ms", bench.read_commitments_us / 1000.0);
+    ret.pushKV("signers_ms", bench.signers_us / 1000.0);
+    ret.pushKV("members_ms", bench.members_us / 1000.0);
+    ret.pushKV("verify_ms", bench.verify_us / 1000.0);
+    return ret;
+},
+    };
+}
+
 static RPCHelpMan quorum_dkginfo()
 {
     return RPCHelpMan{
@@ -1692,6 +1766,7 @@ void RegisterQuorumsRPCCommands(CRPCTable& t)
         {"evo", &getchainlockbyheight},
         {"evo", &getquorumproofchain},
         {"evo", &verifyquorumproofchain},
+        {"hidden", &benchsigningrecords},
     };
     for (const auto& command : commands) {
         t.appendCommand(command.name, &command);

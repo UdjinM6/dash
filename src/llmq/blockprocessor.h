@@ -53,6 +53,20 @@ struct SigningRecord {
 };
 using SigningRecords = Uint256HashMap<std::vector<SigningRecord>>;
 
+//! BENCH ONLY (not for merge): breakdown of the last GetSigningRecords() call, read by the benchsigningrecords RPC.
+struct SigningRecordsBench {
+    bool aggregate_cache_hit{false};
+    int64_t enumerate_us{0};       //!< commitment enumeration under cs_main
+    int64_t read_commitments_us{0}; //!< GetMinedCommitment() EvoDB reads + deserialization
+    int64_t signers_us{0};          //!< GetValidMemberSigners() total (hash + cache lookup + member reconstruction)
+    int64_t members_us{0};          //!< of which: GetAllQuorumMembers() on per-commitment cache misses
+    int64_t verify_us{0};           //!< final reorg check under cs_main
+    int commitments{0};
+    int signer_cache_misses{0};
+    int masternodes{0};
+};
+extern SigningRecordsBench g_signing_records_bench;
+
 /** Erase a mined commitment unless another chainstate still contains its block. */
 bool EraseMinedCommitmentIfUnreferenced(CEvoDB& evo_db, const Chainstate& chainstate,
                                         gsl::not_null<const CBlockIndex*> pindex,

@@ -28,6 +28,7 @@
 #include <validation.h>
 
 #include <algorithm>
+#include <chrono>
 #include <map>
 #include <ranges>
 #include <set>
@@ -851,6 +852,15 @@ std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsIndexe
     return ret;
 }
 
+SigningRecordsBench g_signing_records_bench;
+
+namespace {
+int64_t BenchMicrosSince(std::chrono::steady_clock::time_point start)
+{
+    return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start).count();
+}
+} // anonymous namespace
+
 std::shared_ptr<const CQuorumBlockProcessor::ValidMemberSigners> CQuorumBlockProcessor::GetValidMemberSigners(
     const CFinalCommitment& qc, gsl::not_null<const CBlockIndex*> pQuorumBaseBlockIndex) const
 {
@@ -859,7 +869,10 @@ std::shared_ptr<const CQuorumBlockProcessor::ValidMemberSigners> CQuorumBlockPro
         return it->second.second;
     }
 
+    ++g_signing_records_bench.signer_cache_misses;
+    const auto members_start{std::chrono::steady_clock::now()};
     const auto members = utils::GetAllQuorumMembers(qc.llmqType, {m_dmnman, m_qsnapman, m_chainman, pQuorumBaseBlockIndex});
+    g_signing_records_bench.members_us += BenchMicrosSince(members_start);
     if (members.size() > qc.validMembers.size() || members.size() > qc.signers.size()) {
         return nullptr;
     }
@@ -878,13 +891,16 @@ std::shared_ptr<const SigningRecords> CQuorumBlockProcessor::GetSigningRecords(g
 {
     // Held throughout, so that DKG sessions starting at the same block gather the records only once
     LOCK(m_signing_records_mutex);
+    g_signing_records_bench = {};
     const uint256 cache_key{::SerializeHash(std::make_pair(pindex->GetBlockHash(), window))};
     if (std::shared_ptr<const SigningRecords> cached; m_signing_records_cache.get(cache_key, cached)) {
+        g_signing_records_bench.aggregate_cache_hit = true;
         return cached;
     }
 
     const int min_height{pindex->nHeight - window};
     std::vector<std::pair<Consensus::LLMQType, std::vector<const CBlockIndex*>>> quorums_by_type;
+    const auto enumerate_start{std::chrono::steady_clock::now()};
     {
         // While pindex is on the active chain, the mined commitments until pindex are those of its chain
         LOCK(::cs_main);
@@ -904,6 +920,8 @@ std::shared_ptr<const SigningRecords> CQuorumBlockProcessor::GetSigningRecords(g
         }
     }
 
+    g_signing_records_bench.enumerate_us = BenchMicrosSince(enumerate_start);
+
     auto ret = std::make_shared<SigningRecords>();
     std::vector<uint256> mined_block_hashes;
     for (const auto& [type, quorums] : quorums_by_type) {
@@ -912,11 +930,16 @@ std::shared_ptr<const SigningRecords> CQuorumBlockProcessor::GetSigningRecords(g
             if (pQuorumBaseBlockIndex->nHeight <= min_height) {
                 continue;
             }
+            const auto read_start{std::chrono::steady_clock::now()};
             const auto [qc, mined_block_hash] = GetMinedCommitment(type, pQuorumBaseBlockIndex->GetBlockHash());
+            g_signing_records_bench.read_commitments_us += BenchMicrosSince(read_start);
+            ++g_signing_records_bench.commitments;
             if (qc.IsNull()) {
                 return nullptr;
             }
+            const auto signers_start{std::chrono::steady_clock::now()};
             const auto signers = GetValidMemberSigners(qc, pQuorumBaseBlockIndex);
+            g_signing_records_bench.signers_us += BenchMicrosSince(signers_start);
             if (!signers) {
                 return nullptr;
             }
@@ -927,6 +950,7 @@ std::shared_ptr<const SigningRecords> CQuorumBlockProcessor::GetSigningRecords(g
         }
     }
 
+    const auto verify_start{std::chrono::steady_clock::now()};
     {
         // The commitments were read without cs_main, so a reorg may have replaced some of them since
         LOCK(::cs_main);
@@ -937,6 +961,9 @@ std::shared_ptr<const SigningRecords> CQuorumBlockProcessor::GetSigningRecords(g
             }
         }
     }
+
+    g_signing_records_bench.verify_us = BenchMicrosSince(verify_start);
+    g_signing_records_bench.masternodes = static_cast<int>(ret->size());
 
     // Sessions of types with a longer DKG interval gather at an older block
     std::erase_if(m_valid_member_signers_cache,
