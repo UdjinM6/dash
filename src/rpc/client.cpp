@@ -440,6 +440,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "benchsigningrecords", 0, "height" },
     { "benchsigningrecords", 1, "window" },
     { "benchsigningrecords", 2, "probe" },
+    { "benchsigningrecords", 3, "report" },
     { "quorum dkgstatus", 1, "detail_level" },
     { "quorum getdata", 1, "nodeId" },
     { "quorum getdata", 2, "llmqType" },

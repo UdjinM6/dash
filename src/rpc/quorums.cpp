@@ -3,11 +3,13 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <active/context.h>
+#include <active/dkgsession.h>
 #include <active/masternode.h>
 #include <chainlock/chainlock.h>
 #include <chainlock/clsig.h>
 #include <chainlock/handler.h>
 #include <evo/deterministicmns.h>
+#include <evo/dmn_types.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/context.h>
@@ -1014,6 +1016,7 @@ static RPCHelpMan benchsigningrecords()
             {"height", RPCArg::Type::NUM, RPCArg::DefaultHint{"tip height rounded down to a multiple of 288"}, "Gathering block height"},
             {"window", RPCArg::Type::NUM, RPCArg::Default{4032}, "Window in blocks"},
             {"probe", RPCArg::Type::BOOL, RPCArg::Default{false}, "Also time GetAllQuorumMembers() for the rotated InstantSend quorum based at the gathering block, before and after the gather"},
+            {"report", RPCArg::Type::BOOL, RPCArg::Default{false}, "Also report the masternodes voted bad or at risk, and how many members of the active quorums are voted bad"},
         },
         RPCResult{RPCResult::Type::ANY, "", ""},
         RPCExamples{""},
@@ -1072,6 +1075,84 @@ static RPCHelpMan benchsigningrecords()
     ret.pushKV("signers_ms", bench.signers_us / 1000.0);
     ret.pushKV("members_ms", bench.members_us / 1000.0);
     ret.pushKV("verify_ms", bench.verify_us / 1000.0);
+
+    const bool report{!request.params[3].isNull() && request.params[3].get_bool()};
+    if (report && records) {
+        const auto mn_list = CHECK_NONFATAL(node.dmnman)->GetListAtChainTip();
+        int enabled{0}, with_history{0}, eligible{0}, voted_bad{0}, at_risk{0};
+        Uint256HashSet bad_set;
+        UniValue bad_arr(UniValue::VARR), risk_arr(UniValue::VARR);
+        mn_list.ForEachMN(/*onlyValid=*/true, [&](const CDeterministicMN& dmn) {
+            ++enabled;
+            const auto summary = llmq::SummarizeSigningHistory(*records, mn_list, dmn.proTxHash,
+                                                               llmq::SigningHistoryExpiringUntil(pindex->nHeight));
+            if (summary.valid > 0) ++with_history;
+            if (summary.valid >= 6) ++eligible;
+            const bool risk{llmq::IsSigningHistoryAtRisk(summary)};
+            if (!summary.voted_bad && !risk) return;
+            UniValue o(UniValue::VOBJ);
+            o.pushKV("proTxHash", dmn.proTxHash.ToString());
+            o.pushKV("type", std::string(GetMnType(dmn.nType).description));
+            o.pushKV("valid", summary.valid);
+            o.pushKV("signed", summary.signed_count);
+            o.pushKV("recentUnsigned", summary.recent_unsigned);
+            o.pushKV("oneMissAway", summary.one_miss_from_voted_bad);
+            o.pushKV("expiringSoon", summary.voted_bad_after_expiry);
+            o.pushKV("PoSePenalty", dmn.pdmnState->nPoSePenalty);
+            if (summary.voted_bad) {
+                ++voted_bad;
+                bad_set.insert(dmn.proTxHash);
+                bad_arr.push_back(o);
+            } else {
+                ++at_risk;
+                risk_arr.push_back(o);
+            }
+        });
+        UniValue rep(UniValue::VOBJ);
+        rep.pushKV("enabled_masternodes", enabled);
+        rep.pushKV("with_history", with_history);
+        rep.pushKV("eligible_6plus", eligible);
+        rep.pushKV("voted_bad_count", voted_bad);
+        rep.pushKV("at_risk_count", at_risk);
+        rep.pushKV("voted_bad", bad_arr);
+        rep.pushKV("at_risk", risk_arr);
+
+        // How many members of each type's active quorums would be voted bad, against the slack size - minSize
+        UniValue quorums_obj(UniValue::VOBJ);
+        const CBlockIndex* tip = WITH_LOCK(cs_main, return chainman.ActiveChain().Tip());
+        for (const auto& params : Params().GetConsensus().llmqs) {
+            if (params.is_single_member()) continue;
+            std::vector<const CBlockIndex*> bases;
+            {
+                LOCK(cs_main);
+                const auto count{static_cast<size_t>(params.signingActiveQuorumCount)};
+                bases = llmq::IsQuorumRotationEnabled(params, tip)
+                            ? llmq_ctx.quorum_block_processor->GetMinedCommitmentsIndexedUntilBlock(params.type, tip, count)
+                            : llmq_ctx.quorum_block_processor->GetMinedCommitmentsUntilBlock(params.type, tip, count);
+            }
+            if (bases.empty()) continue;
+            int max_bad{0}, over_slack{0};
+            UniValue per_quorum(UniValue::VARR);
+            for (const auto* base : bases) {
+                const auto members = llmq::utils::GetAllQuorumMembers(params.type, {*node.dmnman, *llmq_ctx.qsnapman,
+                                                                                    chainman, base});
+                const int bad{static_cast<int>(std::ranges::count_if(
+                    members, [&](const auto& m) { return bad_set.contains(m->proTxHash); }))};
+                max_bad = std::max(max_bad, bad);
+                over_slack += bad > params.size - params.minSize;
+                per_quorum.push_back(bad);
+            }
+            UniValue q(UniValue::VOBJ);
+            q.pushKV("quorums", static_cast<int>(bases.size()));
+            q.pushKV("slack", params.size - params.minSize);
+            q.pushKV("max_voted_bad_members", max_bad);
+            q.pushKV("quorums_over_slack", over_slack);
+            q.pushKV("voted_bad_members_per_quorum", per_quorum);
+            quorums_obj.pushKV(std::string(params.name), q);
+        }
+        rep.pushKV("active_quorums", quorums_obj);
+        ret.pushKV("report", rep);
+    }
     return ret;
 },
     };
